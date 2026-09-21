@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KTV 包厢收银台 · 设计原型</title>
+  <style>
+    :root {
+      --nav: #171927;
+      --nav-muted: #8d92a7;
+      --nav-active: #3d8cff;
+      --bg: #f3f5f9;
+      --card: #ffffff;
+      --text: #20232d;
+      --muted: #7b8190;
+      --line: #e8ebf1;
+      --blue: #3478f6;
+      --green: #22a876;
+      --red: #e2545f;
+      --orange: #ef8f32;
+      --purple: #7857d8;
+      --shadow: 0 8px 28px rgba(30, 42, 68, .07);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      overflow: hidden;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .app { height: 100%; display: grid; grid-template-columns: 220px minmax(0, 1fr); }
+
+    .sidebar {
+      background: var(--nav);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      box-shadow: 4px 0 18px rgba(19, 21, 34, .08);
+      z-index: 3;
+    }
+    .brand {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 0 22px;
+      gap: 11px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+    .brand-mark {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      background: linear-gradient(145deg, #5ba5ff, #2867e6);
+      box-shadow: 0 7px 16px rgba(52,120,246,.32);
+      font-size: 15px;
+    }
+    .nav { padding: 14px 10px; overflow: auto; }
+    .nav-section {
+      padding: 15px 13px 7px;
+      color: #61667a;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+    }
+    .nav-item {
+      height: 42px;
+      padding: 0 13px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 3px 0;
+      border-radius: 8px;
+      color: var(--nav-muted);
+      font-size: 14px;
+      position: relative;
+    }
+    .nav-item:hover { color: #dfe4f4; background: rgba(255,255,255,.04); }
+    .nav-item.active { color: #fff; background: linear-gradient(90deg, rgba(61,140,255,.23), rgba(61,140,255,.09)); }
+    .nav-item.active::before {
+      content: "";
+      position: absolute;
+      left: -10px;
+      width: 3px;
+      height: 24px;
+      border-radius: 0 4px 4px 0;
+      background: var(--nav-active);
+    }
+    .nav-icon { width: 18px; text-align: center; opacity: .9; }
+    .nav-badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: #e6535f; color:#fff; font-size: 11px; display:grid; place-items:center; }
+    .sidebar-bottom { margin-top: auto; padding: 18px; border-top: 1px solid rgba(255,255,255,.07); }
+    .store-card { padding: 12px; border-radius: 10px; background: rgba(255,255,255,.055); }
+    .store-card b { font-size: 13px; }
+    .store-card p { margin: 5px 0 0; font-size: 11px; color: #777d91; }
+
+    .shell { min-width: 0; display: flex; flex-direction: column; }
+    .topbar {
+      height: 64px;
+      flex: 0 0 64px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      border-bottom: 1px solid #eceef3;
+    }
+    .crumb { display: flex; gap: 12px; align-items: center; color: #8b91a0; font-size: 13px; }
+    .crumb strong { color: #30343f; font-weight: 600; }
+    .top-actions { display: flex; align-items: center; gap: 14px; font-size: 13px; color: #5d6270; }
+    .tenant-tag { padding: 4px 9px; border-radius: 5px; color: #2f9c70; border: 1px solid #bde8d7; background: #f3fcf8; font-size: 12px; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg,#8891a9,#5e6578); }
+
+    main { min-height: 0; overflow: auto; padding: 22px 24px 32px; }
+    .page { max-width: 1700px; margin: 0 auto; }
+    .page-heading { display: flex; justify-content: space-between; gap: 18px; align-items: center; margin-bottom: 17px; }
+    .title-wrap { display: flex; align-items: center; gap: 13px; }
+    .title-wrap h1 { font-size: 22px; margin: 0 0 5px; letter-spacing: -.2px; }
+    .title-wrap p { margin: 0; font-size: 12px; color: var(--muted); }
+    .live-dot { width: 9px; height: 9px; border-radius: 50%; background: #23b37d; box-shadow: 0 0 0 5px rgba(35,179,125,.11); }
+    .head-buttons { display:flex; gap:10px; align-items:center; }
+
+    .btn {
+      border: 1px solid #dfe3eb;
+      background: #fff;
+      color: #444a58;
+      padding: 8px 13px;
+      border-radius: 7px;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: .18s ease;
+      white-space: nowrap;
+    }
+    .btn:hover { border-color:#aac7fb; color:var(--blue); transform:translateY(-1px); }
+    .btn.primary { color:#fff; border-color:var(--blue); background:var(--blue); box-shadow:0 6px 14px rgba(52,120,246,.2); }
+    .btn.primary:hover { background:#286ce7; color:#fff; }
+    .btn.subtle { background:#f7f8fa; }
+    .btn.danger { color:#d94855; border-color:#f0c8cc; background:#fff9f9; }
+    .btn.success { color:#16895f; border-color:#bee4d6; background:#f6fcf9; }
+    .btn.warning { color:#d97716; border-color:#f5d5ad; background:#fffbf4; }
+    .btn.small { padding: 6px 9px; font-size:12px; flex: 1; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(116px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 10px;
+      padding: 13px 15px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      box-shadow: 0 2px 10px rgba(31,41,61,.035);
+    }
+    .stat-icon { width: 34px; height:34px; border-radius:9px; display:grid; place-items:center; font-size:15px; }
+    .stat:nth-child(1) .stat-icon { color:#4368b0; background:#edf3ff; }
+    .stat:nth-child(2) .stat-icon { color:#16895f; background:#eaf8f2; }
+    .stat:nth-child(3) .stat-icon { color:#d94855; background:#fff0f1; }
+    .stat:nth-child(4) .stat-icon { color:#d97716; background:#fff5e9; }
+    .stat:nth-child(5) .stat-icon { color:#7553cd; background:#f2edff; }
+    .stat:nth-child(6) .stat-icon { color:#4d758e; background:#edf5f8; }
+    .stat span { display:block; font-size:11px; color:var(--muted); margin-bottom:3px; }
+    .stat b { font-size:19px; line-height:1; }
+    .stat small { font-size:10px; font-weight:400; color:#9aa0ad; margin-left:3px; }
+
+    .workspace { background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); overflow:hidden; }
+    .toolbar { min-height: 58px; padding: 10px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+    .toolbar-left, .toolbar-right, .segmented { display:flex; align-items:center; gap:8px; }
+    .search { position:relative; }
+    .search::before { content:"⌕"; position:absolute; left:11px; top:7px; color:#989eab; font-size:17px; }
+    .search input { width: 210px; height:34px; border:1px solid #dfe3eb; border-radius:7px; padding:0 10px 0 32px; outline:none; color:#383d49; }
+    .search input:focus { border-color:#76a7ff; box-shadow:0 0 0 3px rgba(52,120,246,.09); }
+    .area-tabs { display:flex; gap:3px; background:#f3f5f8; padding:3px; border-radius:8px; }
+    .area-tab, .view-btn { border:0; color:#717786; background:transparent; padding:6px 11px; border-radius:6px; font-size:12px; }
+    .area-tab.active, .view-btn.active { color:#245ebf; background:#fff; box-shadow:0 1px 5px rgba(31,41,61,.1); font-weight:600; }
+    .status-filter { display:flex; align-items:center; gap:5px; }
+    .filter-pill { border:1px solid transparent; background:transparent; border-radius:16px; padding:6px 9px; font-size:12px; color:#676d7a; }
+    .filter-pill:hover { background:#f5f7fa; }
+    .filter-pill.active { color:#245ebf; border-color:#c6dafd; background:#eff5ff; }
+    .filter-pill .dot { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:5px; }
+    .filter-pill[data-filter="idle"] .dot { background:var(--green); }
+    .filter-pill[data-filter="serving"] .dot { background:var(--red); }
+    .filter-pill[data-filter="checkout"] .dot { background:var(--orange); }
+    .filter-pill[data-filter="reserved"] .dot { background:var(--blue); }
+    .filter-pill[data-filter="cleaning"] .dot { background:var(--purple); }
+    .view-switch { display:flex; border:1px solid #e1e5ec; border-radius:7px; padding:2px; }
+
+    .rooms { padding:14px; display:grid; grid-template-columns:repeat(4, minmax(240px, 1fr)); gap:12px; background:#fafbfc; min-height:560px; }
+    .room {
+      min-width: 0;
+      min-height: 214px;
+      border-radius: 11px;
+      border: 1px solid #e5e8ee;
+      background: #fff;
+      padding: 15px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 2px 8px rgba(34,42,62,.035);
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .room::before { content:""; position:absolute; inset:0 auto 0 0; width:4px; background:#ccd2dc; }
+    .room:hover { transform:translateY(-2px); box-shadow:0 10px 25px rgba(31,44,74,.1); }
+    .room.idle::before { background:var(--green); }
+    .room.serving::before { background:var(--red); }
+    .room.checkout::before { background:var(--orange); }
+    .room.reserved::before { background:var(--blue); }
+    .room.cleaning::before { background:var(--purple); }
+    .room.serving { background:linear-gradient(145deg, #fff 0%, #fff 70%, #fff7f7 100%); border-color:#f0d7da; }
+    .room.checkout { background:linear-gradient(145deg, #fff 0%, #fff 70%, #fff9f1 100%); border-color:#f1dec6; }
+    .room.reserved { background:linear-gradient(145deg, #fff 0%, #fff 70%, #f4f8ff 100%); border-color:#d5e2f8; }
+    .room.cleaning { background:linear-gradient(145deg, #fff 0%, #fff 70%, #f8f5ff 100%); border-color:#e1d9f4; }
+    .room-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:13px; }
+    .room-name { font-size:16px; font-weight:750; letter-spacing:.2px; }
+    .room-type { margin-top:4px; color:#8a909d; font-size:11px; }
+    .status { border-radius:13px; padding:4px 8px; font-size:11px; font-weight:600; white-space:nowrap; }
+    .idle .status { color:#16895f; background:#eaf8f2; }
+    .serving .status { color:#ce3e4a; background:#ffeaec; }
+    .checkout .status { color:#c76b10; background:#fff0dc; }
+    .reserved .status { color:#2866c9; background:#e9f1ff; }
+    .cleaning .status { color:#6848bb; background:#eee8ff; }
+    .room-primary { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:12px; }
+    .amount-label, .clock-label { font-size:11px; color:#969ca8; margin-bottom:3px; }
+    .amount { font-size:22px; font-weight:750; color:#d84653; line-height:1.1; }
+    .checkout .amount { color:#d97819; }
+    .clock { text-align:right; font-size:17px; font-weight:700; font-variant-numeric:tabular-nums; }
+    .room-info { display:grid; grid-template-columns:1fr 1fr; gap:7px 12px; padding:10px 0; border-top:1px dashed #e5e8ed; color:#696f7d; font-size:11px; }
+    .room-info div { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .room-info span { color:#a0a5b0; margin-right:5px; }
+    .idle-copy { flex:1; display:flex; flex-direction:column; justify-content:center; padding:4px 1px 16px; }
+    .idle-copy strong { color:#16895f; font-size:19px; margin-bottom:6px; }
+    .idle-copy p { margin:0; color:#8a909d; font-size:12px; line-height:1.7; }
+    .reserved-copy { flex:1; border-top:1px dashed #e5e8ed; padding-top:10px; display:grid; gap:7px; font-size:12px; color:#606674; }
+    .reserved-copy b { color:#2866c9; }
+    .cleaning-copy { flex:1; display:grid; place-items:center; text-align:center; color:#6d57a8; }
+    .cleaning-copy b { font-size:24px; }
+    .cleaning-copy span { display:block; color:#9a91b2; font-size:11px; margin-top:5px; }
+    .room-actions { margin-top:auto; display:flex; gap:6px; }
+    .more-btn { flex:0 0 34px !important; font-weight:700; }
+
+    .rooms.list-mode { grid-template-columns:1fr; }
+    .rooms.list-mode .room { min-height:auto; display:grid; grid-template-columns:180px 170px minmax(260px,1fr) 240px; align-items:center; gap:18px; }
+    .rooms.list-mode .room-head, .rooms.list-mode .room-primary { margin:0; }
+    .rooms.list-mode .room-info { border-top:0; padding:0; grid-template-columns:1fr 1fr; }
+    .rooms.list-mode .room-actions { margin:0; }
+    .rooms.list-mode .idle-copy, .rooms.list-mode .reserved-copy, .rooms.list-mode .cleaning-copy { display:block; border:0; padding:0; text-align:left; }
+    .rooms.list-mode .cleaning-copy span { display:inline; margin-left:8px; }
+
+    .empty-state { grid-column:1/-1; min-height:350px; display:grid; place-items:center; color:#959ba8; text-align:center; }
+    .empty-state b { display:block; color:#626875; margin-bottom:7px; }
+
+    .drawer-mask { position:fixed; inset:0; z-index:20; background:rgba(18,22,33,.28); opacity:0; pointer-events:none; transition:.2s; }
+    .drawer-mask.open { opacity:1; pointer-events:auto; }
+    .drawer { position:absolute; right:0; top:0; height:100%; width:min(430px,92vw); background:#fff; transform:translateX(100%); transition:.25s ease; box-shadow:-15px 0 45px rgba(20,27,45,.18); display:flex; flex-direction:column; }
+    .drawer-mask.open .drawer { transform:translateX(0); }
+    .drawer-head { padding:20px 22px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-start; }
+    .drawer-head h2 { margin:0 0 5px; font-size:20px; }
+    .drawer-head p { margin:0; color:var(--muted); font-size:12px; }
+    .close { border:0; background:#f3f5f8; color:#6d7380; width:30px; height:30px; border-radius:50%; font-size:18px; }
+    .drawer-body { padding:20px 22px; overflow:auto; }
+    .detail-total { padding:18px; border-radius:12px; color:#fff; background:linear-gradient(135deg,#425a83,#263652); display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:18px; }
+    .detail-total span { opacity:.7; font-size:12px; }
+    .detail-total b { display:block; margin-top:5px; font-size:27px; }
+    .detail-total em { font-style:normal; font-size:14px; opacity:.9; }
+    .detail-section { margin-top:20px; }
+    .detail-section h3 { font-size:13px; margin:0 0 10px; color:#555c69; }
+    .detail-grid { display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+    .detail-item { padding:11px 12px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .detail-item:nth-child(2n) { border-right:0; }
+    .detail-item:nth-last-child(-n+2) { border-bottom:0; }
+    .detail-item span { display:block; color:#9aa0ac; font-size:10px; margin-bottom:4px; }
+    .detail-item b { font-size:13px; }
+    .bill-line { display:flex; justify-content:space-between; padding:9px 2px; font-size:13px; border-bottom:1px dashed #e6e9ee; }
+    .bill-line span { color:#6e7481; }
+    .drawer-actions { margin-top:auto; border-top:1px solid var(--line); padding:14px 22px; display:flex; gap:9px; }
+
+    .toast { position:fixed; left:50%; top:78px; z-index:40; transform:translate(-50%,-18px); opacity:0; pointer-events:none; color:#fff; background:#2d3442; border-radius:8px; padding:10px 16px; font-size:13px; box-shadow:0 9px 24px rgba(21,27,42,.22); transition:.22s; }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+
+    @media (max-width: 1450px) {
+      .rooms { grid-template-columns:repeat(3,minmax(240px,1fr)); }
+      .summary { grid-template-columns:repeat(3,1fr); }
+    }
+    @media (max-width: 1050px) {
+      .app { grid-template-columns:68px minmax(0,1fr); }
+      .brand { justify-content:center; padding:0; }
+      .brand span:last-child, .nav-item span:not(.nav-icon):not(.nav-badge), .nav-section, .sidebar-bottom { display:none; }
+      .nav-item { justify-content:center; padding:0; }
+      .nav-item.active::before { left:-10px; }
+      .rooms { grid-template-columns:repeat(2,minmax(230px,1fr)); }
+      .rooms.list-mode .room { grid-template-columns:150px 130px 1fr; }
+      .rooms.list-mode .room-actions { grid-column:1/-1; }
+    }
+    @media (max-width: 720px) {
+      body { overflow:auto; }
+      .app { min-height:100%; height:auto; grid-template-columns:1fr; }
+      .sidebar { display:none; }
+      .topbar { padding:0 14px; }
+      .top-actions > span, .tenant-tag { display:none; }
+      main { padding:15px 12px 24px; overflow:visible; }
+      .page-heading { align-items:flex-start; }
+      .head-buttons .btn.subtle { display:none; }
+      .summary { grid-template-columns:repeat(2,1fr); }
+      .rooms { grid-template-columns:1fr; padding:10px; }
+      .toolbar { align-items:flex-start; }
+      .toolbar-left, .toolbar-right { flex-wrap:wrap; }
+      .search input { width:100%; }
+      .search { flex:1; }
+      .rooms.list-mode .room { display:flex; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">S</div><span>SaaS 管理后台</span></div>
+      <nav class="nav">
+        <div class="nav-section">门店运营</div>
+        <div class="nav-item"><span class="nav-icon">⌂</span><span>门店</span></div>
+        <div class="nav-item"><span class="nav-icon">▦</span><span>包厢/资源</span></div>
+        <div class="nav-item"><span class="nav-icon">◷</span><span>预约管理</span><span class="nav-badge">3</span></div>
+        <div class="nav-item"><span class="nav-icon">▤</span><span>订单/KTV</span></div>
+        <div class="nav-item active"><span class="nav-icon">▣</span><span>收银/支付</span></div>
+        <div class="nav-item"><span class="nav-icon">◫</span><span>交班/日结</span></div>
+        <div class="nav-item"><span class="nav-icon">▥</span><span>报表</span></div>
+        <div class="nav-section">会员与配置</div>
+        <div class="nav-item"><span class="nav-icon">♙</span><span>会员管理</span></div>
+        <div class="nav-item"><span class="nav-icon">☆</span><span>积分管理</span></div>
+        <div class="nav-item"><span class="nav-icon">◉</span><span>支付方式</span></div>
+        <div class="nav-item"><span class="nav-icon">⚙</span><span>KTV 配置</span></div>
+        <div class="nav-item"><span class="nav-icon">♧</span><span>运营人员</span></div>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="store-card"><b>A380 · 上海旗舰店</b><p>营业中 · 今日 18:00—次日 06:00</p></div>
+      </div>
+    </aside>
+
+    <section class="shell">
+      <header class="topbar">
+        <div class="crumb"><span>☰</span><span>后台入口</span><span>/</span><strong>包厢收银台</strong></div>
+        <div class="top-actions"><span class="tenant-tag">租户后台</span><span>⌖ A380 上海旗舰店⌄</span><span>▦ 后台入口</span><div class="avatar">管</div><span>管理员⌄</span></div>
+      </header>
+
+      <main>
+        <div class="page">
+          <div class="page-heading">
+            <div class="title-wrap">
+              <div class="live-dot"></div>
+              <div><h1>包厢收银台</h1><p>房态实时更新 · 最后同步 14:36:08</p></div>
+            </div>
+            <div class="head-buttons">
+              <button class="btn subtle" id="refreshBtn">↻ 刷新房态</button>
+              <button class="btn primary" data-action="快速开台">＋ 快速开台</button>
+            </div>
+          </div>
+
+          <section class="summary">
+            <div class="stat"><div class="stat-icon">▦</div><div><span>全部包厢</span><b>16<small>间</small></b></div></div>
+            <div class="stat"><div class="stat-icon">✓</div><div><span>空闲可用</span><b>6<small>间</small></b></div></div>
+            <div class="stat"><div class="stat-icon">▶</div><div><span>正在使用</span><b>5<small>间</small></b></div></div>
+            <div class="stat"><div class="stat-icon">¥</div><div><span>待结账</span><b>2<small>间</small></b></div></div>
+            <div class="stat"><div class="stat-icon">◷</div><div><span>已预订</span><b>2<small>间</small></b></div></div>
+            <div class="stat"><div class="stat-icon">⌁</div><div><span>今日营收</span><b>8,632<small>元</small></b></div></div>
+          </section>
+
+          <section class="workspace">
+            <div class="toolbar">
+              <div class="toolbar-left">
+                <div class="search"><input id="searchInput" placeholder="搜索包厢名称 / 订单号" /></div>
+                <div class="area-tabs" id="areaTabs">
+                  <button class="area-tab active" data-area="全部区域">全部区域</button>
+                  <button class="area-tab" data-area="大厅">大厅</button>
+                  <button class="area-tab" data-area="A区">A区</button>
+                  <button class="area-tab" data-area="VIP区">VIP区</button>
+                </div>
+              </div>
+              <div class="toolbar-right">
+                <div class="status-filter" id="statusFilters">
+                  <button class="filter-pill active" data-filter="all">全部</button>
+                  <button class="filter-pill" data-filter="idle"><span class="dot"></span>空闲</button>
+                  <button class="filter-pill" data-filter="serving"><span class="dot"></span>使用中</button>
+                  <button class="filter-pill" data-filter="checkout"><span class="dot"></span>待结账</button>
+                  <button class="filter-pill" data-filter="reserved"><span class="dot"></span>已预订</button>
+                  <button class="filter-pill" data-filter="cleaning"><span class="dot"></span>清洁中</button>
+                </div>
+                <div class="view-switch"><button class="view-btn active" data-view="grid">▦</button><button class="view-btn" data-view="list">☷</button></div>
+              </div>
+            </div>
+            <div class="rooms" id="rooms"></div>
+          </section>
+        </div>
+      </main>
+    </section>
+  </div>
+
+  <div class="drawer-mask" id="drawerMask">
+    <aside class="drawer" id="drawer">
+      <div class="drawer-head"><div><h2 id="drawerTitle">豪华VIP-01</h2><p id="drawerSub">VIP区 · 豪华大包 · 容纳 12 人</p></div><button class="close" id="closeDrawer">×</button></div>
+      <div class="drawer-body" id="drawerBody"></div>
+      <div class="drawer-actions"><button class="btn" style="flex:1" data-action="打印预结单">打印预结单</button><button class="btn primary" style="flex:1" data-action="进入完整订单">进入完整订单</button></div>
+    </aside>
+  </div>
+  <div class="toast" id="toast">操作成功</div>
+
+  <script>
+    const rooms = [
+      { id:1, name:'豪华VIP-01', type:'豪华大包', capacity:12, area:'VIP区', status:'serving', order:'KTV-20260915-0188', guests:8, started:'20:16', elapsed:'02:36', amount:1688, waiter:'小林', note:'生日套餐' },
+      { id:2, name:'豪华VIP-02', type:'豪华大包', capacity:12, area:'VIP区', status:'checkout', order:'KTV-20260915-0182', guests:10, started:'19:42', elapsed:'03:10', amount:2386, waiter:'阿杰', note:'已结台，等待收款' },
+      { id:3, name:'商务A-01', type:'商务中包', capacity:8, area:'A区', status:'serving', order:'KTV-20260915-0191', guests:6, started:'21:08', elapsed:'01:44', amount:896, waiter:'小雨', note:'酒水待确认 1 项' },
+      { id:4, name:'商务A-02', type:'商务中包', capacity:8, area:'A区', status:'idle', price:168, waiter:'待分配' },
+      { id:5, name:'欢聚A-03', type:'欢聚小包', capacity:6, area:'A区', status:'reserved', reserveAt:'23:00', guestName:'陈先生', phone:'138****6088', guests:5, deposit:300 },
+      { id:6, name:'欢聚A-05', type:'欢聚小包', capacity:6, area:'A区', status:'serving', order:'KTV-20260915-0195', guests:4, started:'21:55', elapsed:'00:57', amount:426, waiter:'小林', note:'无' },
+      { id:7, name:'派对VIP-03', type:'派对大包', capacity:18, area:'VIP区', status:'checkout', order:'KTV-20260915-0176', guests:15, started:'18:36', elapsed:'04:16', amount:3268, waiter:'阿杰', note:'会员折扣 9 折' },
+      { id:8, name:'商务A-06', type:'商务中包', capacity:8, area:'A区', status:'cleaning', cleaning:'08:32', waiter:'保洁-王姨' },
+      { id:9, name:'迷你厅-01', type:'迷你小包', capacity:4, area:'大厅', status:'idle', price:98, waiter:'待分配' },
+      { id:10, name:'迷你厅-02', type:'迷你小包', capacity:4, area:'大厅', status:'reserved', reserveAt:'22:40', guestName:'李女士', phone:'186****3512', guests:3, deposit:200 },
+      { id:11, name:'欢聚A-07', type:'欢聚小包', capacity:6, area:'A区', status:'serving', order:'KTV-20260915-0193', guests:6, started:'21:25', elapsed:'01:27', amount:668, waiter:'小雨', note:'加钟 1 小时' },
+      { id:12, name:'商务A-08', type:'商务中包', capacity:8, area:'A区', status:'idle', price:168, waiter:'待分配' },
+      { id:13, name:'派对VIP-05', type:'派对大包', capacity:18, area:'VIP区', status:'serving', order:'KTV-20260915-0186', guests:13, started:'20:05', elapsed:'02:47', amount:1968, waiter:'阿杰', note:'果盘已送达' },
+      { id:14, name:'迷你厅-03', type:'迷你小包', capacity:4, area:'大厅', status:'idle', price:98, waiter:'待分配' },
+      { id:15, name:'欢聚A-09', type:'欢聚小包', capacity:6, area:'A区', status:'idle', price:128, waiter:'待分配' },
+      { id:16, name:'豪华VIP-06', type:'豪华大包', capacity:12, area:'VIP区', status:'idle', price:268, waiter:'待分配' }
+    ];
+
+    const labels = { idle:'空闲', serving:'使用中', checkout:'待结账', reserved:'已预订', cleaning:'清洁中' };
+    const state = { filter:'all', area:'全部区域', keyword:'', view:'grid' };
+    const roomsEl = document.getElementById('rooms');
+
+    function cardContent(room) {
+      if (room.status === 'idle') return `
+        <div class="idle-copy"><strong>可立即开台</strong><p>${room.type} · 建议 ${room.capacity} 人以内<br>基础房费 ¥${room.price}/小时</p></div>
+        <div class="room-actions"><button class="btn small" data-action="预约" data-id="${room.id}">预约</button><button class="btn primary small" data-action="开台" data-id="${room.id}">立即开台</button></div>`;
+
+      if (room.status === 'reserved') return `
+        <div class="reserved-copy"><div>预抵时间　<b>${room.reserveAt}</b></div><div>预订人　　${room.guestName} · ${room.phone}</div><div>人数/订金　${room.guests} 人 · ¥${room.deposit}</div></div>
+        <div class="room-actions"><button class="btn small" data-action="预订详情" data-id="${room.id}">预订详情</button><button class="btn primary small" data-action="到店开台" data-id="${room.id}">到店开台</button></div>`;
+
+      if (room.status === 'cleaning') return `
+        <div class="cleaning-copy"><div><b>${room.cleaning}</b><span>已清洁时长 · ${room.waiter}</span></div></div>
+        <div class="room-actions"><button class="btn small" data-action="通知保洁" data-id="${room.id}">通知保洁</button><button class="btn success small" data-action="标为空闲" data-id="${room.id}">清洁完成</button></div>`;
+
+      const checkout = room.status === 'checkout';
+      return `
+        <div class="room-primary"><div><div class="amount-label">${checkout ? '应收金额' : '当前消费'}</div><div class="amount">¥${room.amount.toLocaleString()}</div></div><div><div class="clock-label">开台时长</div><div class="clock">${room.elapsed}</div></div></div>
+        <div class="room-info"><div><span>人数</span>${room.guests}/${room.capacity} 人</div><div><span>开台</span>${room.started}</div><div><span>服务</span>${room.waiter}</div><div><span>订单</span>${room.order.slice(-4)}</div></div>
+        <div class="room-actions">${checkout
+          ? `<button class="btn small" data-action="账单详情" data-id="${room.id}">账单</button><button class="btn warning small" data-action="结账收款" data-id="${room.id}">结账收款</button>`
+          : `<button class="btn small" data-action="加项" data-id="${room.id}">＋ 加项</button><button class="btn small" data-action="账单详情" data-id="${room.id}">账单</button><button class="btn danger small" data-action="结台" data-id="${room.id}">结台</button>`}
+          <button class="btn small more-btn" data-action="更多" data-id="${room.id}">···</button></div>`;
+    }
+
+    function render() {
+      const filtered = rooms.filter(r =>
+        (state.filter === 'all' || r.status === state.filter) &&
+        (state.area === '全部区域' || r.area === state.area) &&
+        (!state.keyword || `${r.name} ${r.order || ''}`.toLowerCase().includes(state.keyword.toLowerCase()))
+      );
+      roomsEl.className = `rooms ${state.view === 'list' ? 'list-mode' : ''}`;
+      roomsEl.innerHTML = filtered.length ? filtered.map(room => `
+        <article class="room ${room.status}" data-room="${room.id}">
+          <div class="room-head"><div><div class="room-name">${room.name}</div><div class="room-type">${room.area} · ${room.type} · ${room.capacity}人</div></div><span class="status">${labels[room.status]}</span></div>
+          ${cardContent(room)}
+        </article>`).join('') : `<div class="empty-state"><div><b>没有找到符合条件的包厢</b><span>尝试切换区域、状态或清空搜索条件</span></div></div>`;
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(window.toastTimer);
+      window.toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    function openDrawer(room) {
+      document.getElementById('drawerTitle').textContent = room.name;
+      document.getElementById('drawerSub').textContent = `${room.area} · ${room.type} · 容纳 ${room.capacity} 人`;
+      const amount = room.amount || 0;
+      document.getElementById('drawerBody').innerHTML = `
+        <div class="detail-total"><div><span>${room.status === 'idle' ? '当前状态' : '当前账单金额'}</span><b>${room.status === 'idle' ? '空闲可用' : '¥' + amount.toLocaleString()}</b></div><em>${labels[room.status]}</em></div>
+        <div class="detail-section"><h3>包厢与订单信息</h3><div class="detail-grid">
+          <div class="detail-item"><span>订单号</span><b>${room.order || '暂未开台'}</b></div><div class="detail-item"><span>当前人数</span><b>${room.guests || 0} / ${room.capacity} 人</b></div>
+          <div class="detail-item"><span>开台时间</span><b>${room.started || '—'}</b></div><div class="detail-item"><span>服务人员</span><b>${room.waiter || '待分配'}</b></div>
+          <div class="detail-item"><span>计费方案</span><b>标准时段计费</b></div><div class="detail-item"><span>备注</span><b>${room.note || '无'}</b></div>
+        </div></div>
+        <div class="detail-section"><h3>消费明细（示意）</h3>
+          <div class="bill-line"><span>包厢计时费</span><b>¥${Math.round(amount * .38)}</b></div>
+          <div class="bill-line"><span>酒水及小吃</span><b>¥${Math.round(amount * .45)}</b></div>
+          <div class="bill-line"><span>服务及其他</span><b>¥${Math.round(amount * .17)}</b></div>
+        </div>`;
+      document.getElementById('drawerMask').classList.add('open');
+    }
+
+    document.getElementById('statusFilters').addEventListener('click', e => {
+      const btn = e.target.closest('[data-filter]'); if (!btn) return;
+      state.filter = btn.dataset.filter;
+      document.querySelectorAll('[data-filter]').forEach(x => x.classList.toggle('active', x === btn));
+      render();
+    });
+    document.getElementById('areaTabs').addEventListener('click', e => {
+      const btn = e.target.closest('[data-area]'); if (!btn) return;
+      state.area = btn.dataset.area;
+      document.querySelectorAll('[data-area]').forEach(x => x.classList.toggle('active', x === btn));
+      render();
+    });
+    document.getElementById('searchInput').addEventListener('input', e => { state.keyword = e.target.value.trim(); render(); });
+    document.querySelector('.view-switch').addEventListener('click', e => {
+      const btn = e.target.closest('[data-view]'); if (!btn) return;
+      state.view = btn.dataset.view;
+      document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x === btn));
+      render();
+    });
+    roomsEl.addEventListener('click', e => {
+      const action = e.target.closest('[data-action]');
+      const card = e.target.closest('[data-room]');
+      const room = rooms.find(r => r.id === Number(action?.dataset.id || card?.dataset.room));
+      if (action) {
+        e.stopPropagation();
+        if (['账单详情','更多'].includes(action.dataset.action)) openDrawer(room);
+        else showToast(`${room.name}：${action.dataset.action}（原型演示）`);
+      } else if (room) openDrawer(room);
+    });
+    document.body.addEventListener('click', e => {
+      const action = e.target.closest('[data-action]');
+      if (action && !action.closest('#rooms')) showToast(`${action.dataset.action}（原型演示）`);
+    });
+    document.getElementById('closeDrawer').addEventListener('click', () => document.getElementById('drawerMask').classList.remove('open'));
+    document.getElementById('drawerMask').addEventListener('click', e => { if (e.target.id === 'drawerMask') e.currentTarget.classList.remove('open'); });
+    document.getElementById('refreshBtn').addEventListener('click', e => { e.currentTarget.textContent = '✓ 已更新'; showToast('房态数据已刷新'); setTimeout(() => e.currentTarget.textContent = '↻ 刷新房态', 1200); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('drawerMask').classList.remove('open'); });
+
+    render();
+  </script>
+</body>
+</html>

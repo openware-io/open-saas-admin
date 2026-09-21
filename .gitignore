@@ -1,0 +1,41 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+# npm 本地缓存目录（历史上被误提交 347 个文件，污染 git grep / 守卫源码扫描）
+.npm-cache/
+.DS_Store
+dist
+dist-ssr
+coverage
+*.local
+
+/cypress/videos/
+/cypress/screenshots/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*.tsbuildinfo
+
+# unplugin generated dts
+auto-imports.d.ts
+components.d.ts
+
+# Environment files — never commit
+.env
+.env.*
+!.env.example

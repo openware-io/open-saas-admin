@@ -1,0 +1,192 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root {
+  --sidebar-bg: #1d1e2c;
+  --sidebar-active: #409eff;
+  --header-height: 56px;
+  --sidebar-width: 220px;
+  --admin-bg: #f0f2f5;
+  --admin-content-max: 1680px;
+  --admin-radius: 10px;
+  --admin-radius-sm: 8px;
+  --admin-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --admin-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* ========== 页面骨架（各业务页根节点加 class="admin-page"） ========== */
+.admin-page {
+  max-width: var(--admin-content-max);
+  margin: 0 auto;
+  min-height: min-content;
+}
+
+.admin-page > .page-header {
+  margin-bottom: 16px;
+}
+
+.admin-card {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-shadow-card);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.admin-card:last-child {
+  margin-bottom: 0;
+}
+
+.admin-card > .filter-bar:first-child {
+  margin-top: 0;
+}
+
+.admin-card > .filter-bar:last-of-type {
+  margin-bottom: 16px;
+}
+
+.admin-pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 与历史 class 对齐：配置子页等 */
+.page-card {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-shadow-card);
+  padding: 20px;
+}
+
+.admin-page > .page-card {
+  margin-bottom: 0;
+}
+
+.admin-page > .el-card {
+  border-radius: var(--admin-radius);
+  border: 1px solid var(--el-border-color-lighter);
+  box-shadow: var(--admin-shadow-card);
+}
+
+.admin-page .el-card__header {
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+}
+
+/* ========== 页头 ========== */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.page-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  line-height: 1.35;
+  margin: 0;
+}
+
+.page-header .hint,
+.page-header p {
+  width: 100%;
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.5;
+}
+
+/* ========== 筛选条 ========== */
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ========== 看板统计 ========== */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--admin-radius-sm);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--admin-shadow-card);
+  transition:
+    box-shadow 0.2s,
+    border-color 0.2s;
+}
+
+.stat-card:hover {
+  box-shadow: var(--admin-shadow);
+  border-color: var(--el-border-color);
+}
+
+.stat-card .icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.stat-card .info .label {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 4px;
+}
+
+.stat-card .info .value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+  line-height: 1.2;
+}
+
+/* ========== 列表表头统一居中 ========== */
+.el-table th.el-table__cell {
+  text-align: center !important;
+  vertical-align: middle;
+}
