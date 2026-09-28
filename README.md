@@ -1,6 +1,6 @@
 # open-saas-admin
 
-GV Chat SaaS 管理后台（平台运营后台 / 租户后台），Vue 3 + Element Plus + Vite。
+Open SaaS 管理后台（平台运营后台 / 租户后台），Vue 3 + Element Plus + Vite。
 
 ## 功能概览
 
