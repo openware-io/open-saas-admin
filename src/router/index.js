@@ -44,7 +44,7 @@ const routes = [
         path: 'admin/iam/permissions',
         name: 'IamPermissions',
         component: () => import('@/views/platform/iam/permissions.vue'),
-        meta: { title: '权限', icon: 'Lock', scope: 'PLATFORM' },
+        meta: { title: '权限', icon: 'Key', scope: 'PLATFORM' },
       },
       {
         path: 'admin/platform/payment-methods',
@@ -71,7 +71,7 @@ const routes = [
         path: 'admin/staff',
         name: 'Staff',
         component: () => import('@/views/tenant/staff.vue'),
-        meta: { title: '运营人员', icon: 'User', scope: 'TENANT' },
+        meta: { title: '运营人员', icon: 'Service', scope: 'TENANT' },
       },
       {
         path: 'admin/resources',
@@ -148,7 +148,7 @@ const routes = [
         path: 'business/payment-methods',
         name: 'PaymentMethods',
         component: () => import('@/views/tenant/payment-methods.vue'),
-        meta: { title: '支付方式', icon: 'Money', scope: 'TENANT' },
+        meta: { title: '支付方式', icon: 'Collection', scope: 'TENANT' },
       },
       {
         path: 'business/wallet',
@@ -175,7 +175,7 @@ const routes = [
         path: 'admin/audits',
         name: 'Audits',
         component: () => import('@/views/tenant/audits.vue'),
-        meta: { title: '审计日志', icon: 'audit' },
+        meta: { title: '审计日志', icon: 'Document' },
       },
       // 动态菜单 path 未显式声明时，落到通用占位页
       {
