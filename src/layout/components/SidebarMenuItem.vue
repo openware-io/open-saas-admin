@@ -35,6 +35,7 @@
 import { computed } from 'vue'
 import { resolveIcon } from '@/utils/icon'
 import { usePendingApprovalStore } from '@/stores/pendingApproval'
+import { useAuthStore } from '@/stores/auth'
 
 defineOptions({ name: 'SidebarMenuItem' })
 
@@ -44,11 +45,12 @@ const props = defineProps({
 
 const subIndex = computed(() => String(props.item.id || props.item.code || props.item.path))
 
-/** 收银台菜单项上挂「待确认加项」角标（路径与后端菜单一致：/business/orders）。 */
+/** 仅租户后台在收银台菜单项上挂「待确认加项」角标。 */
 const CASHIER_PATH = '/business/orders'
 const pendingStore = usePendingApprovalStore()
+const authStore = useAuthStore()
 const badgeCount = computed(() => (
-  props.item && props.item.path === CASHIER_PATH ? pendingStore.pendingCount : 0
+  authStore.scope === 'TENANT' && props.item && props.item.path === CASHIER_PATH ? pendingStore.pendingCount : 0
 ))
 </script>
 

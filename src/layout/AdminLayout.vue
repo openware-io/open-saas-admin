@@ -45,10 +45,10 @@
         </div>
         <div class="header-right">
           <!--
-            客户待确认加项入口：客户在 C 端自助加项后门店必须能一眼看到并一键处理，
-            因此把它放在全局头部（任何页面都能进），带条数徽标；收银台菜单项同时有角标。
+            租户后台的待确认加项入口：客户在 C 端自助加项后门店必须能一眼看到并一键处理，
+            因此放在租户后台全局头部，带条数徽标；平台运营后台不展示。
           -->
-          <el-badge :value="pendingApprovalStore.pendingCount" :max="99" :hidden="!pendingApprovalStore.pendingCount" type="danger">
+          <el-badge v-if="showPendingApproval" :value="pendingApprovalStore.pendingCount" :max="99" :hidden="!pendingApprovalStore.pendingCount" type="danger">
             <el-button size="small" :type="pendingApprovalStore.pendingCount ? 'warning' : 'default'" @click="pendingApprovalStore.openDrawer()">
               <el-icon><Bell /></el-icon>待确认加项
             </el-button>
@@ -83,8 +83,8 @@
         </div>
       </el-header>
 
-      <!-- 客户待确认加项集中处理：全局可达（头部入口 / 收银台菜单角标/卡片都能打开） -->
-      <PendingApprovalDrawer
+      <!-- 租户后台待确认加项集中处理：头部入口 / 收银台菜单角标 / 卡片都能打开 -->
+      <PendingApprovalDrawer v-if="showPendingApproval"
         :visible="pendingApprovalStore.drawerVisible"
         @update:visible="(value) => (value ? pendingApprovalStore.openDrawer() : pendingApprovalStore.closeDrawer())"
       />
@@ -252,8 +252,8 @@ onMounted(() => {
   window.addEventListener('focus', revalidateOnFocus)
   document.addEventListener('visibilitychange', onVisibilityChange)
   sessionWatchdog.start()
-  // 客户待确认加项提醒：进后台即开始轮询（15s，页面隐藏时暂停），退出时停止。
-  pendingApprovalStore.start()
+  // 待确认加项属于租户门店运营流程；平台运营后台不展示，也不请求该数据。
+  if (showPendingApproval.value) pendingApprovalStore.start()
 })
 onUnmounted(() => {
   narrowScreen.removeEventListener('change', updateCollapse)
@@ -264,6 +264,15 @@ onUnmounted(() => {
 })
 
 const scopeLabel = computed(() => SCOPE_LABELS[authStore.scope] || authStore.scope)
+const showPendingApproval = computed(() => authStore.scope === 'TENANT')
+
+watch(
+  () => authStore.scope,
+  (scope) => {
+    if (scope === 'TENANT') pendingApprovalStore.start()
+    else pendingApprovalStore.stop()
+  }
+)
 
 /**
  * 是否用空态提示顶掉路由内容。
