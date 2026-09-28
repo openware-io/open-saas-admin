@@ -65,7 +65,7 @@ const routes = [
         path: 'admin/tenant/currency',
         name: 'TenantCurrency',
         component: () => import('@/views/tenant/currency.vue'),
-        meta: { title: '币种', icon: 'Money', scope: 'TENANT' },
+        meta: { title: '币种', icon: 'Wallet', scope: 'TENANT' },
       },
       {
         path: 'admin/staff',
