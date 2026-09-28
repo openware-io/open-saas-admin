@@ -54,7 +54,12 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (!id.includes('node_modules')) return undefined
-            if (id.includes('element-plus') || id.includes('@element-plus')) return 'element-plus'
+            if (id.includes('@element-plus')) return 'element-plus-icons'
+            if (id.includes('element-plus/es/components/')) {
+              const match = id.match(/element-plus[\\/]es[\\/]components[\\/]([^\\/]+)/)
+              return match ? `ep-${match[1]}` : 'element-plus-core'
+            }
+            if (id.includes('element-plus')) return 'element-plus-core'
             if (id.includes('vue-router')) return 'vue-router'
             if (id.includes('pinia')) return 'pinia'
             if (id.includes('node_modules/vue/')) return 'vue'
@@ -62,6 +67,7 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
+      chunkSizeWarningLimit: 500,
     },
     /**
      * 单测超时：本仓有若干「源码扫描」守卫用例（terms / admin-copy / currency-guard / media），
