@@ -161,6 +161,93 @@
         </div>
       </el-tab-pane>
 
+      <!-- ============ 积分与预约规则 ============ -->
+      <el-tab-pane label="积分与预约规则" name="rules">
+        <div class="admin-card rules-card">
+          <p class="tip">规则按门店覆盖、业态默认、租户默认解析；积分有效期仅支持租户/业态层，预约窗口以到店时间为基准，单位为分钟。</p>
+          <div class="filter-bar">
+            <el-radio-group v-model="ruleScope" @change="loadRules">
+              <el-radio-button label="TENANT">租户默认</el-radio-button>
+              <el-radio-button label="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button label="STORE">门店覆盖</el-radio-button>
+            </el-radio-group>
+            <el-select v-if="ruleScope !== 'TENANT'" v-model="ruleBusinessType" placeholder="选择业态" style="width: 150px" @change="loadRules">
+              <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
+            </el-select>
+            <el-select v-if="ruleScope === 'STORE'" v-model="ruleStoreId" placeholder="选择门店" style="width: 220px" @change="loadRules">
+              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+            </el-select>
+            <el-button type="primary" @click="saveRules">保存规则</el-button>
+            <el-button @click="loadRules">刷新</el-button>
+          </div>
+          <el-row :gutter="24">
+            <el-col :span="12"><h3>积分规则</h3>
+              <el-form label-width="150px">
+                <el-form-item label="获得倍率"><el-input-number v-model="pointRuleForm.earnRate" :min="0.0001" :precision="4" :step="0.1" /></el-form-item>
+                <el-form-item label="抵扣倍率"><el-input-number v-model="pointRuleForm.redeemRate" :min="0.0001" :precision="4" :step="0.1" /></el-form-item>
+                <el-form-item label="有效期（天）"><el-input-number v-model="pointRuleForm.expiryDays" :min="0" :disabled="ruleScope === 'STORE'" /></el-form-item>
+                <el-form-item label="单笔抵扣上限"><el-input-number v-model="pointRuleForm.redeemCapPoints" :min="0" :disabled="ruleScope === 'TENANT'" /></el-form-item>
+              </el-form>
+            </el-col>
+            <el-col :span="12"><h3>预约窗口</h3>
+              <el-form label-width="150px">
+                <el-form-item label="提前预约（分钟）"><el-input-number v-model="reservationRuleForm.advanceMinutes" :min="0" /></el-form-item>
+                <el-form-item label="取消提前（分钟）"><el-input-number v-model="reservationRuleForm.cancelMinutes" :min="0" /></el-form-item>
+                <el-form-item label="改期提前（分钟）"><el-input-number v-model="reservationRuleForm.rescheduleMinutes" :min="0" /></el-form-item>
+              </el-form>
+            </el-col>
+          </el-row>
+        </div>
+      </el-tab-pane>
+
+      <!-- ============ 退款与日结规则 ============ -->
+      <el-tab-pane label="退款与日结规则" name="payment-rules">
+        <div class="admin-card rules-card">
+          <p class="tip">退款审批阈值按租户币种配置，用于标记高风险退款；所有退款仍按现有流程由店长/财务审批。线下退款开关仅支持租户/业态默认。日结时间为门店营业日切点，只能按门店设置。</p>
+          <div class="filter-bar">
+            <el-radio-group v-model="paymentRuleScope" @change="loadPaymentRules">
+              <el-radio-button label="TENANT">租户默认</el-radio-button>
+              <el-radio-button label="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button label="STORE">门店覆盖</el-radio-button>
+            </el-radio-group>
+            <el-select v-if="paymentRuleScope !== 'TENANT'" v-model="paymentRuleBusinessType" placeholder="选择业态" style="width: 150px" @change="loadPaymentRules">
+              <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
+            </el-select>
+            <el-select v-if="paymentRuleScope === 'STORE'" v-model="paymentRuleStoreId" placeholder="选择门店" style="width: 220px" @change="loadPaymentRules">
+              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+            </el-select>
+            <el-button @click="loadPaymentRules">刷新</el-button>
+          </div>
+          <el-row :gutter="24">
+            <el-col :span="12">
+              <h3>退款规则</h3>
+              <el-form label-width="170px">
+                <el-form-item :label="withCurrencyLabel('审批阈值')">
+                  <el-input-number v-model="paymentRuleForm.approvalThreshold" :min="0" :precision="2" :step="1" controls-position="right" />
+                  <span class="field-hint">高于阈值的退款按高风险记录，0 表示全部纳入</span>
+                </el-form-item>
+                <el-form-item label="允许线下退款" :disabled="paymentRuleScope === 'STORE'">
+                  <el-switch v-model="paymentRuleForm.offlineRefundEnabled" :disabled="paymentRuleScope === 'STORE'" />
+                  <span v-if="paymentRuleScope === 'STORE'" class="field-hint">门店继承业态或租户设置</span>
+                </el-form-item>
+              </el-form>
+            </el-col>
+            <el-col :span="12">
+              <h3>日结规则</h3>
+              <el-form label-width="170px">
+                <el-form-item label="营业日切点">
+                  <el-time-picker v-model="paymentRuleForm.closingTime" format="HH:mm" value-format="HH:mm" :disabled="paymentRuleScope !== 'STORE'" placeholder="选择日结时间" />
+                  <span v-if="paymentRuleScope !== 'STORE'" class="field-hint">日结按门店单独设置</span>
+                </el-form-item>
+              </el-form>
+            </el-col>
+          </el-row>
+          <div class="filter-bar">
+            <el-button type="primary" @click="savePaymentRules">保存退款与日结规则</el-button>
+          </div>
+        </div>
+      </el-tab-pane>
+
       <!-- ============ 营业时间 ============ -->
       <el-tab-pane label="营业时间" name="hours">
         <div class="admin-card">
@@ -297,7 +384,13 @@ import {
   batchPaymentSwitches,
   getServerCatalog,
   createServerCatalogItem,
-  updateServerCatalogItem
+  updateServerCatalogItem,
+  getPointRule,
+  savePointRule,
+  getReservationRule,
+  saveReservationRule,
+  getPaymentRule,
+  savePaymentRule
 } from '@/api/ktv'
 import { listPaymentMethodGrants } from '@/api/payment'
 import { listProducts } from '@/api/order'
@@ -350,6 +443,15 @@ const pricingStoreIds = ref([])
 const paymentScope = ref('STORE')
 const paymentBusinessType = ref('KTV')
 const paymentStoreIds = ref([])
+const ruleScope = ref('STORE')
+const ruleBusinessType = ref('KTV')
+const ruleStoreId = ref(null)
+const pointRuleForm = ref({ earnRate: 1, redeemRate: 1, expiryDays: 0, redeemCapPoints: 0, version: null })
+const reservationRuleForm = ref({ advanceMinutes: 0, cancelMinutes: 0, rescheduleMinutes: 0, version: null })
+const paymentRuleScope = ref('STORE')
+const paymentRuleBusinessType = ref('KTV')
+const paymentRuleStoreId = ref(null)
+const paymentRuleForm = ref({ approvalThreshold: 0, offlineRefundEnabled: true, closingTime: '00:00', refundVersion: 0, closingVersion: 0 })
 const stores = ref([])
 const businessTypes = Object.keys(BUSINESS_TYPE_TEXT)
 const scopeLabel = (scope) => CONFIG_SCOPE_TEXT[scope] || scope
@@ -385,6 +487,86 @@ async function loadPricing() {
     pricingRows.value = []
     loadError.value = '计价方案加载失败'
   }
+}
+
+function ruleParams() {
+  return { storeId: ruleScope.value === 'STORE' ? ruleStoreId.value : undefined, businessType: ruleScope.value === 'TENANT' ? undefined : ruleBusinessType.value }
+}
+async function loadRules() {
+  try {
+    const [points, reservation] = await Promise.all([getPointRule(ruleParams()), getReservationRule(ruleParams())])
+    pointRuleForm.value = { ...pointRuleForm.value, ...points }
+    reservationRuleForm.value = { ...reservationRuleForm.value, ...reservation }
+  } catch (e) { notifyAdminRequestError(e, '经营规则加载失败') }
+}
+async function saveRules() {
+  const scope = ruleScope.value === 'TENANT' ? { storeId: null, businessType: null } : { storeId: ruleScope.value === 'STORE' ? ruleStoreId.value : null, businessType: ruleBusinessType.value }
+  if (ruleScope.value === 'STORE' && !scope.storeId) { ElMessage.warning('请选择门店'); return }
+  try {
+    await Promise.all([
+      savePointRule({ ...pointRuleForm.value, ...scope, idempotencyKey: `points-rule-${Date.now()}` }),
+      saveReservationRule({ ...reservationRuleForm.value, ...scope, idempotencyKey: `reservation-rule-${Date.now()}` })
+    ])
+    ElMessage.success('经营规则已保存')
+    await loadRules()
+  } catch (e) { notifyAdminRequestError(e, '经营规则保存失败') }
+}
+
+function paymentRuleParams() {
+  return {
+    storeId: paymentRuleScope.value === 'STORE' ? paymentRuleStoreId.value : undefined,
+    businessType: paymentRuleScope.value === 'TENANT' ? undefined : paymentRuleBusinessType.value
+  }
+}
+
+function minuteToTime(value) {
+  const minute = Number(value)
+  if (!Number.isInteger(minute) || minute < 0 || minute > 1439) return '00:00'
+  return `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`
+}
+
+function timeToMinute(value) {
+  if (!/^\d{2}:\d{2}$/.test(value || '')) return null
+  const [hour, minute] = value.split(':').map(Number)
+  return hour * 60 + minute
+}
+
+async function loadPaymentRules() {
+  if (paymentRuleScope.value === 'STORE' && !paymentRuleStoreId.value) return
+  try {
+    const config = await getPaymentRule(paymentRuleParams())
+    paymentRuleForm.value = {
+      ...paymentRuleForm.value,
+      approvalThreshold: Number(config.approvalThreshold || 0),
+      offlineRefundEnabled: config.offlineRefundEnabled !== false,
+      closingTime: minuteToTime(config.closingMinute),
+      refundVersion: config.refundVersion ?? config.version ?? 0,
+      closingVersion: config.closingVersion ?? 0
+    }
+  } catch (e) { notifyAdminRequestError(e, '退款与日结规则加载失败') }
+}
+
+async function savePaymentRules() {
+  const scope = paymentRuleScope.value
+  const storeId = scope === 'STORE' ? paymentRuleStoreId.value : null
+  const businessType = scope === 'TENANT' ? null : paymentRuleBusinessType.value
+  if (scope === 'STORE' && !storeId) { ElMessage.warning('请选择门店'); return }
+  const closingMinute = scope === 'STORE' ? timeToMinute(paymentRuleForm.value.closingTime) : null
+  if (scope === 'STORE' && closingMinute == null) { ElMessage.warning('请选择有效的日结时间'); return }
+  try {
+    await savePaymentRule({
+      storeId,
+      businessType,
+      approvalThreshold: Number(paymentRuleForm.value.approvalThreshold || 0),
+      offlineRefundEnabled: Boolean(paymentRuleForm.value.offlineRefundEnabled),
+      closingMinute,
+      refundVersion: paymentRuleForm.value.refundVersion,
+      closingVersion: paymentRuleForm.value.closingVersion,
+      idempotencyKey: `payment-rule-${scope}-${storeId || 'tenant'}-${Date.now()}`
+    })
+    ElMessage.success('退款与日结规则已保存')
+    await loadPaymentRules()
+  } catch (e) { notifyAdminRequestError(e, '退款与日结规则保存失败') }
 }
 
 /** 后端返回最小货币单位，编辑时换算成主单位（当前币种）展示。 */
@@ -683,6 +865,10 @@ onMounted(() => {
   loadPayment()
   loadWalletBrand()
   loadBusinessHours()
+  ruleStoreId.value = contextStore.storeId || null
+  paymentRuleStoreId.value = contextStore.storeId || null
+  loadRules()
+  loadPaymentRules()
 })
 
 async function loadStores() {
@@ -694,6 +880,7 @@ async function loadStores() {
     })).filter((item) => item.storeId != null)
     if (!pricingStoreIds.value.length && contextStore.storeId) pricingStoreIds.value = [contextStore.storeId]
     if (!paymentStoreIds.value.length && contextStore.storeId) paymentStoreIds.value = [contextStore.storeId]
+    if (!paymentRuleStoreId.value && contextStore.storeId) paymentRuleStoreId.value = contextStore.storeId
   } catch { stores.value = [] }
 }
 </script>
