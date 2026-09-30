@@ -291,8 +291,10 @@ import {
   getPricingPlans,
   createPricingPlan,
   updatePricingPlan,
+  batchPricingPlans,
   getPaymentSwitches,
   createPaymentSwitch,
+  batchPaymentSwitches,
   getServerCatalog,
   createServerCatalogItem,
   updateServerCatalogItem
@@ -432,11 +434,9 @@ async function savePricing() {
     serverRoundingDirection: pricingForm.value.roundingDirection
   }
   try {
-    for (const target of targets) {
-      const item = { ...data, storeId: target, idempotencyKey: `${data.idempotencyKey}-${target}` }
-      if (item.id && targets.length === 1) await updatePricingPlan(item.id, item)
-      else await createPricingPlan(item)
-    }
+    if (targets.length > 1) await batchPricingPlans({ plan: data, storeIds: targets, idempotencyKey: data.idempotencyKey })
+    else if (data.id) await updatePricingPlan(data.id, data)
+    else await createPricingPlan(data)
     pricingDialogVisible.value = false
     ElMessage.success('已保存')
     await loadPricing()
@@ -601,7 +601,8 @@ async function savePayment() {
         maxAmount: yuanToFen(channel.maxAmount),
       })),
     }
-    for (const target of targets) await createPaymentSwitch({ ...payload, storeId: target, idempotencyKey: `${payload.idempotencyKey}-${target || 'tenant'}` })
+    if (targets.length > 1) await batchPaymentSwitches({ config: payload, storeIds: targets, idempotencyKey: payload.idempotencyKey })
+    else await createPaymentSwitch({ ...payload, storeId: targets[0], idempotencyKey: `${payload.idempotencyKey}-${targets[0] || 'tenant'}` })
     ElMessage.success('支付开关已保存')
   } catch (e) {
     notifyAdminRequestError(e, '保存失败')

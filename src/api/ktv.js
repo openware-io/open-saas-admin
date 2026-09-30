@@ -12,6 +12,9 @@ export function createPricingPlan(data) {
 export function updatePricingPlan(id, data) {
   return request.put('/api/v1/admin/ktv/pricing-plans/' + id, data)
 }
+export function batchPricingPlans(data) {
+  return request.post('/api/v1/admin/ktv/pricing-plans/batch', data)
+}
 
 // 支付开关
 export function getPaymentSwitches(params) {
@@ -22,6 +25,9 @@ export function createPaymentSwitch(data) {
 }
 export function updatePaymentSwitch(id, data) {
   return request.put('/api/v1/admin/ktv/payment-switches/' + id, data)
+}
+export function batchPaymentSwitches(data) {
+  return request.post('/api/v1/admin/ktv/payment-switches/batch', data)
 }
 
 // 服务人员
