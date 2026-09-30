@@ -46,6 +46,7 @@ function itemLabel(item) {
   if (item.tenantName) parts.push(item.tenantName)
   if (item.organizationName) parts.push(item.organizationName)
   if (item.storeName) parts.push(item.storeName)
+  if (item.businessType) parts.push(item.businessType)
   return parts.join(' / ') || item.contextId
 }
 

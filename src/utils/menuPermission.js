@@ -50,9 +50,9 @@ export function filterMenusByPermission(menus, permissions) {
     if (!item || typeof item !== 'object') continue
     if (!isMenuItemVisible(item, permissions)) continue
     const children = Array.isArray(item.children) ? item.children : []
-    result.push(children.length
-      ? { ...item, children: filterMenusByPermission(children, permissions) }
-      : item)
+    const filteredChildren = children.length ? filterMenusByPermission(children, permissions) : []
+    if (children.length && !filteredChildren.length && !item.path) continue
+    result.push(children.length ? { ...item, children: filteredChildren } : item)
   }
   return result
 }

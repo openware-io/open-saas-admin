@@ -54,6 +54,12 @@ const routes = [
       },
       // ===== TENANT 租户后台（B端管理后台） =====
       {
+        path: 'admin/tenant/overview',
+        name: 'TenantOverview',
+        component: () => import('@/views/tenant/overview.vue'),
+        meta: { title: '经营总览', icon: 'DataAnalysis', scope: 'TENANT' },
+      },
+      {
         path: 'admin/tenant/stores',
         name: 'TenantStores',
         component: () => import('@/views/tenant/stores.vue'),

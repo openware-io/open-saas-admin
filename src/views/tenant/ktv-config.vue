@@ -18,6 +18,17 @@
             服务单价 = 每计费单位服务费，已含 1 名标准服务人员，超出按服务人员单价另计。
           </p>
           <div class="filter-bar">
+            <el-radio-group v-model="pricingScope" @change="loadPricing">
+              <el-radio-button label="TENANT">租户默认</el-radio-button>
+              <el-radio-button label="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button label="STORE">门店覆盖</el-radio-button>
+            </el-radio-group>
+            <el-select v-if="pricingScope === 'BUSINESS'" v-model="pricingBusinessType" placeholder="选择业态" style="width: 150px" @change="loadPricing">
+              <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
+            </el-select>
+            <el-select v-if="pricingScope === 'STORE'" v-model="pricingStoreIds" multiple collapse-tags placeholder="选择门店（可多选）" style="width: 260px" @change="loadPricing">
+              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+            </el-select>
             <el-button type="primary" @click="openPricingDialog()">
               <el-icon><Plus /></el-icon>新增计价方案
             </el-button>
@@ -107,6 +118,17 @@
       <el-tab-pane label="支付开关" name="payment">
         <div class="admin-card">
           <div class="filter-bar">
+            <el-radio-group v-model="paymentScope" @change="loadPayment">
+              <el-radio-button label="TENANT">租户默认</el-radio-button>
+              <el-radio-button label="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button label="STORE">门店覆盖</el-radio-button>
+            </el-radio-group>
+            <el-select v-if="paymentScope === 'BUSINESS'" v-model="paymentBusinessType" placeholder="选择业态" style="width: 150px" @change="loadPayment">
+              <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
+            </el-select>
+            <el-select v-if="paymentScope === 'STORE'" v-model="paymentStoreIds" multiple collapse-tags placeholder="选择门店（可多选）" style="width: 260px" @change="loadPayment">
+              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+            </el-select>
             <span class="muted">仅展示平台已授权的线上渠道（支付宝 / 微信支付 / Stripe）；未授权渠道不显示。现金 / {{ walletBrand }} / 积分不依赖渠道配置。</span>
           </div>
           <el-empty v-if="!paymentForm.channels.length" description="暂无平台授权的线上支付渠道" :image-size="80" />
@@ -134,7 +156,7 @@
             </el-table-column>
           </el-table>
           <div class="filter-bar">
-            <el-button type="primary" @click="savePayment">保存支付开关</el-button>
+            <el-button type="primary" @click="savePayment">保存{{ scopeLabel(paymentScope) }}支付开关</el-button>
           </div>
         </div>
       </el-tab-pane>
@@ -187,7 +209,7 @@
     <!-- 计价方案 编辑弹窗 -->
     <el-dialog v-model="pricingDialogVisible" title="计价方案" width="560px">
       <el-form label-width="150px">
-        <el-form-item label="门店"><el-input v-model="pricingForm.storeName" placeholder="门店名称" /></el-form-item>
+        <el-form-item label="配置作用域"><el-tag>{{ scopeLabel(pricingScope) }}</el-tag><span v-if="pricingScope === 'BUSINESS'" class="scope-note">{{ pricingBusinessType }}</span><span v-if="pricingScope === 'STORE'" class="scope-note">可批量应用到已选门店</span></el-form-item>
         <el-form-item label="计费单位">
           <el-select v-model="pricingForm.billingUnit" style="width: 100%">
             <el-option label="按小时" value="HOUR" />
@@ -277,6 +299,7 @@ import {
 } from '@/api/ktv'
 import { listPaymentMethodGrants } from '@/api/payment'
 import { listProducts } from '@/api/order'
+import { listStores } from '@/api/store'
 import { getWalletTokenConfig, getBusinessHours, updateBusinessHours } from '@/api/admin'
 import { PAYMENT_METHODS } from '@/constants/payment-methods'
 import { fenToYuan, formatMoney, withCurrencyLabel, yuanToFen } from '@/utils/format'
@@ -289,6 +312,8 @@ import {
   enabledStatusType,
   resolveWalletBrandName,
   roundingDirectionText,
+  BUSINESS_TYPE_TEXT,
+  CONFIG_SCOPE_TEXT,
 } from '@/constants/terms'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { useContextStore } from '@/stores/context'
@@ -317,6 +342,15 @@ function goWallet() {
 
 // —— 计价方案（价格一律以主单位交互，提交前换算成最小货币单位） ——
 const pricingRows = ref([])
+const pricingScope = ref('STORE')
+const pricingBusinessType = ref('KTV')
+const pricingStoreIds = ref([])
+const paymentScope = ref('STORE')
+const paymentBusinessType = ref('KTV')
+const paymentStoreIds = ref([])
+const stores = ref([])
+const businessTypes = Object.keys(BUSINESS_TYPE_TEXT)
+const scopeLabel = (scope) => CONFIG_SCOPE_TEXT[scope] || scope
 const pricingDialogVisible = ref(false)
 const pricingForm = ref(emptyPricing())
 
@@ -343,7 +377,8 @@ function emptyPricing() {
 
 async function loadPricing() {
   try {
-    pricingRows.value = await getPricingPlans()
+    const storeId = pricingScope.value === 'STORE' ? (pricingStoreIds.value[0] || contextStore.storeId || null) : null
+    pricingRows.value = await getPricingPlans({ storeId, businessType: pricingScope.value === 'TENANT' ? undefined : pricingBusinessType.value })
   } catch (e) {
     pricingRows.value = []
     loadError.value = '计价方案加载失败'
@@ -372,13 +407,16 @@ function openPricingDialog(row) {
 }
 
 async function savePricing() {
-  if (!contextStore.storeId) { ElMessage.error('请先选择门店'); return }
+  const targets = pricingScope.value === 'STORE' ? (pricingStoreIds.value.length ? pricingStoreIds.value : [contextStore.storeId]) : [0]
+  if (pricingScope.value === 'STORE' && !targets[0]) { ElMessage.error('请选择至少一个门店'); return }
   if (!(Number(pricingForm.value.roomPriceYuan) > 0)) { ElMessage.error('包厢单价需大于 0'); return }
   const roomMinor = yuanToFen(pricingForm.value.roomPriceYuan)
   const serverMinor = yuanToFen(pricingForm.value.serverPriceYuan)
   const data = {
     id: pricingForm.value.id,
-    storeId: contextStore.storeId,
+    storeId: targets[0],
+    businessType: pricingScope.value === 'TENANT' ? null : pricingBusinessType.value,
+    idempotencyKey: `pricing-${pricingScope.value}-${targets.join(',')}-${Date.now()}`,
     storeName: pricingForm.value.storeName,
     billingUnit: pricingForm.value.billingUnit,
     // 金额统一换成最小货币单位后再提交（主单位 → 最小货币单位）
@@ -394,10 +432,10 @@ async function savePricing() {
     serverRoundingDirection: pricingForm.value.roundingDirection
   }
   try {
-    if (data.id) {
-      await updatePricingPlan(data.id, data)
-    } else {
-      await createPricingPlan(data)
+    for (const target of targets) {
+      const item = { ...data, storeId: target, idempotencyKey: `${data.idempotencyKey}-${target}` }
+      if (item.id && targets.length === 1) await updatePricingPlan(item.id, item)
+      else await createPricingPlan(item)
     }
     pricingDialogVisible.value = false
     ElMessage.success('已保存')
@@ -516,7 +554,8 @@ async function loadPayment() {
     const cfgMap = {}
     let cfg = {}
     try {
-      const list = await getPaymentSwitches()
+    const storeId = paymentScope.value === 'STORE' ? (paymentStoreIds.value[0] || contextStore.storeId || null) : null
+    const list = await getPaymentSwitches({ storeId, businessType: paymentScope.value === 'TENANT' ? undefined : paymentBusinessType.value })
       cfg = (Array.isArray(list) && list.length) ? list[0] : {}
       ;((cfg && cfg.channels) || []).forEach((c) => { cfgMap[c.channel] = c })
     } catch (e) { /* 无配置则用默认 */ }
@@ -545,12 +584,15 @@ async function loadPayment() {
 }
 
 async function savePayment() {
-  if (!contextStore.storeId) { ElMessage.error('请先选择门店'); return }
+  const targets = paymentScope.value === 'STORE' ? (paymentStoreIds.value.length ? paymentStoreIds.value : [contextStore.storeId]) : [null]
+  if (paymentScope.value === 'STORE' && !targets[0]) { ElMessage.error('请选择至少一个门店'); return }
   try {
     // 限额以主单位交互，提交前换算成最小货币单位整数（与计价方案、储值充值同一口径）。
     const payload = {
       ...paymentForm.value,
-      storeId: contextStore.storeId,
+      storeId: targets[0],
+      businessType: paymentScope.value === 'TENANT' ? null : paymentBusinessType.value,
+      idempotencyKey: `payment-${paymentScope.value}-${targets.join(',')}-${Date.now()}`,
       // 已保存配置带币种时沿用它，否则取全局当前币种（写路径不写死、也不会漏字段）
       currencyCode: paymentForm.value.currencyCode || currencyStore.code,
       channels: (paymentForm.value.channels || []).map((channel) => ({
@@ -559,7 +601,7 @@ async function savePayment() {
         maxAmount: yuanToFen(channel.maxAmount),
       })),
     }
-    await createPaymentSwitch(payload)
+    for (const target of targets) await createPaymentSwitch({ ...payload, storeId: target, idempotencyKey: `${payload.idempotencyKey}-${target || 'tenant'}` })
     ElMessage.success('支付开关已保存')
   } catch (e) {
     notifyAdminRequestError(e, '保存失败')
@@ -634,12 +676,25 @@ async function saveBusinessHours(scope) {
 }
 
 onMounted(() => {
+  loadStores()
   loadPricing()
   loadServer()
   loadPayment()
   loadWalletBrand()
   loadBusinessHours()
 })
+
+async function loadStores() {
+  try {
+    const list = await listStores({ status: 'ACTIVE' })
+    stores.value = (Array.isArray(list) ? list : []).map((item) => ({
+      storeId: item.id ?? item.storeId,
+      storeName: item.name ?? item.storeName,
+    })).filter((item) => item.storeId != null)
+    if (!pricingStoreIds.value.length && contextStore.storeId) pricingStoreIds.value = [contextStore.storeId]
+    if (!paymentStoreIds.value.length && contextStore.storeId) paymentStoreIds.value = [contextStore.storeId]
+  } catch { stores.value = [] }
+}
 </script>
 
 <style scoped>

@@ -67,6 +67,8 @@ export const useContextStore = defineStore('context', () => {
   const tenantId = computed(() => current.value?.tenantId ?? null)
   const organizationId = computed(() => current.value?.organizationId ?? null)
   const storeId = computed(() => current.value?.storeId ?? null)
+  const businessType = computed(() => current.value?.businessType ?? null)
+  const timezone = computed(() => current.value?.timezone ?? null)
 
   async function fetchContexts() {
     loading.value = true
@@ -338,7 +340,7 @@ export const useContextStore = defineStore('context', () => {
 
   return {
     items, loading, error, current, settled,
-    tenantId, organizationId, storeId,
+    tenantId, organizationId, storeId, businessType, timezone,
     fetchContexts, ensureContext, revalidate, revalidateInBackground, recoverAfterIdle, select, clear,
   }
 })

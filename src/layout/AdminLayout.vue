@@ -17,11 +17,15 @@
         @select="collapseOnNavigation"
       >
         <template v-if="visibleMenus.length">
-          <SidebarMenuItem
-            v-for="item in visibleMenus"
-            :key="item.id || item.code || item.path"
-            :item="item"
-          />
+          <template v-for="section in menuSections" :key="section.scope">
+            <li v-if="!isCollapse" class="menu-section-title">{{ section.title }}</li>
+            <el-divider v-if="section.scope === 'STORE' && !isCollapse" class="menu-section-divider" />
+            <SidebarMenuItem
+              v-for="item in section.items"
+              :key="item.id || item.code || item.path"
+              :item="item"
+            />
+          </template>
         </template>
         <el-menu-item v-else index="menu-loading" disabled>
           <template #title>{{ menuStore.error || '菜单加载中…' }}</template>
@@ -295,6 +299,14 @@ const contextBlocked = computed(() =>
  * 的映射里，避免页面各自维护一份固定入口。
  */
 const visibleMenus = computed(() => filterMenusByPermission(menuStore.menus, contextStore.current?.permissions))
+const menuSections = computed(() => {
+  const sections = []
+  for (const scope of ['TENANT', 'STORE', 'PLATFORM']) {
+    const items = visibleMenus.value.filter((item) => (item.scope || authStore.scope) === scope)
+    if (items.length) sections.push({ scope, title: scope === 'STORE' ? '门店经营' : scope === 'TENANT' ? '租户管理' : '平台运营', items })
+  }
+  return sections
+})
 
 /** 登录/切上下文后确保全站币种已就绪（context select 已带时不会重复请求）。 */
 let lastCurrencyTenantId = null
@@ -442,6 +454,21 @@ async function submitPasswordChange() {
 
 .sidebar-menu::-webkit-scrollbar {
   width: 0;
+}
+
+.menu-section-title {
+  list-style: none;
+  padding: 12px 20px 6px;
+  color: #7e8494;
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0;
+}
+
+.menu-section-divider {
+  margin: 8px 12px;
+  width: auto;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .header {

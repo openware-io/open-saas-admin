@@ -422,6 +422,7 @@ export function pointsEntryTypeText(type) {
  * KTV（字典里的 name 也是「KTV」），因此界面展示保持「KTV」；新增业态必须补进本词表。
  */
 export const BUSINESS_TYPE_TEXT = { KTV: 'KTV' }
+export const CONFIG_SCOPE_TEXT = { TENANT: '租户默认', BUSINESS: '业态默认', STORE: '门店覆盖' }
 export function businessTypeText(type) {
   return BUSINESS_TYPE_TEXT[type] || unknownEnumText(type)
 }

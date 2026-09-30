@@ -64,6 +64,7 @@ export function listRefunds() {
 }
 
 export function requestRefund(data) {
+  // 退款门店由当前租户/门店上下文固化；data.storeId 仅用于一致性校验。
   return request.post('/api/v1/business/refund-requests', data)
 }
 
