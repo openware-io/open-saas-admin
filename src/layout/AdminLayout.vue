@@ -6,6 +6,14 @@
         <el-icon :size="24"><OfficeBuilding /></el-icon>
         <span v-show="!isCollapse" class="logo-text">SaaS 管理后台</span>
       </div>
+      <div v-if="authStore.scope === 'TENANT'" class="context-panel">
+        <div class="context-tenant">租户 · {{ contextStore.current?.tenantName || '请选择租户' }}</div>
+        <div v-if="contextStore.current?.storeId" class="context-store">
+          <span>门店 · {{ contextStore.current?.storeName || '当前门店' }}</span>
+          <span class="context-meta">{{ contextStore.current?.businessType || '业务' }} · {{ contextStore.current?.timezone || '时区未设置' }}</span>
+        </div>
+        <div v-else class="context-store context-empty">请选择门店进入门店经营</div>
+      </div>
       <el-menu
         :default-active="route.path"
         :collapse="isCollapse"
@@ -445,6 +453,20 @@ async function submitPasswordChange() {
 .logo-text {
   white-space: nowrap;
 }
+
+.context-panel {
+  margin: 0 12px;
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #d9dce4;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.context-tenant { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.context-store { color: #a3a6ad; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.context-meta { display: block; color: #7e8494; }
+.context-empty { color: #e6a23c; }
 
 .sidebar-menu {
   border-right: none;
