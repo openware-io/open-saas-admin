@@ -203,7 +203,7 @@
       <!-- ============ 退款与日结规则 ============ -->
       <el-tab-pane label="退款与日结规则" name="payment-rules">
         <div class="admin-card rules-card">
-          <p class="tip">退款审批阈值按租户币种配置，用于标记高风险退款；所有退款仍按现有流程由店长/财务审批。线下退款开关仅支持租户/业态默认。日结时间为门店营业日切点，只能按门店设置。</p>
+          <p class="tip">退款审批阈值按租户币种配置，用于标记高风险退款；线下退款开关仅支持租户/业态默认。日结时间为门店营业日切点，只能按门店设置。作废审批要求按门店覆盖、业态默认、租户默认解析。</p>
           <div class="filter-bar">
             <el-radio-group v-model="paymentRuleScope" @change="loadPaymentRules">
               <el-radio-button label="TENANT">租户默认</el-radio-button>
@@ -229,6 +229,13 @@
                 <el-form-item label="允许线下退款" :disabled="paymentRuleScope === 'STORE'">
                   <el-switch v-model="paymentRuleForm.offlineRefundEnabled" :disabled="paymentRuleScope === 'STORE'" />
                   <span v-if="paymentRuleScope === 'STORE'" class="field-hint">门店继承业态或租户设置</span>
+                </el-form-item>
+              </el-form>
+              <h3>订单作废</h3>
+              <el-form label-width="170px">
+                <el-form-item label="要求审批后作废">
+                  <el-switch v-model="paymentRuleForm.requireVoidApproval" />
+                  <span class="field-hint">开启后直接作废会被拒绝，必须提交并完成审批</span>
                 </el-form-item>
               </el-form>
             </el-col>
@@ -390,7 +397,9 @@ import {
   getReservationRule,
   saveReservationRule,
   getPaymentRule,
-  savePaymentRule
+  savePaymentRule,
+  getVoidRule,
+  saveVoidRule
 } from '@/api/ktv'
 import { listPaymentMethodGrants } from '@/api/payment'
 import { listProducts } from '@/api/order'
@@ -451,7 +460,7 @@ const reservationRuleForm = ref({ advanceMinutes: 0, cancelMinutes: 0, reschedul
 const paymentRuleScope = ref('STORE')
 const paymentRuleBusinessType = ref('KTV')
 const paymentRuleStoreId = ref(null)
-const paymentRuleForm = ref({ approvalThreshold: 0, offlineRefundEnabled: true, closingTime: '00:00', refundVersion: 0, closingVersion: 0 })
+const paymentRuleForm = ref({ approvalThreshold: 0, offlineRefundEnabled: true, closingTime: '00:00', requireVoidApproval: false, voidVersion: 0, refundVersion: 0, closingVersion: 0 })
 const stores = ref([])
 const businessTypes = Object.keys(BUSINESS_TYPE_TEXT)
 const scopeLabel = (scope) => CONFIG_SCOPE_TEXT[scope] || scope
@@ -534,12 +543,14 @@ function timeToMinute(value) {
 async function loadPaymentRules() {
   if (paymentRuleScope.value === 'STORE' && !paymentRuleStoreId.value) return
   try {
-    const config = await getPaymentRule(paymentRuleParams())
+    const [config, voidRule] = await Promise.all([getPaymentRule(paymentRuleParams()), getVoidRule(paymentRuleParams())])
     paymentRuleForm.value = {
       ...paymentRuleForm.value,
       approvalThreshold: Number(config.approvalThreshold || 0),
       offlineRefundEnabled: config.offlineRefundEnabled !== false,
       closingTime: minuteToTime(config.closingMinute),
+      requireVoidApproval: voidRule.requireApproval === true,
+      voidVersion: voidRule.version ?? 0,
       refundVersion: config.refundVersion ?? config.version ?? 0,
       closingVersion: config.closingVersion ?? 0
     }
@@ -554,7 +565,7 @@ async function savePaymentRules() {
   const closingMinute = scope === 'STORE' ? timeToMinute(paymentRuleForm.value.closingTime) : null
   if (scope === 'STORE' && closingMinute == null) { ElMessage.warning('请选择有效的日结时间'); return }
   try {
-    await savePaymentRule({
+    await Promise.all([savePaymentRule({
       storeId,
       businessType,
       approvalThreshold: Number(paymentRuleForm.value.approvalThreshold || 0),
@@ -563,7 +574,13 @@ async function savePaymentRules() {
       refundVersion: paymentRuleForm.value.refundVersion,
       closingVersion: paymentRuleForm.value.closingVersion,
       idempotencyKey: `payment-rule-${scope}-${storeId || 'tenant'}-${Date.now()}`
-    })
+    }), saveVoidRule({
+      storeId,
+      businessType,
+      requireApproval: Boolean(paymentRuleForm.value.requireVoidApproval),
+      version: paymentRuleForm.value.voidVersion,
+      idempotencyKey: `void-rule-${scope}-${storeId || 'tenant'}-${Date.now()}`
+    })])
     ElMessage.success('退款与日结规则已保存')
     await loadPaymentRules()
   } catch (e) { notifyAdminRequestError(e, '退款与日结规则保存失败') }

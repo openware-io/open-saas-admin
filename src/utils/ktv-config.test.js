@@ -40,3 +40,14 @@ it('储值管理页承载真实储值流水与租户级口径', async () => {
   // 租户级、跨门店共用的口径要写在界面上
   expect(source).toContain('跨门店共用')
 })
+
+it('退款与日结配置页同步维护 Order 作废审批规则', async () => {
+  const source = await readFile(new URL('../views/tenant/ktv-config.vue', import.meta.url), 'utf8')
+  const api = await readFile(new URL('../api/ktv.js', import.meta.url), 'utf8')
+  expect(api).toContain("'/api/v1/admin/ktv/void-rules'")
+  expect(source).toContain('getVoidRule')
+  expect(source).toContain('saveVoidRule')
+  expect(source).toContain('requireVoidApproval')
+  expect(source).toContain('开启后直接作废会被拒绝')
+  expect(source).toContain('Promise.all([getPaymentRule(paymentRuleParams()), getVoidRule(paymentRuleParams())])')
+})

@@ -60,6 +60,12 @@ export function getPaymentRule(params) {
 export function savePaymentRule(data) {
   return request.put('/api/v1/admin/ktv/payment-rules', data)
 }
+export function getVoidRule(params) {
+  return request.get('/api/v1/admin/ktv/void-rules', { params })
+}
+export function saveVoidRule(data) {
+  return request.put('/api/v1/admin/ktv/void-rules', data)
+}
 
 // 储值（代币，展示名取租户配置）不在 KTV 配置 BFF：储值是租户级资产，唯一入口是「储值管理」页
 // （src/views/tenant/wallet.vue，直连 customer 域 /admin/wallets/* 与 /business/members/{id}/wallet[/ledger]）。
