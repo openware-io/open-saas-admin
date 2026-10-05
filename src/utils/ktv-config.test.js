@@ -51,3 +51,10 @@ it('退款与日结配置页同步维护 Order 作废审批规则', async () => 
   expect(source).toContain('开启后直接作废会被拒绝')
   expect(source).toContain('Promise.all([getPaymentRule(paymentRuleParams()), getVoidRule(paymentRuleParams())])')
 })
+
+it('KTV 配置作用域单选使用 Element Plus 的 value API', async () => {
+  const source = await readFile(new URL('../views/tenant/ktv-config.vue', import.meta.url), 'utf8')
+  // Element Plus 3 将移除 label 兼作值的兼容行为；四个三层作用域选择器必须显式传 value。
+  expect(source.match(/<el-radio-button value="(?:TENANT|BUSINESS|STORE)">/g)).toHaveLength(12)
+  expect(source).not.toMatch(/<el-radio-button label=/)
+})
