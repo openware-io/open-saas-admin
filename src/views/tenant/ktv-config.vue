@@ -19,9 +19,9 @@
           </p>
           <div class="filter-bar">
             <el-radio-group v-model="pricingScope" @change="loadPricing">
-              <el-radio-button label="TENANT">租户默认</el-radio-button>
-              <el-radio-button label="BUSINESS">业态默认</el-radio-button>
-              <el-radio-button label="STORE">门店覆盖</el-radio-button>
+              <el-radio-button value="TENANT">租户默认</el-radio-button>
+              <el-radio-button value="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button value="STORE">门店覆盖</el-radio-button>
             </el-radio-group>
             <el-select v-if="pricingScope === 'BUSINESS'" v-model="pricingBusinessType" placeholder="选择业态" style="width: 150px" @change="loadPricing">
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
@@ -119,9 +119,9 @@
         <div class="admin-card">
           <div class="filter-bar">
             <el-radio-group v-model="paymentScope" @change="loadPayment">
-              <el-radio-button label="TENANT">租户默认</el-radio-button>
-              <el-radio-button label="BUSINESS">业态默认</el-radio-button>
-              <el-radio-button label="STORE">门店覆盖</el-radio-button>
+              <el-radio-button value="TENANT">租户默认</el-radio-button>
+              <el-radio-button value="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button value="STORE">门店覆盖</el-radio-button>
             </el-radio-group>
             <el-select v-if="paymentScope === 'BUSINESS'" v-model="paymentBusinessType" placeholder="选择业态" style="width: 150px" @change="loadPayment">
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
@@ -167,9 +167,9 @@
           <p class="tip">规则按门店覆盖、业态默认、租户默认解析；积分有效期仅支持租户/业态层，预约窗口以到店时间为基准，单位为分钟。</p>
           <div class="filter-bar">
             <el-radio-group v-model="ruleScope" @change="loadRules">
-              <el-radio-button label="TENANT">租户默认</el-radio-button>
-              <el-radio-button label="BUSINESS">业态默认</el-radio-button>
-              <el-radio-button label="STORE">门店覆盖</el-radio-button>
+              <el-radio-button value="TENANT">租户默认</el-radio-button>
+              <el-radio-button value="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button value="STORE">门店覆盖</el-radio-button>
             </el-radio-group>
             <el-select v-if="ruleScope !== 'TENANT'" v-model="ruleBusinessType" placeholder="选择业态" style="width: 150px" @change="loadRules">
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
@@ -206,9 +206,9 @@
           <p class="tip">退款审批阈值按租户币种配置，用于标记高风险退款；线下退款开关仅支持租户/业态默认。日结时间为门店营业日切点，只能按门店设置。作废审批要求按门店覆盖、业态默认、租户默认解析。</p>
           <div class="filter-bar">
             <el-radio-group v-model="paymentRuleScope" @change="loadPaymentRules">
-              <el-radio-button label="TENANT">租户默认</el-radio-button>
-              <el-radio-button label="BUSINESS">业态默认</el-radio-button>
-              <el-radio-button label="STORE">门店覆盖</el-radio-button>
+              <el-radio-button value="TENANT">租户默认</el-radio-button>
+              <el-radio-button value="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button value="STORE">门店覆盖</el-radio-button>
             </el-radio-group>
             <el-select v-if="paymentRuleScope !== 'TENANT'" v-model="paymentRuleBusinessType" placeholder="选择业态" style="width: 150px" @change="loadPaymentRules">
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
