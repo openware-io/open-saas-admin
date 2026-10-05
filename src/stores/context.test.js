@@ -100,6 +100,24 @@ describe('context select 传播币种（§3）', () => {
     expect(currentCurrencyCode()).toBe('CNY')
   })
 
+  it('选择响应合并候选上下文名称，左侧租户/门店标题不丢失', async () => {
+    const named = { ...candidates[1], tenantName: 'A380', organizationName: 'A380 总部', storeName: 'A380 KTV 旗舰店' }
+    getContexts.mockResolvedValue({ items: [named] })
+    selectContext.mockResolvedValue({ tenantId: 100, organizationId: null, storeId: null, permissions: ['tenant.overview.view'], currencyCode: 'USD' })
+    getSession.mockResolvedValue({ authenticated: true, selectedContextId: '100::' })
+
+    const store = useContextStore()
+    await store.ensureContext('TENANT')
+
+    expect(store.current).toMatchObject({
+      tenantId: 100,
+      tenantName: 'A380',
+      organizationName: 'A380 总部',
+      storeName: 'A380 KTV 旗舰店',
+      currencyCode: 'USD',
+    })
+  })
+
   it('响应缺 currencyCode 时回落默认 USD，不沿用上一个租户的币种', async () => {
     selectContext.mockResolvedValue({ ...candidates[1], currencyCode: 'CNY' })
     const store = useContextStore()

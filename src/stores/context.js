@@ -306,7 +306,10 @@ export const useContextStore = defineStore('context', () => {
   // 全站币种由此写入 utils/currency-runtime 的唯一来源，页面不再各请求一套。
   async function select(contextId) {
     const data = await selectContext(contextId)
-    current.value = data
+    // 选择接口只返回签名上下文的授权数据；名称等展示元数据来自候选上下文列表。
+    // 合并而不是覆盖，避免总部上下文在左侧只显示“请选择租户”，同时保留服务端最新的权限/币种。
+    const candidate = items.value.find((item) => item.contextId === contextId)
+    current.value = candidate ? { ...candidate, ...data } : data
     snapshotAt = Date.now()
     setCurrency(data?.currencyCode ?? data?.currency)
     return true
