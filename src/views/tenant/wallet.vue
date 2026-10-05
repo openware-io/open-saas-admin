@@ -37,8 +37,8 @@
           <el-table-column label="操作" width="220" align="center" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openLedger(row)">流水</el-button>
-              <el-button link type="success" @click="openRecharge(row)">充值</el-button>
-              <el-button link type="danger" :disabled="!row.opened" @click="openRefund(row)">退还</el-button>
+              <el-button v-if="storeWritable" link type="success" @click="openRecharge(row)">充值</el-button>
+              <el-button v-if="storeWritable" link type="danger" :disabled="!row.opened" @click="openRefund(row)">退还</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -185,6 +185,8 @@ import {
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 
 const contextStore = useContextStore()
+// 总部可读租户共享储值余额/流水；充值、退还必须在门店上下文中。代币配置仍是租户级配置。
+const storeWritable = computed(() => Boolean(contextStore.storeId))
 // 全局币种（唯一来源）：写请求体的 currencyCode 取它（后端按币种隔离钱包账本）。
 const currencyStore = useCurrencyStore()
 const loading = ref(false)

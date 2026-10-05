@@ -31,7 +31,7 @@
         <el-table-column label="操作" width="160" align="center" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openLedger(row)">明细</el-button>
-            <el-button link type="success" @click="openAdjust(row)">调整</el-button>
+            <el-button v-if="storeWritable" link type="success" @click="openAdjust(row)">调整</el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -67,7 +67,7 @@
       </el-form>
       <template #footer>
         <el-button @click="adjustVisible = false">取消</el-button>
-        <el-button type="primary" @click="doAdjust">确认调整</el-button>
+        <el-button v-if="storeWritable" type="primary" @click="doAdjust">确认调整</el-button>
       </template>
     </el-dialog>
 
@@ -96,7 +96,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { listPointsAccounts, getMemberPoints, adjustPoints } from '@/api/member'
@@ -105,8 +105,12 @@ import { dateRangeParams, dateRangeWarning, emptyDateRange } from '@/utils/dateR
 import { formatPoints, formatTime } from '@/utils/format'
 import { pointsEntryTypeText } from '@/constants/terms'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
+import { useContextStore } from '@/stores/context'
 
 const rows = ref([])
+const contextStore = useContextStore()
+// 总部只读：积分余额/流水可查，积分调整必须在门店上下文中发起。
+const storeWritable = computed(() => Boolean(contextStore.storeId))
 const total = ref(0)
 const loading = ref(false)
 const query = reactive({ page: 1, pageSize: 10, keyword: '', range: emptyDateRange() })

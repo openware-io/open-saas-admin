@@ -9,7 +9,7 @@
         <el-button @click="rebuildNameIndex">
           <el-icon><Refresh /></el-icon>重建姓名索引
         </el-button>
-        <el-button type="primary" @click="openCreate">
+        <el-button v-if="storeWritable" type="primary" @click="openCreate">
           <el-icon><Plus /></el-icon>新建客户
         </el-button>
       </div>
@@ -140,7 +140,7 @@
       </div>
       <template #footer>
         <el-button @click="detailVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveBinding">保存</el-button>
+        <el-button v-if="storeWritable" type="primary" @click="saveBinding">保存</el-button>
       </template>
     </el-dialog>
 
@@ -152,7 +152,7 @@
       <div class="adjust-bar">
         <el-input-number v-model="pointsForm.points" :min="1" style="width: 140px" />
         <el-input v-model="pointsForm.reason" placeholder="调整原因" style="width: 220px" />
-        <el-button type="primary" @click="doAdjust">积分调整</el-button>
+        <el-button v-if="storeWritable" type="primary" @click="doAdjust">积分调整</el-button>
       </div>
       <el-table v-if="ledger.length" :data="ledger" border size="small" style="margin-top: 14px">
         <el-table-column prop="entryType" label="类型" width="100" align="center">
@@ -244,6 +244,8 @@ import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { useContextStore } from '@/stores/context'
 
 const contextStore = useContextStore()
+// 客户/积分/储值写操作必须带门店上下文；总部可读共享档案与余额，但不展示会必然被服务端拒绝的写入口。
+const storeWritable = computed(() => Boolean(contextStore.storeId))
 const rows = ref([])
 const total = ref(0)
 const loading = ref(false)
