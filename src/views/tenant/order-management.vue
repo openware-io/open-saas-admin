@@ -118,6 +118,7 @@
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row)">详情</el-button>
             <el-button v-if="canCancelOrder(row)" link type="danger" @click="cancel(row)">取消订单</el-button>
+            <el-button v-if="row.status === 'VOIDED'" link type="warning" @click="openRecovery(row)">库存处理</el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -277,6 +278,20 @@
         </div>
       </template>
     </el-drawer>
+
+    <el-dialog v-model="recoveryVisible" title="作废订单库存处理" width="680px">
+      <el-table :data="recoveryItems" border stripe>
+        <el-table-column prop="nameSnapshot" label="商品" min-width="180" />
+        <el-table-column prop="quantity" label="数量" width="90" />
+        <el-table-column label="操作" width="220">
+          <template #default="{ row }">
+            <el-button type="success" size="small" @click="decideRecovery(row, true)">确认回补</el-button>
+            <el-button type="warning" size="small" @click="decideRecovery(row, false)">确认不回补</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-if="!recoveryItems.length" description="没有待处理库存明细" />
+    </el-dialog>
   </div>
 </template>
 
@@ -286,7 +301,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Bell, Refresh } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import DateRangeFilter from '@/components/DateRangeFilter.vue'
-import { cancelOrder, getBill, getOrderCollections, listOrders } from '@/api/order'
+import {
+  cancelOrder,
+  decideInventoryRecovery,
+  getBill,
+  getOrderCollections,
+  listInventoryRecovery,
+  listOrders,
+} from '@/api/order'
 import { getWalletTokenConfig } from '@/api/admin'
 import { currencyText, formatMoney, formatTime, promotionTypeText } from '@/utils/format'
 import { durationTextFromSeconds, roomFeeSourceText } from '@/utils/billExplain'
@@ -333,6 +355,9 @@ const detailVisible = ref(false)
 const detailOrder = ref(null)
 const detailBill = ref(null)
 const detailBillLoading = ref(false)
+const recoveryVisible = ref(false)
+const recoveryOrder = ref(null)
+const recoveryItems = ref([])
 
 /**
  * 收款明细（组合支付）：按 orderId 索引当前页的收款数据。
@@ -590,6 +615,32 @@ async function cancel(row) {
       notifyCancelRequestError(e, '取消订单失败')
       await load()
     }
+  }
+}
+
+async function openRecovery(row) {
+  recoveryOrder.value = row
+  recoveryVisible.value = true
+  try {
+    recoveryItems.value = await listInventoryRecovery(row.id) || []
+  } catch (error) {
+    recoveryItems.value = []
+    notifyAdminRequestError(error, '加载库存处理项失败')
+  }
+}
+
+async function decideRecovery(item, recover) {
+  const message = recover ? '确认将该商品库存回补？' : '确认该商品已消耗，不回补库存？'
+  await ElMessageBox.confirm(message, '库存处理')
+  try {
+    await decideInventoryRecovery(recoveryOrder.value.id, item.id, {
+      recover,
+      reason: recover ? '作废订单运营确认回补' : '作废订单运营确认已消耗',
+    })
+    ElMessage.success('处理完成')
+    await openRecovery(recoveryOrder.value)
+  } catch (error) {
+    notifyAdminRequestError(error, '库存处理失败')
   }
 }
 
