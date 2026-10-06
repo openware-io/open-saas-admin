@@ -59,13 +59,25 @@ export function submitDailyClosing(id, data) {
   return request.post('/api/v1/admin/daily-closings/' + id + '/submit', data)
 }
 
-export function listRefunds() {
-  return request.get('/api/v1/business/refund-requests')
+export function listRefunds(params) {
+  return request.get('/api/v1/business/refund-requests', { params })
 }
 
 export function requestRefund(data) {
   // 退款门店由当前租户/门店上下文固化；data.storeId 仅用于一致性校验。
   return request.post('/api/v1/business/refund-requests', data)
+}
+
+export function approveRefund(id, data) {
+  return request.post('/api/v1/admin/refund-requests/' + id + '/approve', data)
+}
+
+export function rejectRefund(id, data) {
+  return request.post('/api/v1/admin/refund-requests/' + id + '/reject', data)
+}
+
+export function markRefunded(id, data) {
+  return request.post('/api/v1/admin/refund-requests/' + id + '/refund', data)
 }
 
 // —— 支付方式配置化（统一口径：B端收银 view=admin；C端支付 view=user）——

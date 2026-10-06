@@ -605,7 +605,6 @@
         </el-form-item>
         <el-form-item label="类型">
           <el-select v-model="catalogForm.itemType" style="width: 100%">
-            <el-option label="商品" value="PRODUCT" />
             <el-option label="服务" value="SERVICE" />
             <el-option label="套餐" value="PACKAGE" />
             <el-option label="加项" value="ADD_ON" />
@@ -852,7 +851,7 @@ const catalogManageVisible = ref(false)
 const catalogManageKeyword = ref('')
 const catalogEditingId = ref(null)
 const catalogSaving = ref(false)
-const emptyCatalogForm = () => ({ category: '', name: '', priceYuan: 0, unit: '', itemType: 'PRODUCT' })
+const emptyCatalogForm = () => ({ category: '', name: '', priceYuan: 0, unit: '', itemType: 'SERVICE' })
 const catalogForm = ref(emptyCatalogForm())
 const catalogManageRows = computed(() => {
   const search = catalogManageKeyword.value.trim().toLowerCase()

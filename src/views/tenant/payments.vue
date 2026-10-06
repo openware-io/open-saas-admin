@@ -16,6 +16,7 @@
     >
       <template #actions>
         <el-button :loading="loading" @click="load"><el-icon><Refresh /></el-icon>刷新</el-button>
+        <el-button @click="refundVisible = true">退款处理</el-button>
         <el-button type="primary" @click="openCollect"><el-icon><Plus /></el-icon>发起收款</el-button>
       </template>
 
@@ -90,6 +91,37 @@
       </div>
     </el-drawer>
 
+    <el-dialog v-model="refundVisible" title="退款处理" width="860px" @open="loadRefunds">
+      <el-table :data="refunds" v-loading="refundLoading" border>
+        <el-table-column prop="orderId" label="订单" width="90" />
+        <el-table-column label="申请金额" width="120">
+          <template #default="{ row }">{{ formatMoney(row.requestedAmount, row.currencyCode) }}</template>
+        </el-table-column>
+        <el-table-column prop="reason" label="原因" min-width="150" />
+        <el-table-column prop="status" label="状态" width="100" />
+        <el-table-column label="操作" width="260">
+          <template #default="{ row }">
+            <template v-if="row.status === 'PENDING'">
+              <el-button size="small" type="success" @click="approveRefundRow(row)">批准</el-button>
+              <el-button size="small" type="danger" @click="rejectRefundRow(row)">驳回</el-button>
+            </template>
+            <el-button v-else-if="row.status === 'APPROVED'" size="small" type="primary" @click="completeRefundRow(row)">登记退款</el-button>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-divider content-position="left">发起退款申请</el-divider>
+      <el-form label-width="90px">
+        <el-form-item label="订单 ID"><el-input v-model="refundForm.orderId" /></el-form-item>
+        <el-form-item label="退款金额"><el-input-number v-model="refundForm.amountYuan" :min="0.01" :precision="2" :step="1" style="width:100%" /></el-form-item>
+        <el-form-item label="原因"><el-input v-model="refundForm.reason" maxlength="255" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="refundVisible = false">关闭</el-button>
+        <el-button type="primary" :loading="refundSaving" @click="submitRefund">提交退款申请</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 组合收款：抵扣顺序「积分 → 储值 → 现金补差额」，每笔 ≤ 剩余应收，合计必须等于应收 -->
     <el-dialog v-model="collectVisible" title="发起收款（组合支付）" width="560px">
       <el-form label-width="110px">
@@ -144,7 +176,7 @@ import { ElMessage } from 'element-plus'
 import { CircleCheck, CircleClose, Clock, CreditCard, Grid, Money, Plus, Refresh } from '@element-plus/icons-vue'
 import OperationsBoard from '@/components/OperationsBoard.vue'
 import DateRangeFilter from '@/components/DateRangeFilter.vue'
-import { listPayments, collect, listPaymentMethods, getOrderBill } from '@/api/payment'
+import { listPayments, collect, listPaymentMethods, getOrderBill, listRefunds, requestRefund, approveRefund, rejectRefund, markRefunded } from '@/api/payment'
 import { listMembers, getMemberWallet, getMemberPoints } from '@/api/member'
 import { getWalletTokenConfig } from '@/api/admin'
 import { formatMoney, formatPoints, formatTime, formatTimeWithSeconds, formatTokens, formatYuan, resolveTokenCount, resolveTokenRatio, yuanToFen } from '@/utils/format'
@@ -169,6 +201,12 @@ const viewMode = ref('grid')
 const lastUpdatedAt = ref(null)
 const detailVisible = ref(false)
 const detailPayment = ref(null)
+const refundVisible = ref(false)
+const refundLoading = ref(false)
+const refundSaving = ref(false)
+const refunds = ref([])
+const refundForm = ref({ orderId: '', amountYuan: 0.01, reason: '' })
+const operatorId = computed(() => contextStore.current?.accountId ?? null)
 
 const PAYMENT_FILTERS = [
   { value: 'all', label: '全部', dot: false },
@@ -282,6 +320,62 @@ function paymentStatusClass(status) {
 function openPaymentDetail(payment) {
   detailPayment.value = payment
   detailVisible.value = true
+}
+
+async function loadRefunds() {
+  refundLoading.value = true
+  try {
+    const data = await listRefunds(dateRangeParams(range.value))
+    refunds.value = Array.isArray(data) ? data : (data && data.items) || []
+  } catch (e) {
+    notifyAdminRequestError(e, '加载退款申请失败')
+  } finally {
+    refundLoading.value = false
+  }
+}
+
+async function submitRefund() {
+  const orderId = Number(String(refundForm.value.orderId || '').replace(/^#/, ''))
+  const amount = yuanToFen(refundForm.value.amountYuan)
+  const reason = String(refundForm.value.reason || '').trim()
+  if (!orderId) { ElMessage.warning('请输入订单 ID'); return }
+  if (amount <= 0) { ElMessage.warning('退款金额需大于 0'); return }
+  if (!reason) { ElMessage.warning('请输入退款原因'); return }
+  refundSaving.value = true
+  try {
+    await requestRefund({ storeId: contextStore.storeId, orderId, amount, reason, requestedBy: operatorId.value })
+    ElMessage.success('退款申请已提交')
+    refundForm.value = { orderId: '', amountYuan: 0.01, reason: '' }
+    await loadRefunds()
+  } catch (e) {
+    notifyAdminRequestError(e, '提交退款申请失败')
+  } finally {
+    refundSaving.value = false
+  }
+}
+
+async function approveRefundRow(row) {
+  try {
+    await approveRefund(row.id, { approvedAmount: row.requestedAmount, approvedBy: operatorId.value })
+    ElMessage.success('退款已批准')
+    await loadRefunds()
+  } catch (e) { notifyAdminRequestError(e, '批准退款失败') }
+}
+
+async function rejectRefundRow(row) {
+  try {
+    await rejectRefund(row.id, { rejectedBy: operatorId.value })
+    ElMessage.success('退款已驳回')
+    await loadRefunds()
+  } catch (e) { notifyAdminRequestError(e, '驳回退款失败') }
+}
+
+async function completeRefundRow(row) {
+  try {
+    await markRefunded(row.id, { providerRefundNo: `OFFLINE-${row.id}`, operatorId: operatorId.value })
+    ElMessage.success('线下退款已登记')
+    await Promise.all([loadRefunds(), load()])
+  } catch (e) { notifyAdminRequestError(e, '登记退款失败') }
 }
 
 async function load() {
