@@ -98,7 +98,7 @@
           <template #default="{ row }">{{ formatMoney(row.requestedAmount, row.currencyCode) }}</template>
         </el-table-column>
         <el-table-column prop="reason" label="原因" min-width="150" />
-        <el-table-column prop="status" label="状态" width="100" />
+        <el-table-column label="状态" width="100"><template #default="{ row }">{{ refundStatusText(row.status) }}</template></el-table-column>
         <el-table-column label="操作" width="260">
           <template #default="{ row }">
             <template v-if="row.status === 'PENDING'">
@@ -183,7 +183,7 @@ import { formatMoney, formatPoints, formatTime, formatTimeWithSeconds, formatTok
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { dateRangeParams, dateRangeWarning, emptyDateRange } from '@/utils/dateRange'
 import { collectedLegText, isQuantityLeg, legInputPrecision, legInputStep, legInputToMinor, legMinorToInput, methodLabel, orderAllowedMethods, paymentValueLabel, paymentValueText, recordCurrencyText } from '@/constants/payment-methods'
-import { WALLET_BRAND_NAME_DEFAULT, moneyColumnLabel, payStatusText, resolveWalletBrandName } from '@/constants/terms'
+import { WALLET_BRAND_NAME_DEFAULT, moneyColumnLabel, payStatusText, refundStatusText, resolveWalletBrandName } from '@/constants/terms'
 import { useContextStore } from '@/stores/context'
 import { useCurrencyStore } from '@/stores/currency'
 

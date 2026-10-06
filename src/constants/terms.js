@@ -1001,3 +1001,25 @@ export const ACCOUNT_TYPE_TEXT = { CUSTOMER: '客户', EMPLOYEE: '员工', PLATF
 export function accountTypeText(type) {
   return ACCOUNT_TYPE_TEXT[type] || unknownEnumText(type)
 }
+
+export const ROOM_BOARD_STATE_TEXT = {
+  all: '全部',
+  idle: RESOURCE_STATE_TEXT.IDLE,
+  serving: RESOURCE_STATE_TEXT.IN_USE,
+  checkout: '待结账',
+  reserved: RESOURCE_STATE_TEXT.RESERVED,
+  cleaning: RESOURCE_STATE_TEXT.CLEANING,
+}
+export function roomBoardStateText(state) {
+  return ROOM_BOARD_STATE_TEXT[state] || unknownEnumText(state)
+}
+
+export const ORDER_VOID_APPROVAL_STATUS_TEXT = {
+  PENDING: '待审批',
+  APPROVED: '执行中',
+  EXECUTED: '已执行',
+  REJECTED: '已驳回',
+}
+export function orderVoidApprovalStatusText(status) {
+  return ORDER_VOID_APPROVAL_STATUS_TEXT[status] || unknownEnumText(status)
+}

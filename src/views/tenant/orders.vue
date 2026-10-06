@@ -732,7 +732,7 @@ import { notifyAdminRequestError, notifyCancelRequestError, resolveAdminErrorMes
 import { submitCancelWithReason, CANCEL_REASON_MAX_LENGTH } from '@/utils/cancelAction'
 import { hasPermissionOrMissing } from '@/utils/context'
 import { collectedLegText, isQuantityLeg, legInputPrecision, legInputStep, legInputToMinor, legMinorToInput, methodLabel, orderAllowedMethods } from '@/constants/payment-methods'
-import { RESOURCE_STATE_TEXT, WALLET_BRAND_NAME_DEFAULT, catalogItemTypeText, orderItemStatusText, orderItemStatusType, orderStatusText, reservationBoardActionText, reservationBoardStateText, resolveWalletBrandName } from '@/constants/terms'
+import { ROOM_BOARD_STATE_TEXT, WALLET_BRAND_NAME_DEFAULT, catalogItemTypeText, orderItemStatusText, orderItemStatusType, orderStatusText, orderVoidApprovalStatusText, reservationBoardActionText, reservationBoardStateText, resolveWalletBrandName, roomBoardStateText } from '@/constants/terms'
 import { arrivalReservation, confirmReservation, getReservations, noShowReservation, openTableReservation } from '@/api/reservation'
 import { canMarkNoShow, isReservationRoomAssigned } from '@/utils/reservationRoom'
 import { listResources as listAdminResources, setRoomCleaningStatus } from '@/api/resource'
@@ -778,24 +778,12 @@ const router = useRouter()
  * 看板列状态（前端组合态）→ 后端资源状态枚举。
  * 状态文案唯一出处是 constants/terms 的 RESOURCE_STATE_TEXT，页面不再内联「空闲/使用中/清洁中」。
  */
-const BOARD_RESOURCE_STATE = { idle: 'IDLE', serving: 'IN_USE', reserved: 'RESERVED', cleaning: 'CLEANING' }
-/** 待结账是订单派生态（WAITING_SETTLEMENT/WAITING_PAYMENT），资源状态词表无对应枚举，单独登记一处。 */
-const CHECKOUT_TEXT = '待结账'
 function boardStateText(state) {
-  if (state === 'checkout') return CHECKOUT_TEXT
-  return RESOURCE_STATE_TEXT[BOARD_RESOURCE_STATE[state]] || '未知'
+  return roomBoardStateText(state)
 }
 
 /** 统计磁贴与筛选条共用同一份状态文案（键与 roomSummary / boardStatus 对齐）。 */
-const ROOM_STATE_LABEL = {
-  all: '全部',
-  idle: boardStateText('idle'),
-  serving: boardStateText('serving'),
-  checkout: boardStateText('checkout'),
-  reserved: boardStateText('reserved'),
-  cleaning: boardStateText('cleaning'),
-}
-const BOARD_FILTERS = Object.entries(ROOM_STATE_LABEL).map(([value, label]) => ({ value, label }))
+const BOARD_FILTERS = Object.entries(ROOM_BOARD_STATE_TEXT).map(([value, label]) => ({ value, label }))
 const ACTIVE_ORDER_STATUSES = new Set(['DRAFT', 'SERVING', 'WAITING_SETTLEMENT', 'WAITING_PAYMENT'])
 const ACTIVE_RESERVATION_STATUSES = new Set(['PENDING', 'CONFIRMED', 'ARRIVED'])
 const AREA_ALL = '全部区域'
@@ -1590,7 +1578,7 @@ async function loadVoidApprovals() {
 }
 
 function voidApprovalStatusText(status) {
-  return { PENDING: '待审批', APPROVED: '执行中', EXECUTED: '已执行', REJECTED: '已驳回' }[status] || status || '未知'
+  return orderVoidApprovalStatusText(status)
 }
 
 async function reviewVoidApproval(row, approved) {
