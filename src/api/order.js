@@ -40,6 +40,22 @@ export function voidOrder(id, reason) {
   return request.post('/api/v1/business/orders/' + id + '/void', { reason })
 }
 
+export function requestVoidApproval(orderId, data) {
+  return request.post('/api/v1/business/orders/void-approvals/' + orderId + '/request', data)
+}
+
+export function listVoidApprovals(params) {
+  return request.get('/api/v1/business/orders/void-approvals', { params })
+}
+
+export function approveVoidApproval(id, comment) {
+  return request.post('/api/v1/business/orders/void-approvals/' + id + '/approve', { comment })
+}
+
+export function rejectVoidApproval(id, comment) {
+  return request.post('/api/v1/business/orders/void-approvals/' + id + '/reject', { comment })
+}
+
 /**
  * 取消订单（运营代客取消）：`reason` 必填，空白 → 400 `CANCEL_REASON_REQUIRED`；
  * 已收款 → 409 `ORDER_HAS_PAYMENT_REFUND_FIRST`（先退款再取消）；

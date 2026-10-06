@@ -18,6 +18,9 @@
         <el-button :loading="loading" @click="load">
           <el-icon><Refresh /></el-icon>刷新
         </el-button>
+        <el-button @click="openVoidApprovals">
+          作废审批
+        </el-button>
         <el-button type="primary" @click="openCreate()">
           <el-icon><Plus /></el-icon>快速开台
         </el-button>
@@ -197,6 +200,10 @@
                       :disabled="!canVoid(room.order.status)"
                       divided
                     >{{ cancelMenuText(room.order.status) }}</el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="canCancelOrder && canVoid(room.order.status)"
+                      command="void-request"
+                    >申请作废</el-dropdown-item>
                     <el-dropdown-item v-if="room.order.status === 'VOIDED'" command="recovery" divided>库存处理</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -314,6 +321,48 @@
       :message="cancelDialogMessage"
       @confirm="submitCancelOrder"
     />
+
+    <el-dialog v-model="voidRequestVisible" title="申请作废订单" width="520px">
+      <el-form label-width="90px">
+        <el-form-item label="订单号"><el-input :model-value="voidRequestOrder?.orderNo || voidRequestOrder?.id" disabled /></el-form-item>
+        <el-form-item label="作废原因" required>
+          <el-input v-model="voidRequestReason" type="textarea" :rows="4" maxlength="512" show-word-limit placeholder="请填写作废原因" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="voidRequestVisible = false">取消</el-button>
+        <el-button type="primary" :loading="voidRequestSubmitting" @click="submitVoidRequest">提交审批</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="voidApprovalsVisible" title="订单作废审批" width="900px">
+      <div class="filter-bar">
+        <el-select v-model="voidApprovalStatus" style="width: 160px" @change="loadVoidApprovals">
+          <el-option label="全部状态" value="" />
+          <el-option label="待审批" value="PENDING" />
+          <el-option label="已执行" value="EXECUTED" />
+          <el-option label="已驳回" value="REJECTED" />
+        </el-select>
+        <el-button :loading="voidApprovalsLoading" @click="loadVoidApprovals">刷新</el-button>
+      </div>
+      <el-table :data="voidApprovals" border stripe v-loading="voidApprovalsLoading">
+        <el-table-column prop="orderId" label="订单ID" width="100" />
+        <el-table-column prop="reason" label="申请原因" min-width="220" show-overflow-tooltip />
+        <el-table-column label="状态" width="110"><template #default="{ row }">{{ voidApprovalStatusText(row.status) }}</template></el-table-column>
+        <el-table-column prop="applicantId" label="申请人" width="100" />
+        <el-table-column label="申请时间" width="170"><template #default="{ row }">{{ timeText(row.createdAt) }}</template></el-table-column>
+        <el-table-column label="操作" width="180" fixed="right">
+          <template #default="{ row }">
+            <template v-if="row.status === 'PENDING'">
+              <el-button link type="success" :loading="voidApprovalSubmittingId === row.id" @click="reviewVoidApproval(row, true)">批准</el-button>
+              <el-button link type="danger" :loading="voidApprovalSubmittingId === row.id" @click="reviewVoidApproval(row, false)">驳回</el-button>
+            </template>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-if="!voidApprovalsLoading && !voidApprovals.length" description="暂无作废审批记录" />
+    </el-dialog>
 
     <el-dialog v-model="recoveryVisible" title="作废订单库存处理" width="680px">
       <el-table :data="recoveryItems" border stripe>
@@ -670,7 +719,7 @@ import { useRoute, useRouter } from 'vue-router'
 import OperationsBoard from '@/components/OperationsBoard.vue'
 import DateRangeFilter from '@/components/DateRangeFilter.vue'
 import CancelReasonDialog from '@/components/CancelReasonDialog.vue'
-import { listOrders, createOrder, confirmOrder, settleOrder, cancelOrder, voidOrder, openSession, getBill, getKtvPricing, listResources as listBusinessResources, addItem, listOrderItems, confirmItem, rejectItem, closeSession, getOrderSession, listCatalog, createCatalogItem, updateCatalogItem, disableCatalogItem, listInventoryRecovery, decideInventoryRecovery } from '@/api/order'
+import { listOrders, createOrder, confirmOrder, settleOrder, cancelOrder, openSession, getBill, getKtvPricing, listResources as listBusinessResources, addItem, listOrderItems, confirmItem, rejectItem, closeSession, getOrderSession, listCatalog, createCatalogItem, updateCatalogItem, disableCatalogItem, listInventoryRecovery, decideInventoryRecovery, requestVoidApproval, listVoidApprovals, approveVoidApproval, rejectVoidApproval } from '@/api/order'
 import { collect, listPaymentMethods } from '@/api/payment'
 import { listMembers, getMemberWallet, getMemberPoints } from '@/api/member'
 import { getWalletTokenConfig } from '@/api/admin'
@@ -866,6 +915,15 @@ const catalogManageRows = computed(() => {
 const recoveryVisible = ref(false)
 const recoveryOrder = ref(null)
 const recoveryItems = ref([])
+const voidRequestVisible = ref(false)
+const voidRequestOrder = ref(null)
+const voidRequestReason = ref('')
+const voidRequestSubmitting = ref(false)
+const voidApprovalsVisible = ref(false)
+const voidApprovalsLoading = ref(false)
+const voidApprovals = ref([])
+const voidApprovalStatus = ref('PENDING')
+const voidApprovalSubmittingId = ref(null)
 
 const collectVisible = ref(false)
 const collecting = ref(false)
@@ -1485,7 +1543,68 @@ async function markReservationNoShow(room) {
 function handleRoomCommand(command, order) {
   if (command === 'detail') showBill(order)
   if (command === 'cancel') cancelOrderRow(order)
+  if (command === 'void-request') openVoidRequest(order)
   if (command === 'recovery') openRecovery(order)
+}
+
+function openVoidRequest(order) {
+  voidRequestOrder.value = order
+  voidRequestReason.value = ''
+  voidRequestVisible.value = true
+}
+
+async function submitVoidRequest() {
+  const reason = voidRequestReason.value.trim()
+  if (!reason) { ElMessage.warning('请填写作废原因'); return }
+  voidRequestSubmitting.value = true
+  try {
+    await requestVoidApproval(voidRequestOrder.value.id, {
+      reason,
+      idempotencyKey: `admin-void-${voidRequestOrder.value.id}-${Date.now()}`,
+    })
+    ElMessage.success('作废申请已提交，等待其他有权限人员审批')
+    voidRequestVisible.value = false
+    await openVoidApprovals()
+  } catch (error) {
+    notifyAdminRequestError(error, '提交作废申请失败')
+  } finally {
+    voidRequestSubmitting.value = false
+  }
+}
+
+async function openVoidApprovals() {
+  voidApprovalsVisible.value = true
+  await loadVoidApprovals()
+}
+
+async function loadVoidApprovals() {
+  voidApprovalsLoading.value = true
+  try {
+    voidApprovals.value = await listVoidApprovals(voidApprovalStatus.value ? { status: voidApprovalStatus.value } : {}) || []
+  } catch (error) {
+    voidApprovals.value = []
+    notifyAdminRequestError(error, '加载作废审批失败')
+  } finally {
+    voidApprovalsLoading.value = false
+  }
+}
+
+function voidApprovalStatusText(status) {
+  return { PENDING: '待审批', APPROVED: '执行中', EXECUTED: '已执行', REJECTED: '已驳回' }[status] || status || '未知'
+}
+
+async function reviewVoidApproval(row, approved) {
+  voidApprovalSubmittingId.value = row.id
+  try {
+    if (approved) await approveVoidApproval(row.id, '批准作废')
+    else await rejectVoidApproval(row.id, '驳回作废')
+    ElMessage.success(approved ? '已批准并执行作废' : '已驳回作废申请')
+    await Promise.all([loadVoidApprovals(), load()])
+  } catch (error) {
+    notifyAdminRequestError(error, approved ? '批准作废失败' : '驳回作废失败')
+  } finally {
+    voidApprovalSubmittingId.value = null
+  }
 }
 
 async function openCreate(resourceId = null) {
