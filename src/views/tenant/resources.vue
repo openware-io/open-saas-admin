@@ -306,7 +306,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useContextStore } from '@/stores/context'
 import { Check, CircleClose, Grid, Picture, Plus, Refresh, Setting, Tickets } from '@element-plus/icons-vue'
@@ -539,12 +539,15 @@ async function loadStores() {
   try { stores.value = (await listStores()) || [] } catch (e) { /* 门店加载失败不阻塞资源列表 */ }
 }
 
-function openCreate() {
+async function openCreate() {
+  typeDialogVisible.value = false
+  detailVisible.value = false
   form.value = {
     ...emptyForm(),
     storeId: storeId.value || contextStore.storeId || null,
   }
   formRef.value?.clearValidate()
+  await nextTick()
   dialogVisible.value = true
   // 房型下拉按需加载：只在真正需要选择时才请求，首屏列表不带这次请求。
   // 房型是门店级字典，租户级上下文（无门店）下不请求，避免弹无意义的上下文错误。
