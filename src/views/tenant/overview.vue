@@ -48,6 +48,15 @@
           </el-table-column>
         </el-table>
         <p class="subtle">支付事实按领域权威库实时读取，按币种分组，不跨币种相加。</p>
+        <div class="section-title refund-title">退款事实</div>
+        <el-table :data="overview.payment.refunds || []" size="small" border>
+          <el-table-column prop="currencyCode" label="币种" width="120" />
+          <el-table-column prop="refundCount" label="已退款笔数" width="140" />
+          <el-table-column label="已退款金额" width="180">
+            <template #default="{ row }">{{ formatMoney(row.amount, row.currencyCode) }}</template>
+          </el-table-column>
+        </el-table>
+        <p class="subtle">仅统计已完成退款，按退款完成时间与实际操作门店筛选。</p>
       </section>
       <section v-if="overview?.order" class="admin-card payment-summary">
         <div class="section-title">订单经营事实</div>
@@ -134,4 +143,5 @@ onMounted(async () => { await loadStores(); await load() })
 .error-alert { margin-top: 16px; }
 .payment-summary { margin-top: 16px; }
 .section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+.refund-title { margin-top: 20px; }
 </style>
