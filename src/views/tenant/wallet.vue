@@ -2,11 +2,8 @@
   <div class="admin-page">
     <div class="page-header">
       <h2>储值管理</h2>
-      <span class="page-desc">租户级储值：同一租户内<b>跨门店共用</b>同一账户，充值与消费都按客户（不是按门店）记账</span>
+      <span class="page-desc">门店客户储值：账户信息跨店共享，充值、退还与消费记录保留实际操作门店</span>
       <div style="display: flex; gap: 10px">
-        <el-button v-if="walletGranted" @click="openConfig">
-          <el-icon><Setting /></el-icon>代币配置
-        </el-button>
         <el-button @click="load"><el-icon><Refresh /></el-icon>刷新</el-button>
       </div>
     </div>
@@ -122,48 +119,18 @@
       />
     </el-dialog>
 
-    <el-dialog v-model="configVisible" title="代币配置" width="460px">
-      <el-form label-width="120px">
-        <el-form-item label="代币名称">
-          <el-input v-model="configForm.brandName" :placeholder="'如 ' + WALLET_BRAND_NAME_DEFAULT" />
-        </el-form-item>
-        <el-form-item label="兑换比例">
-          <!-- 比例是「1 主单位 = N 个代币」：值只出数字，不拼品牌名（名字由上面的代币名称与说明承担） -->
-          <div class="ratio-line">
-            <span>1 {{ withCurrencyLabel('主单位') }} =</span>
-            <el-input-number v-model="configForm.ratio" :min="1" :precision="0" style="width: 140px" />
-          </div>
-        </el-form-item>
-        <el-alert
-          type="info"
-          :closable="false"
-          show-icon
-          title="代币只按数量展示（千分位，不带货币符号、币种与品牌名后缀）；比例仅用于折算展示，不参与入账金额。"
-        />
-        <el-alert
-          type="info"
-          :closable="false"
-          show-icon
-          title="代币名称与比例是租户级配置，对该租户所有门店的储值展示同时生效。"
-        />
-      </el-form>
-      <template #footer>
-        <el-button @click="configVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveConfig">保存</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, Setting } from '@element-plus/icons-vue'
+import { Refresh } from '@element-plus/icons-vue'
 import { listMemberWallets, getMemberWalletLedger } from '@/api/member'
 import DateRangeFilter from '@/components/DateRangeFilter.vue'
 import { dateRangeParams, dateRangeWarning, emptyDateRange } from '@/utils/dateRange'
 import { walletRecharge, walletRefund, listPaymentMethods } from '@/api/payment'
-import { getWalletTokenConfig, updateWalletTokenConfig } from '@/api/admin'
+import { getWalletTokenConfig } from '@/api/admin'
 import { useContextStore } from '@/stores/context'
 import { useCurrencyStore } from '@/stores/currency'
 import {
@@ -185,7 +152,7 @@ import {
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 
 const contextStore = useContextStore()
-// 总部可读租户共享储值余额/流水；充值、退还必须在门店上下文中。代币配置仍是租户级配置。
+// 储值管理属于门店经营；账户跨店共享，但充值、退还必须携带当前门店上下文。
 const storeWritable = computed(() => Boolean(contextStore.storeId))
 // 全局币种（唯一来源）：写请求体的 currencyCode 取它（后端按币种隔离钱包账本）。
 const currencyStore = useCurrencyStore()
@@ -206,7 +173,6 @@ const tokenRatio = ref(WALLET_TOKEN_DEFAULT_RATIO)
 
 const rechargeVisible = ref(false)
 const refundVisible = ref(false)
-const configVisible = ref(false)
 const ledgerVisible = ref(false)
 const ledgerLoading = ref(false)
 const ledgerRows = ref([])
@@ -216,7 +182,6 @@ const ledgerPageSize = 10
 const current = ref(null)
 const rechargeForm = ref({ amountYuan: 0, paymentMethod: 'CASH', referenceNo: '' })
 const refundForm = ref({ tokens: 0, reason: '' })
-const configForm = ref({ brandName: WALLET_BRAND_NAME_DEFAULT, ratio: WALLET_TOKEN_DEFAULT_RATIO })
 
 /**
  * 「到账代币」展示值：按租户比例把充值金额（主单位）折成代币**数量**，仅用于展示；
@@ -359,11 +324,6 @@ function openRefund(row) {
   refundForm.value = { tokens: 0, reason: '' }
   refundVisible.value = true
 }
-function openConfig() {
-  configForm.value = { brandName: tokenName.value, ratio: tokenRatio.value }
-  configVisible.value = true
-}
-
 async function doRecharge() {
   const amountYuan = Number(rechargeForm.value.amountYuan || 0)
   if (!(amountYuan > 0)) { ElMessage.warning('充值金额需大于 0'); return }
@@ -406,28 +366,6 @@ async function doRefund() {
   }
 }
 
-async function saveConfig() {
-  if (!configForm.value.brandName) { ElMessage.warning('请填写代币名称'); return }
-  if (!configForm.value.ratio || configForm.value.ratio <= 0) { ElMessage.warning('比例需大于 0'); return }
-  saving.value = true
-  try {
-    await updateWalletTokenConfig({
-      tenantId: contextStore.tenantId,
-      brandName: configForm.value.brandName,
-      ratio: configForm.value.ratio,
-    })
-    tokenName.value = configForm.value.brandName
-    tokenRatio.value = resolveTokenRatio(configForm.value.ratio)
-    ElMessage.success('已保存代币配置')
-    configVisible.value = false
-    load()
-  } catch (e) {
-    notifyAdminRequestError(e, '保存失败')
-  } finally {
-    saving.value = false
-  }
-}
-
 onMounted(async () => {
   await loadConfig()
   await checkGrant()
@@ -440,7 +378,6 @@ onMounted(async () => {
 .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; min-width: 0; }
 .filter-bar .muted { font-size: 12px; color: var(--el-text-color-secondary); }
 .wallet-pager { margin-top: 12px; justify-content: flex-end; }
-.ratio-line { display: flex; align-items: center; gap: 8px; }
 .converted { color: var(--el-color-primary); font-weight: 700; }
 .muted { color: var(--el-text-color-secondary); }
 </style>

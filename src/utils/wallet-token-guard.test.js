@@ -94,7 +94,7 @@ describe('储值币 / 积分展示守卫（源码扫描）', () => {
     expect(await readView('tenant/ktv-config.vue')).not.toContain('formatTokens(')
   })
 
-  it('储值管理 / 会员储值页不再有货币渲染（余额、充值到账、退还、代币配置都是数量）', async () => {
+  it('储值管理 / 会员储值页不再有货币渲染（余额、充值到账、退还都是数量）', async () => {
     const wallet = await readView('tenant/wallet.vue')
     const members = await readView('tenant/members.vue')
     expect(wallet).not.toContain('formatMoney')
@@ -124,13 +124,13 @@ describe('储值币 / 积分展示守卫（源码扫描）', () => {
   })
 
   it('代币配置文案不再出现「元」，比例按租户币种名动态显示', async () => {
-    const source = await readView('tenant/wallet.vue')
+    const source = await readView('tenant/wallet-token-config.vue')
     const stripped = stripComments(source)
     expect(stripped).not.toMatch(/元/)
     expect(stripped).toContain("withCurrencyLabel('主单位')")
     // 比例行只出数字：不再有「1 个主单位 = 100 100 欢乐币」这种把品牌名当单位的重复渲染
-    expect(stripped).not.toContain('formatTokens(configForm.ratio')
-    expect(stripped).toContain('v-model="configForm.ratio"')
+    expect(stripped).not.toContain('formatTokens(form.ratio')
+    expect(stripped).toContain('v-model="form.ratio"')
   })
 
   it('组合支付：会员可用储值 / 积分提示只显示数量', async () => {

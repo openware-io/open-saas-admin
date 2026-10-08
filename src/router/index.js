@@ -163,6 +163,12 @@ const routes = [
         meta: { title: '储值管理', icon: 'Coin', scope: 'TENANT' },
       },
       {
+        path: 'admin/tenant/wallet-token-config',
+        name: 'WalletTokenConfig',
+        component: () => import('@/views/tenant/wallet-token-config.vue'),
+        meta: { title: '代币配置', icon: 'Setting', scope: 'TENANT' },
+      },
+      {
         path: 'admin/security',
         name: 'Security',
         component: () => import('@/views/tenant/security.vue'),
