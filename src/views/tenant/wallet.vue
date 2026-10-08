@@ -255,9 +255,11 @@ async function checkGrant() {
     const list = await listPaymentMethods('admin')
     const arr = Array.isArray(list) ? list : (list && list.items) || []
     const w = arr.find((x) => x.method === 'WALLET')
-    walletGranted.value = !!(w && w.tenantAllowed)
+    // 储值是租户基础能力：缺少旧授权记录时按默认开放处理，只有明确关闭才显示未授权。
+    walletGranted.value = !w || w.tenantAllowed !== false
   } catch {
-    walletGranted.value = false
+    // 支付授权接口异常不应把基础储值能力误报为“未授权”；业务接口仍负责最终鉴权。
+    walletGranted.value = true
   }
 }
 
