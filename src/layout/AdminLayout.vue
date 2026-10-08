@@ -435,6 +435,10 @@ async function submitPasswordChange() {
   background: var(--sidebar-bg);
   transition: width 0.3s;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
 }
 
 .logo {
@@ -448,6 +452,7 @@ async function submitPasswordChange() {
   font-weight: 700;
   cursor: pointer;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex: 0 0 var(--header-height);
 }
 
 .logo-text {
@@ -461,6 +466,7 @@ async function submitPasswordChange() {
   color: #d9dce4;
   font-size: 12px;
   line-height: 18px;
+  flex: 0 0 auto;
 }
 
 .context-tenant { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -470,12 +476,30 @@ async function submitPasswordChange() {
 
 .sidebar-menu {
   border-right: none;
-  height: calc(100vh - var(--header-height));
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+  overscroll-behavior: contain;
 }
 
 .sidebar-menu::-webkit-scrollbar {
-  width: 0;
+  width: 6px;
+}
+
+.sidebar-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-menu::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.sidebar-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.36);
 }
 
 .menu-section-title {
