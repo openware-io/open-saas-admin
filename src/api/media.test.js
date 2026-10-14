@@ -50,7 +50,7 @@ function legacyPrefixOffenders(source) {
 
 describe('图片上传接口（src/api/media.js）', () => {
   it('上传走网关 /api/v1/admin/media/images，且返回的 url 是同源 /api/v1/media-public/ 相对路径', async () => {
-    const url = `${NEW_PREFIX}gv-media-public/saas/1001/202609/a.png`
+    const url = `${NEW_PREFIX}open-media-public/saas/1001/202609/a.png`
     request.post.mockResolvedValueOnce({ url, objectKey: 'saas/1001/202609/a.png', contentType: 'image/png', size: 12 })
 
     const response = await uploadImage(new Blob(['x'], { type: 'image/png' }))
