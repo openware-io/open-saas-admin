@@ -5,7 +5,7 @@ import { fenToYuan, formatMoney, yuanToFen } from './format'
 /**
  * 储值充值金额契约（主单位 ↔ 最小货币单位）固化。
  *
- * 后端唯一口径（只读 gv_im_server 取证）：
+ * 后端唯一口径（只读 open-im-server 取证）：
  *  - `cst_wallet_account.available_amount` 迁移注释「可用储值余额(最小货币单位整数)」；
  *    `cst_wallet_ledger.amount` 迁移注释「变动金额(最小货币单位整数，正数)」；
  *  - `WalletApplicationService` 类注释「金额单位为最小货币单位整数」，

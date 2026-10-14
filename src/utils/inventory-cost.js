@@ -1,7 +1,7 @@
 /**
  * 库存成本 / 入库单价的展示口径 —— 纯函数，库存页与单测共用。
  *
- * 后端口径（gv_im_server order 域，V24 + `InventoryApplicationService`）：
+ * 后端口径（open-im-server order 域，V24 + `InventoryApplicationService`）：
  *  - 入库/调整入参 `unitCost` = **本次入库批次单价**（最小货币单位/计量单位，与 `purchasePrice` 同口径）；
  *    可空：null 或 0 表示未填（沿用物料采购价 `purchase_price`），显式 > 0 优先参与移动加权平均；
  *  - 库存流水每行新增 `unitCost` / `totalCost`（带符号：入库正、出库负）/ `currencyCode`；

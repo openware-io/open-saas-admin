@@ -69,7 +69,7 @@
 
 页面放着不动十几分钟到几小时后回来「点什么都没反应」，坏掉的是**前端进程内的状态**：
 模块级 `csrfToken`、`stores/*` 的单飞锁（`resolving`/`revalidating`）、页面级 `loading`。
-后端证据（`gv_im_server`）：
+后端证据（`open-im-server`）：
 
 - 网关 `SaasSessionAuthenticationFilter` 只把会话里的签名上下文**透传**成 `X-Tenant-Context`，过期由下游发现；
 - 签名上下文 token 只有 **30 分钟**有效期（`AdminTenantContextTokenSigner`），而后台会话默认 **2 小时**；

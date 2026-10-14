@@ -1,7 +1,7 @@
 /**
  * 币种字典：全后台「货币符号 / 中文名 / 小数位 / 支持列表」的唯一出处。
  *
- * 口径见 `gv_im_server/docs/standards/16_CURRENCY_CONVENTIONS.md`：
+ * 口径见 `open-im-server/docs/standards/16_CURRENCY_CONVENTIONS.md`：
  *  - 币种是**租户级唯一来源**（`tnt_tenant_config.currency`），取值 CNY / USD，**默认 USD**；
  *  - 金额在接口里一律是**最小货币单位**（CNY 分 / USD cent），不做汇率换算；
  *  - 符号表只能出现在本文件，业务代码不得再写 `¥` / `$` / `元` / `CNY` 字面量

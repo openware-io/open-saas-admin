@@ -25,7 +25,7 @@ import {
 import { resetCurrencyRuntime, setCurrency } from './currency-runtime'
 
 /**
- * 储值币（代币）与积分是**支付工具**、不是货币（`gv_im_server/docs/standards/16_CURRENCY_CONVENTIONS.md` §9）：
+ * 储值币（代币）与积分是**支付工具**、不是货币（`open-im-server/docs/standards/16_CURRENCY_CONVENTIONS.md` §9）：
  *
  *  1. 展示层：代币 / 积分只显示数量（千分位、不带货币符号 / 币种 / 「元」），入口只有
  *     `formatTokens` / `formatPoints`；对 `availableAmount` / `tokenAmount` / `points` 这类字段

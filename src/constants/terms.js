@@ -66,7 +66,7 @@ export const MONEY_FIELD_TEXT = {
 
 /**
  * 金额标签不再绑定「元」：币种是租户级配置（CNY/USD，默认 USD，见
- * `gv_im_server/docs/standards/16_CURRENCY_CONVENTIONS.md` §4），界面文案统一写金额名词
+ * `open-im-server/docs/standards/16_CURRENCY_CONVENTIONS.md` §4），界面文案统一写金额名词
  * （金额 / 采购价 / 售价 / 房型单价 / 服务单价…），币种标识由 `formatMoney` 的符号承担。
  * 确需中文单位（人民币/美元）时用 `utils/format` 的 `withCurrencyLabel`，名称取自 `constants/currency`。
  */

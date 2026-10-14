@@ -1,7 +1,7 @@
 # 远程前端开发联调接入规范（SaaS Admin）
 
 > 目标：让“另一台电脑的前端开发者，本地起 dev server 连到目标环境的后端（本机 Kind / ACK dev / 生产）”成为**长期、便捷、各环境一致**的流程，而不是临时豁免。
-> 适用前端：`gv_saas_admin`（本文件）、`gv_saas_mobile`（同构，见其仓库 vite 配置）。
+> 适用前端：`open-saas-admin`（本文件）、`open-saas-mobile`（同构，见其仓库 vite 配置）。
 
 ## 1. “无权限 / 登录失效”的根因（排查顺序）
 
@@ -17,7 +17,7 @@
 
 前端开发者在**自己电脑**跑 dev server，浏览器只访问 `http://localhost:5173`（localhost 被视为可信来源，Secure Cookie 可正常落；Vite 代理会帮你去掉 `Secure` 再下发给 http localhost），由 Vite 把 `/api` 转发到目标后端。同源无 CORS、无跨站 Cookie 问题，各环境只是改一个目标地址。
 
-在 `gv_saas_admin` 新建 `.env.local`（不入库；提交 `.env.local.example` 示例）：
+在 `open-saas-admin` 新建 `.env.local`（不入库；提交 `.env.local.example` 示例）：
 
 ```bash
 # 浏览器侧：全部走同源 /api，由 Vite 代理转发
@@ -70,11 +70,11 @@ curl -s -b jar http://localhost:5173/api/v1/admin/contexts
 
 ## 6. 与现有 ACK 流程的一致性
 
-- `gv_saas_admin/.env.ack` 已示范同款代理模式（`VITE_API_BASE_URL=/api` + `VITE_API_PROXY_TARGET=https://api.dev.example.com`）。
+- `open-saas-admin/.env.ack` 已示范同款代理模式（`VITE_API_BASE_URL=/api` + `VITE_API_PROXY_TARGET=https://api.dev.example.com`）。
 - 本规范仅把“目标地址”参数化；前端代码与后端零改动即可复用于 本机 Kind → ACK dev → 生产。
 - 服务端侧的长期增强项（按需）：① 会话 Cookie 的 Secure/SameSite 策略环境化开关；② CORS 来源清单继续由 `IM_GATEWAY_ALLOWED_ORIGINS` 管理；③ 若同一后端要服务多个租户开发账号，走 §4 开通流程与角色绑定。
 
 ## 7. 落点
-- 本文档：`gv_saas_admin/docs/remote-dev-integration.md`
-- 示例环境：`gv_saas_admin/.env.local.example`
-- 关联：`gv_saas_mobile` 同构（C/B 走 `__Host-saas_c/b_session`，同样优先代理模式；其本地联调目标为同一网关 30002）。
+- 本文档：`open-saas-admin/docs/remote-dev-integration.md`
+- 示例环境：`open-saas-admin/.env.local.example`
+- 关联：`open-saas-mobile` 同构（C/B 走 `__Host-saas_c/b_session`，同样优先代理模式；其本地联调目标为同一网关 30002）。

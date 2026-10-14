@@ -8,7 +8,7 @@
  *  - 币种、优惠类型等枚举一律转简体中文，界面上不出现英文枚举原文。
  *  - 术语/状态词表见 `@/constants/terms`；本文件只负责「值 → 展示串」的格式化。
  *
- * 币种口径见 `gv_im_server/docs/standards/16_CURRENCY_CONVENTIONS.md`：
+ * 币种口径见 `open-im-server/docs/standards/16_CURRENCY_CONVENTIONS.md`：
  * 金额展示的唯一入口是 {@link formatMoney}，页面不得自行 `÷100`/`×100`、不得自造货币符号；
  * 已结算单据/流水带 `currencyCode` 快照时以快照为准（把记录上的币种作为第二个参数传入）。
  */
@@ -118,7 +118,7 @@ export function formatMoneyValue(major, currency) {
 // —— 代币（储值币）与积分：数量口径，不是货币 ——————————————————————————
 /**
  * 储值代币（A380 币等租户自定义品牌）与积分**不是货币**
- * （`gv_im_server/docs/standards/16_CURRENCY_CONVENTIONS.md` §9）：
+ * （`open-im-server/docs/standards/16_CURRENCY_CONVENTIONS.md` §9）：
  *  - 只有现金与价格带币种，展示一律走 {@link formatMoney}（缺省 USD）；
  *  - 储值币 / 积分是组合支付里的**支付工具**，界面只显示数量，
  *    不得出现货币符号、币种名或「元」；

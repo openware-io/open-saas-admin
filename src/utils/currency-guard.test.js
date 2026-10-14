@@ -27,7 +27,7 @@ vi.mock('@/api/currency', () => ({
 }))
 
 /**
- * 币种守卫（源码级 + 响应式）——对齐 `gv_im_server/docs/standards/16_CURRENCY_CONVENTIONS.md` §4/§7：
+ * 币种守卫（源码级 + 响应式）——对齐 `open-im-server/docs/standards/16_CURRENCY_CONVENTIONS.md` §4/§7：
  *
  *  1. 字典单一来源：符号/币种码/中文名只能出现在 `constants/currency.js`，业务代码一律走
  *     `formatMoney` / `currencyText` / `withCurrencyLabel`；

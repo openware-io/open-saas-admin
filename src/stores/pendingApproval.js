@@ -30,7 +30,7 @@ export const PENDING_APPROVAL_POLL_MS = 15000
  *
  * 这类结果必须**静默收敛**（以服务端为准刷新 + 轻提示），不能当成红色失败：
  * 「别人已经处理完了」与「操作失败」对运营是两回事。
- * 口径与 B 端 H5（`gv_saas_mobile/src/shared/utils/pending-approval.js#isAlreadyProcessed`）保持一致。
+ * 口径与 B 端 H5（`open-saas-mobile/src/shared/utils/pending-approval.js#isAlreadyProcessed`）保持一致。
  */
 export function isAlreadyProcessed(error) {
   const status = Number(error?.response?.status ?? error?.status)

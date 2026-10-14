@@ -1,7 +1,7 @@
-# gv_saas_admin 多语言（vue-i18n）落地方案
+# open-saas-admin 多语言（vue-i18n）落地方案
 
 - 状态：**方案稿**。多语言已纳入 2.0 规划，但本轮只做「术语/状态/错误提示」收敛（`src/constants/terms.js`），**不引入 vue-i18n、不做全量文案搬迁**。
-- 依据：`gv_im_server/docs/audit-2026-09-17-exceptions-and-i18n.md` §4.5（两个前端都无 i18n 基础设施）、§4.6~4.9（术语/金额/时间各自实现）、§7.3（文案重复与中英混排）。
+- 依据：`open-im-server/docs/audit-2026-09-17-exceptions-and-i18n.md` §4.5（两个前端都无 i18n 基础设施）、§4.6~4.9（术语/金额/时间各自实现）、§7.3（文案重复与中英混排）。
 - 本轮已铺好的地基：`src/constants/terms.js`（词表唯一出处）、`src/utils/format.js`（金额/时间/枚举格式化唯一实现）、`src/utils/adminErrorMessage.js`（服务端错误码 → 中文唯一映射）、`src/constants/terms.test.js`（源码级防回退）。
 
 ## 1. 目标与边界
@@ -95,4 +95,4 @@ src/
 
 1. `platform/tenants.vue` 已有「默认语言 / 默认时区」配置项但无承载机制，落地前需产品确认：默认语言是否按租户生效、C/B 端与后台是否同一套 locale。
 2. 后端 141 个业务码中 120 个前端无映射（审计 §4.4），且 18 个 message 为英文；i18n 前应先由后端导出码表（或 OpenAPI）驱动 `error.json`，否则抽取后仍是英文兜底。
-3. 同一金额字段在 B 端/C 端/后台的称呼尚未完全一致（`gv_saas_mobile` 的「待收」），跨仓库词表应对齐 `terms.js` 后再抽取。
+3. 同一金额字段在 B 端/C 端/后台的称呼尚未完全一致（`open-saas-mobile` 的「待收」），跨仓库词表应对齐 `terms.js` 后再抽取。

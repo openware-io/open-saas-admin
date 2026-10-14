@@ -6,7 +6,7 @@ import { resolveAdminErrorMessage } from './adminErrorMessage'
 /**
  * 仓库管理「采购价」字段契约（主单位 ↔ 最小货币单位 + 字段落点）。
  *
- * 后端唯一口径（gv_im_server，order 模块）：
+ * 后端唯一口径（open-im-server，order 模块）：
  *  - `V20__ord_inventory_material_purchase_price.sql`：`ord_inventory_material.purchase_price`
  *    decimal(20,6) NULL，注释「采购价（最小货币单位，每计量单位）」，与
  *    `ord_product.sale_price` / `ord_catalog_item.unit_price` 同一形态；
