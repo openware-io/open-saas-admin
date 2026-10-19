@@ -9,7 +9,7 @@
 
 1. **Cookie 未落地**（最常见）
    - 会话 Cookie 带 `Secure`(+`SameSite=Lax`)。浏览器从 **http://其他电脑IP** 直接访问/跨源请求时，`Secure` Cookie 不会被存储；跨站 XHR 下 `Lax` 也不会随请求发送 → 后端看不到会话 → 401/403。
-   - 直接跨源（你本机 5173 直连对方 http://IP:30002）还叠加 CORS：网关默认只放行 `http://localhost:5173` 等固定来源（可用 `IM_GATEWAY_ALLOWED_ORIGINS` 环境变量扩展），且 http 下无法用 SameSite=None 方案。
+   - 直接跨源（你本机 5173 直连对方 http://IP:30080）还叠加 CORS：网关默认只放行 `http://localhost:5173` 等固定来源（可用 `IM_GATEWAY_ALLOWED_ORIGINS` 环境变量扩展），且 http 下无法用 SameSite=None 方案。
 2. **账号缺少该环境的后台/租户授权**
    - SaaS 运营后台账号在 `platform-admin-service.saa_admin_account` 表（种子：`admin`=SUPER_ADMIN 平台级；`a380-admin`=A380 租户运营）。菜单/接口按 `AdminRole` + tenant IAM 角色绑定过滤；账号存在但无角色绑定/无上下文 → 界面提示无权限。
 
@@ -23,19 +23,19 @@
 # 浏览器侧：全部走同源 /api，由 Vite 代理转发
 VITE_API_BASE_URL=/api
 # 联调目标后端（二选一/按环境切换）：
-#   本机 Kind 网关：  http://<你的局域网IP>:30002   （例 http://192.168.31.91:30002）
+#   本机 Kind 网关：  http://<你的局域网IP>:30080   （例 http://<Kind主机IP>:30080）
 #   ACK dev 后端：    https://api.dev.example.com
 #   生产：            https://api.example.com
-VITE_API_PROXY_TARGET=http://192.168.31.91:30002
+VITE_API_PROXY_TARGET=http://<Kind主机IP>:30080
 # IM 管理后台跳转基址（另一个 PC Admin 前端，按需）：
-VITE_IM_ADMIN_BASE_URL=http://192.168.31.91:30080
-VITE_APP_VERSION=2.0.0
+VITE_IM_ADMIN_BASE_URL=http://<Kind主机IP>:30080
+VITE_APP_VERSION=2.3.0
 ```
 
 启动：`npm run dev` → 浏览器打开 `http://localhost:5173`，登录即可。
 ACK/生产联调与上完全一致，仅把 `VITE_API_PROXY_TARGET` 换成对应 https 域名（vite `secure:true` 会校验证书，内网测试证书需导入信任）。
 
-后端侧前提（本机 Kind 场景）：网关等端口已在局域网可达（本机防火墙已放行 30002/30080/30081/30082/30083，监听 0.0.0.0）；无需改后端 CORS——代理模式下后端只看到 Vite 转发请求（同源语义）。
+后端侧前提（本机 Kind 场景）：网关等端口已在局域网可达（本机防火墙已放行 30080，监听 0.0.0.0）；无需改后端 CORS——代理模式下后端只看到 Vite 转发请求（同源语义）。
 
 ## 3. 若确实要“直连跨源”（不推荐，仅 https 有意义）
 
@@ -77,4 +77,4 @@ curl -s -b jar http://localhost:5173/api/v1/admin/contexts
 ## 7. 落点
 - 本文档：`open-saas-admin/docs/remote-dev-integration.md`
 - 示例环境：`open-saas-admin/.env.local.example`
-- 关联：`open-saas-mobile` 同构（C/B 走 `__Host-saas_c/b_session`，同样优先代理模式；其本地联调目标为同一网关 30002）。
+- 关联：`open-saas-mobile` 同构（C/B 走 `__Host-saas_c/b_session`，同样优先代理模式；其本地联调目标为同一网关 30080）。
