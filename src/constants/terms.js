@@ -94,7 +94,7 @@ export const DURATION_LABELS = {
  * 储值品牌展示名默认值。规则：只取租户配置 `tnt_tenant_config.wallet_brand_name`，
  * 没有配置时才回落本默认值；全后台只有这一处可以写死品牌名（审计 §4.7）。
  */
-export const WALLET_BRAND_NAME_DEFAULT = 'A380币'
+export const WALLET_BRAND_NAME_DEFAULT = 'OpenChat币'
 
 /** 解析储值展示名：只认租户配置，缺配置回落唯一默认值（页面不得自行拼默认名）。 */
 export function resolveWalletBrandName(config) {

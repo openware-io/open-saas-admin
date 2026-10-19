@@ -225,7 +225,7 @@ describe('术语词表', () => {
 
 describe('储值品牌名', () => {
   it('默认值与后端 tnt_tenant_config.wallet_brand_name 的默认值一致', () => {
-    expect(WALLET_BRAND_NAME_DEFAULT).toBe('A380币')
+    expect(WALLET_BRAND_NAME_DEFAULT).toBe('OpenChat币')
   })
 
   it('只认租户配置，缺配置/空配置回落唯一默认值', () => {
