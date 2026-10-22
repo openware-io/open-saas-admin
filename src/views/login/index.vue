@@ -72,7 +72,7 @@ async function handleLogin() {
   try {
     // 服务端设置 HttpOnly 会话 Cookie；前端仅缓存展示信息。
     const res = await login(form.username, form.password, form.ttlHours)
-    authStore.setAuth(res.user, 'PLATFORM')
+    authStore.setAuth(res.user, res.defaultWorkspace === 'HEADQUARTERS' ? 'TENANT' : 'PLATFORM', res)
     // 新账号登录时清除旧租户上下文界面状态。
     contextStore.clear()
     await menuStore.fetchBackends()
@@ -94,7 +94,7 @@ onMounted(async () => {
   loading.value = true
   try {
     const res = await ssoLogin(ssoTicket)
-    authStore.setAuth(res.user, 'PLATFORM')
+    authStore.setAuth(res.user, res.defaultWorkspace === 'HEADQUARTERS' ? 'TENANT' : 'PLATFORM', res)
     // 新账号登录时清除旧租户上下文界面状态。
     contextStore.clear()
     await menuStore.fetchBackends()

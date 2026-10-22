@@ -18,7 +18,12 @@ export function useBackend() {
     authStore.setScope(scope)
     if (scope === 'TENANT') await useContextStore().ensureContext(scope)
     await menuStore.fetchMenus(scope)
-    const target = menuStore.firstLeafPath() || (scope === 'TENANT' ? '/admin/tenant/stores' : '/select')
+    const landing = authStore.landing || ''
+    const landingMatches = scope === 'TENANT'
+      ? landing.startsWith('/admin/tenant') || landing.startsWith('/business')
+      : landing.startsWith('/admin/platform') || landing.startsWith('/admin/iam')
+    const target = (landingMatches && landing) || menuStore.firstLeafPath() ||
+      (scope === 'TENANT' ? '/admin/tenant/stores' : '/select')
     await router.push(target)
   }
 
@@ -54,9 +59,13 @@ export function useBackend() {
       }
       return
     }
+    const preferred = authStore.defaultWorkspace === 'HEADQUARTERS' ? 'tenant' : 'platform'
+    if (backends.some((backend) => backend.code === preferred)) {
+      await enterBackend(preferred)
+      return
+    }
     await router.replace('/select')
   }
-
   function goToSelect() {
     router.push('/select')
   }
