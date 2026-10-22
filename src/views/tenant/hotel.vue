@@ -116,6 +116,14 @@
                 <el-option label="不可取消" value="NON_REFUNDABLE" />
               </el-select>
             </el-form-item>
+            <el-form-item label="积分抵扣">
+              <el-switch v-model="hotel.pointsRedeemEnabled" />
+              <span class="form-hint">复用现有积分账本与支付 POINT 分腿</span>
+            </el-form-item>
+            <el-form-item v-if="hotel.pointsRedeemEnabled" label="积分最大抵扣">
+              <el-input-number v-model="hotel.pointsMaxRatioBps" :min="0" :max="10000" :step="500" />
+              <span class="form-hint">万分比 · 3000 = 最多抵扣订单金额 30%</span>
+            </el-form-item>
             <el-form-item label="发票">
               <el-switch v-model="hotel.invoiceEnabled" />
               <span class="form-hint">原型占位；实际字段待财务确认。</span>
@@ -280,6 +288,8 @@ const hotel = reactive({
   depositRatio: 30,
   cancelPolicy: '24H',
   invoiceEnabled: true,
+  pointsRedeemEnabled: true,
+  pointsMaxRatioBps: 3000,
 })
 
 const metrics = [
