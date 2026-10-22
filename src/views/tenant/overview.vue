@@ -19,10 +19,16 @@
 
     <template v-else>
       <div class="admin-card filter-bar">
+        <el-radio-group v-model="scopeMode" size="small">
+          <el-radio-button value="ALL">全部门店</el-radio-button>
+          <el-radio-button value="HOTEL">酒店</el-radio-button>
+          <el-radio-button value="KTV">KTV</el-radio-button>
+          <el-radio-button value="STORE">单店</el-radio-button>
+        </el-radio-group>
         <el-date-picker v-model="range" type="daterange" value-format="YYYY-MM-DD" range-separator="至"
           start-placeholder="开始日期" end-placeholder="结束日期" clearable />
-        <el-select v-model="selectedStoreIds" multiple collapse-tags collapse-tags-tooltip clearable
-          placeholder="全部可见门店" style="width: 320px">
+        <el-select v-if="scopeMode === 'STORE'" v-model="selectedStoreIds" multiple collapse-tags collapse-tags-tooltip clearable
+          placeholder="选择门店" style="width: 280px">
           <el-option v-for="store in stores" :key="store.id" :label="store.name" :value="store.id" />
         </el-select>
         <el-button type="primary" :loading="loading" @click="load">查询</el-button>
@@ -101,6 +107,7 @@ const error = ref('')
 const overview = ref(null)
 const stores = ref([])
 const selectedStoreIds = ref([])
+const scopeMode = ref('ALL')
 const range = ref([])
 const customer = computed(() => overview.value?.customer || {})
 
@@ -121,7 +128,10 @@ async function load() {
     overview.value = await getTenantOverview({
       from: range.value?.[0] || undefined,
       to: range.value?.[1] || undefined,
-      storeIds: selectedStoreIds.value.length ? selectedStoreIds.value.join(',') : undefined,
+      businessType: scopeMode.value === 'HOTEL' || scopeMode.value === 'KTV' ? scopeMode.value : undefined,
+      storeIds: scopeMode.value === 'STORE' && selectedStoreIds.value.length
+        ? selectedStoreIds.value.join(',')
+        : undefined,
     })
   } catch (exception) {
     overview.value = null
