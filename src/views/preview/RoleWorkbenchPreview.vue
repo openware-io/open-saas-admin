@@ -496,7 +496,7 @@ const route = useRoute()
 const requestedRole = String(route.query.role || '')
 const roleKey = ref(roles.some((item) => item.key === requestedRole) ? requestedRole : 'platform')
 const role = computed(() => roles.find((item) => item.key === roleKey.value) || roles[0])
-const activeNav = ref('overview')
+const activeNav = ref(role.value.homeKey)
 
 watch(roleKey, () => {
   activeNav.value = role.value.nav[0].items[0].key
