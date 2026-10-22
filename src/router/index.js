@@ -11,6 +11,12 @@ const routes = [
     meta: { title: '统一登录', public: true },
   },
   {
+    path: '/preview/workbench',
+    name: 'RoleWorkbenchPreview',
+    component: () => import('@/views/preview/RoleWorkbenchPreview.vue'),
+    meta: { title: '角色工作台原型', public: true, prototype: true },
+  },
+  {
     path: '/select',
     name: 'BackendSelect',
     component: () => import('@/views/select/index.vue'),
