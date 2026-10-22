@@ -103,6 +103,12 @@
               <el-input-number v-model="hotel.depositRatio" :min="5" :max="100" :step="5" />
               <span class="form-hint">% · 剩余尾款到店或离店结清</span>
             </el-form-item>
+            <el-form-item label="币种">
+              <el-select v-model="hotel.currency" style="width: 160px">
+                <el-option v-for="c in currencies" :key="c.code" :label="`${c.code} · ${c.label}`" :value="c.code" />
+              </el-select>
+              <span class="form-hint">默认币种由租户/门店设置；切换币种不做汇率换算。</span>
+            </el-form-item>
             <el-form-item label="取消政策">
               <el-select v-model="hotel.cancelPolicy" style="width: 260px">
                 <el-option label="入住前 24 小时免费取消" value="24H" />
@@ -254,10 +260,12 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { formatMoneyValue } from '@/utils/format'
 import { hotelBookingStatusText, hotelPaymentModeText } from '@/constants/terms'
+import { DEFAULT_CURRENCY, currencyOptions } from '@/constants/currency'
 
 const activeTab = ref('overview')
 const calendarMode = ref('ROOM_TYPE')
 const bookingFilter = ref('ALL')
+const currencies = currencyOptions()
 
 const hotel = reactive({
   accessMode: 'GROUP',
@@ -268,6 +276,7 @@ const hotel = reactive({
   checkInTime: new Date(2026, 0, 1, 14, 0),
   checkOutTime: new Date(2026, 0, 1, 12, 0),
   paymentMode: 'DEPOSIT',
+  currency: DEFAULT_CURRENCY,
   depositRatio: 30,
   cancelPolicy: '24H',
   invoiceEnabled: true,
