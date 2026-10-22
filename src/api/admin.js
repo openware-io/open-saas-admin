@@ -53,10 +53,10 @@ export function toggleRolePermission(roleId, permissionCode, granted) {
 
 // 角色工作台模板（平台级）：工作区、登录落点、数据范围。
 export function listRoleProfiles() {
-  return request.get('/api/v1/admin/role-profiles')
+  return request.get('/api/v1/admin/iam/role-profiles')
 }
 export function updateRoleProfile(id, data) {
-  return request.put('/api/v1/admin/role-profiles/' + id, data)
+  return request.put('/api/v1/admin/iam/role-profiles/' + id, data)
 }
 
 // 租户钱包代币配置（名称 + 金额:代币比例）
