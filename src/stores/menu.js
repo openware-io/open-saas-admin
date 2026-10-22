@@ -9,7 +9,7 @@ export const useMenuStore = defineStore('menu', () => {
   const loading = ref(false)
   const error = ref('')
 
-  // 酒店业务原型入口：仅在开发环境追加，避免未接后端菜单时无法进入页面。
+  // 酒店业务原型入口：开发环境或显式预览构建时追加；后端菜单接入后由正式菜单替代。
   // 产物上线前由后端菜单/权限正式下发，不依赖这个兜底。
   const HOTEL_DEMO_MENU = {
     id: 'hotel-demo',
@@ -19,7 +19,7 @@ export const useMenuStore = defineStore('menu', () => {
     scope: 'TENANT',
   }
   function withHotelDemo(items) {
-    if (!import.meta.env.DEV) return items
+    if (!import.meta.env.DEV && import.meta.env.VITE_HOTEL_PROTOTYPE !== 'true') return items
     if (items.some((item) => item.path === HOTEL_DEMO_MENU.path)) return items
     return [...items, HOTEL_DEMO_MENU]
   }
