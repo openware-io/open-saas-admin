@@ -34,7 +34,7 @@
         <el-table-column prop="sortNo" label="优先级" width="90" align="center" />
         <el-table-column label="操作" width="100" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-button v-permission="'iam.role.manage'" link type="primary" @click="openEdit(row)">编辑</el-button>
           </template>
         </el-table-column>
       </el-table>

@@ -21,10 +21,13 @@
       <div class="admin-card filter-bar">
         <el-radio-group v-model="scopeMode" size="small">
           <el-radio-button value="ALL">全部门店</el-radio-button>
-          <el-radio-button value="HOTEL">酒店</el-radio-button>
-          <el-radio-button value="KTV">KTV</el-radio-button>
+          <el-radio-button value="HOTEL" :disabled="!isEntitled('HOTEL')">酒店</el-radio-button>
+          <el-radio-button value="KTV" :disabled="!isEntitled('KTV')">KTV</el-radio-button>
           <el-radio-button value="STORE">单店</el-radio-button>
         </el-radio-group>
+        <el-tag v-for="item in entitlements" :key="item.businessType" size="small" effect="plain">
+          {{ businessTypeText(item.businessType) }} 已开通
+        </el-tag>
         <el-date-picker v-model="range" type="daterange" value-format="YYYY-MM-DD" range-separator="至"
           start-placeholder="开始日期" end-placeholder="结束日期" clearable />
         <el-select v-if="scopeMode === 'STORE'" v-model="selectedStoreIds" multiple collapse-tags collapse-tags-tooltip clearable
@@ -113,6 +116,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 import { getTenantOverview } from '@/api/tenant-overview'
+import { listBusinessEntitlements } from '@/api/business'
 import { listStores } from '@/api/store'
 import { useContextStore } from '@/stores/context'
 import { formatMoney, formatTime } from '@/utils/format'
@@ -126,6 +130,7 @@ const error = ref('')
 const overview = ref(null)
 const stores = ref([])
 const selectedStoreIds = ref([])
+const entitlements = ref([])
 const scopeMode = ref('ALL')
 const range = ref([])
 const customer = computed(() => overview.value?.customer || {})
@@ -136,6 +141,11 @@ const onboardingSteps = computed(() => [
   { key: 'order', label: '产生首笔订单', hint: '有订单后经营总览才有真实数据', done: (overview.value?.order?.rows || []).length > 0, action: '/business/orders', actionLabel: '去查看' },
 ])
 const showOnboarding = computed(() => !!overview.value && onboardingSteps.value.some((step) => !step.done))
+
+function isEntitled(businessType) {
+  if (!entitlements.value.length) return true
+  return entitlements.value.some((item) => item.businessType === businessType && item.status === 'ACTIVE')
+}
 
 function goStep(path) {
   router.push(path)
@@ -148,6 +158,10 @@ function signedMoney(value) { const number = Number(value || 0); return `${numbe
 
 async function loadStores() {
   try { stores.value = (await listStores({ status: 'ACTIVE' })) || [] } catch { stores.value = [] }
+}
+
+async function loadBusinesses() {
+  try { entitlements.value = (await listBusinessEntitlements()) || [] } catch { entitlements.value = [] }
 }
 
 async function load() {
@@ -170,7 +184,7 @@ async function load() {
   } finally { loading.value = false }
 }
 
-onMounted(async () => { await loadStores(); await load() })
+onMounted(async () => { await loadStores(); await loadBusinesses(); await load() })
 </script>
 
 <style scoped>
