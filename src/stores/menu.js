@@ -9,6 +9,21 @@ export const useMenuStore = defineStore('menu', () => {
   const loading = ref(false)
   const error = ref('')
 
+  // 酒店业务原型入口：仅在开发环境追加，避免未接后端菜单时无法进入页面。
+  // 产物上线前由后端菜单/权限正式下发，不依赖这个兜底。
+  const HOTEL_DEMO_MENU = {
+    id: 'hotel-demo',
+    name: '酒店管理',
+    path: '/admin/tenant/hotel',
+    icon: 'OfficeBuilding',
+    scope: 'TENANT',
+  }
+  function withHotelDemo(items) {
+    if (!import.meta.env.DEV) return items
+    if (items.some((item) => item.path === HOTEL_DEMO_MENU.path)) return items
+    return [...items, HOTEL_DEMO_MENU]
+  }
+
   async function fetchBackends() {
     backendsLoading.value = true
     try {
@@ -25,9 +40,9 @@ export const useMenuStore = defineStore('menu', () => {
     loading.value = true
     error.value = ''
     try {
-      menus.value = await getMenus(scope)
+      menus.value = withHotelDemo(await getMenus(scope))
     } catch (e) {
-      menus.value = []
+      menus.value = withHotelDemo([])
       error.value = e?.message || '获取菜单失败'
     } finally {
       loading.value = false

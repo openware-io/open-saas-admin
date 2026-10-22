@@ -180,6 +180,13 @@ const routes = [
         component: () => import('@/views/tenant/ktv-config.vue'),
         meta: { title: 'KTV 配置', icon: 'Setting', scope: 'TENANT' },
       },
+      {
+        // 酒店业务原型：接口未接入前只展示本地 mock；后续替换为酒店 BFF 数据。
+        path: 'admin/tenant/hotel',
+        name: 'HotelManagement',
+        component: () => import('@/views/tenant/hotel.vue'),
+        meta: { title: '酒店管理', icon: 'OfficeBuilding', scope: 'TENANT' },
+      },
       // 审计日志：菜单与 audit.view 权限由后端下发（不新增后端菜单/权限），
       // 因此这里刻意不绑定 meta.scope —— 平台/租户两种视角都能直达本页，
       // 「租户」列由页面按当前 scope 决定是否展示，越权拦截由后端强制。

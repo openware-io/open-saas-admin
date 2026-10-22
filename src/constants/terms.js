@@ -1023,3 +1023,26 @@ export const ORDER_VOID_APPROVAL_STATUS_TEXT = {
 export function orderVoidApprovalStatusText(status) {
   return ORDER_VOID_APPROVAL_STATUS_TEXT[status] || unknownEnumText(status)
 }
+
+// —— 酒店业务（2.4.0-hotel 原型）——
+export const HOTEL_BOOKING_STATUS_TEXT = {
+  PENDING_PAYMENT: '待支付',
+  CONFIRMED: '已确认',
+  ARRIVAL: '待入住',
+  IN_HOUSE: '在住',
+  CHECKED_OUT: '已退房',
+  CANCELLED: '已取消',
+  NO_SHOW: '未到店',
+}
+export function hotelBookingStatusText(status) {
+  return HOTEL_BOOKING_STATUS_TEXT[status] || unknownEnumText(status)
+}
+
+export const HOTEL_PAYMENT_MODE_TEXT = {
+  PREPAY: '全额预付',
+  PAY_AT_HOTEL: '到店付',
+  DEPOSIT: '定金',
+}
+export function hotelPaymentModeText(mode) {
+  return HOTEL_PAYMENT_MODE_TEXT[mode] || unknownEnumText(mode)
+}
