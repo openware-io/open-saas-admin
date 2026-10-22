@@ -13,6 +13,17 @@
       </div>
     </div>
 
+    <section v-if="onboardingIssues.length" class="admin-card onboarding-card">
+      <div class="section-title">门店开通清单</div>
+      <p class="subtle">以下门店还缺少业态或时区，补齐后才适合进入日常经营。</p>
+      <div class="onboarding-list">
+        <div v-for="store in onboardingIssues" :key="store.id" class="onboarding-item">
+          <strong>{{ store.name }}</strong>
+          <span>{{ store.businessType ? '缺少时区' : '缺少业态' }}</span>
+        </div>
+      </div>
+    </section>
+
     <div class="admin-card">
       <div class="filter-bar">
         <el-input v-model="keyword" placeholder="门店名称 / 编号" clearable style="width: 240px" />
@@ -80,6 +91,10 @@ const filteredRows = computed(() => {
   return list
 })
 
+const onboardingIssues = computed(() =>
+  rows.value.filter((store) => !store.businessType || !store.timezone),
+)
+
 async function load() {
   loading.value = true
   try {
@@ -100,4 +115,8 @@ onMounted(load)
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
+.onboarding-card { margin-bottom: 16px; }
+.onboarding-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.onboarding-item { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border: 1px solid var(--el-color-warning-light-5); border-radius: 6px; font-size: 12px; color: var(--el-text-color-regular); }
+.onboarding-item span { color: var(--el-color-warning); }
 </style>
