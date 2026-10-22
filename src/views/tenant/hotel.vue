@@ -124,6 +124,20 @@
               <el-input-number v-model="hotel.pointsMaxRatioBps" :min="0" :max="10000" :step="500" />
               <span class="form-hint">万分比 · 3000 = 最多抵扣订单金额 30%</span>
             </el-form-item>
+            <el-form-item label="押金">
+              <el-switch v-model="hotel.stayDepositRequired" />
+              <span class="form-hint">入住时收取，退房结算/退还；不计入订单收入</span>
+            </el-form-item>
+            <el-form-item v-if="hotel.stayDepositRequired" label="押金金额">
+              <el-input-number v-model="hotel.stayDepositAmount" :min="0" :step="50" />
+              <span class="form-hint">{{ formatMoneyValue(hotel.stayDepositAmount) }} / 间夜</span>
+            </el-form-item>
+            <el-form-item v-if="hotel.stayDepositRequired" label="收取方式">
+              <el-select v-model="hotel.stayDepositMode" style="width: 220px">
+                <el-option label="现场收取（现金 / 微信 / 支付宝 / 刷卡）" value="COLLECT" />
+                <el-option label="银行卡预授权（预留）" value="PRE_AUTH" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="发票">
               <el-switch v-model="hotel.invoiceEnabled" />
               <span class="form-hint">原型占位；实际字段待财务确认。</span>
@@ -290,6 +304,9 @@ const hotel = reactive({
   invoiceEnabled: true,
   pointsRedeemEnabled: true,
   pointsMaxRatioBps: 3000,
+  stayDepositRequired: true,
+  stayDepositMode: 'COLLECT',
+  stayDepositAmount: 300,
 })
 
 const metrics = [
