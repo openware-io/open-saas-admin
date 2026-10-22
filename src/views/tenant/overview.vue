@@ -36,6 +36,23 @@
 
       <el-alert v-if="error" type="error" :closable="false" show-icon :title="error" class="error-alert" />
 
+      <section v-if="showOnboarding" class="admin-card onboarding-card">
+        <div class="section-title">开通清单</div>
+        <p class="subtle">新租户/新门店先完成这些动作，再进入日常经营。</p>
+        <div class="onboarding-list">
+          <div v-for="step in onboardingSteps" :key="step.key" class="onboarding-item" :class="{ done: step.done }">
+            <span class="onboarding-dot">{{ step.done ? '✓' : '·' }}</span>
+            <div>
+              <strong>{{ step.label }}</strong>
+              <small>{{ step.hint }}</small>
+            </div>
+            <el-button v-if="!step.done && step.action" link type="primary" @click="goStep(step.action)">
+              {{ step.actionLabel }}
+            </el-button>
+          </div>
+        </div>
+      </section>
+
       <div v-if="overview" class="metric-grid" v-loading="loading">
         <section class="metric-card"><span>客户数</span><strong>{{ integer(customer.memberCount) }}</strong><small>租户去重客户，不按门店相加</small></section>
         <section class="metric-card"><span>共享积分余额</span><strong>{{ integer(customer.pointsBalance) }}</strong><small>租户共享余额，门店筛选不拆分</small></section>
@@ -93,6 +110,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 import { getTenantOverview } from '@/api/tenant-overview'
 import { listStores } from '@/api/store'
@@ -102,6 +120,7 @@ import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { businessTypeText } from '@/constants/terms'
 
 const contextStore = useContextStore()
+const router = useRouter()
 const loading = ref(false)
 const error = ref('')
 const overview = ref(null)
@@ -110,6 +129,17 @@ const selectedStoreIds = ref([])
 const scopeMode = ref('ALL')
 const range = ref([])
 const customer = computed(() => overview.value?.customer || {})
+const onboardingSteps = computed(() => [
+  { key: 'store', label: '创建门店', hint: '至少有一家营业门店', done: stores.value.length > 0, action: '/admin/tenant/stores', actionLabel: '去创建' },
+  { key: 'business', label: '开通业态', hint: '门店已绑定酒店/KTV等业态', done: stores.value.some((store) => !!store.businessType), action: '/admin/tenant/stores', actionLabel: '去配置' },
+  { key: 'payment', label: '配置支付方式', hint: '至少配置一种可用收款方式', done: (overview.value?.payment?.rows || []).length > 0, action: '/business/payment-methods', actionLabel: '去配置' },
+  { key: 'order', label: '产生首笔订单', hint: '有订单后经营总览才有真实数据', done: (overview.value?.order?.rows || []).length > 0, action: '/business/orders', actionLabel: '去查看' },
+])
+const showOnboarding = computed(() => !!overview.value && onboardingSteps.value.some((step) => !step.done))
+
+function goStep(path) {
+  router.push(path)
+}
 
 function integer(value) { return new Intl.NumberFormat('zh-CN').format(Number(value || 0)) }
 function signed(value) { const number = Number(value || 0); return `${number > 0 ? '+' : ''}${integer(number)}` }
@@ -153,5 +183,14 @@ onMounted(async () => { await loadStores(); await load() })
 .error-alert { margin-top: 16px; }
 .payment-summary { margin-top: 16px; }
 .section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+.onboarding-card { margin-top: 16px; }
+.onboarding-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-top: 12px; }
+.onboarding-item { display: flex; align-items: flex-start; gap: 9px; padding: 10px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; }
+.onboarding-item.done { background: var(--el-color-success-light-9); }
+.onboarding-dot { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--el-fill-color); color: var(--el-text-color-secondary); font-size: 12px; flex: 0 0 20px; }
+.onboarding-item.done .onboarding-dot { background: var(--el-color-success); color: #fff; }
+.onboarding-item strong { display: block; font-size: 13px; }
+.onboarding-item small { display: block; margin-top: 3px; color: var(--el-text-color-secondary); font-size: 12px; }
+.onboarding-item .el-button { margin-left: auto; }
 .refund-title { margin-top: 20px; }
 </style>
