@@ -116,9 +116,7 @@
                   </div>
                   <div v-for="(row, index) in role.rows" :key="index" class="table-row">
                     <span v-for="(cell, colIndex) in row.cells" :key="colIndex" :class="{ strong: colIndex === 0 }">
-                      <el-tag v-if="cell.tag" :type="cell.tone || 'info'" size="small" effect="plain">
-                        {{ cell.text }}
-                      </el-tag>
+                      <span v-if="cell && cell.tag" class="status-pill" :class="cell.tone">{{ cell.text }}</span>
                       <template v-else>{{ cell }}</template>
                     </span>
                   </div>
@@ -202,6 +200,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   ArrowDown, ArrowRight, Bell, Calendar, Clock, DataAnalysis, Document, Goods,
@@ -493,7 +492,9 @@ const roles = [
   },
 ]
 
-const roleKey = ref('platform')
+const route = useRoute()
+const requestedRole = String(route.query.role || '')
+const roleKey = ref(roles.some((item) => item.key === requestedRole) ? requestedRole : 'platform')
 const role = computed(() => roles.find((item) => item.key === roleKey.value) || roles[0])
 const activeNav = ref('overview')
 
@@ -919,6 +920,24 @@ function notify(message) {
   color: #101828;
   font-weight: 600;
 }
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 10px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.status-pill.success { background: #ecfdf3; color: #027a48; }
+.status-pill.warning { background: #fffaeb; color: #b54708; }
+.status-pill.danger { background: #fef3f2; color: #b42318; }
+.status-pill.info { background: #eff8ff; color: #175cd3; }
 
 .alert-list {
   display: flex;
