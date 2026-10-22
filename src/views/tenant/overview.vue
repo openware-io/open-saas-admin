@@ -28,6 +28,14 @@
         <el-tag v-for="item in entitlements" :key="item.businessType" size="small" effect="plain">
           {{ businessTypeText(item.businessType) }} 已开通
         </el-tag>
+        <template v-if="canManageBusiness && entitlementsLoaded">
+          <el-button v-if="!isEntitled('HOTEL')" link type="primary" @click="enableBusinessType('HOTEL')">
+            开通酒店
+          </el-button>
+          <el-button v-if="!isEntitled('KTV')" link type="primary" @click="enableBusinessType('KTV')">
+            开通 KTV
+          </el-button>
+        </template>
         <el-date-picker v-model="range" type="daterange" value-format="YYYY-MM-DD" range-separator="至"
           start-placeholder="开始日期" end-placeholder="结束日期" clearable />
         <el-select v-if="scopeMode === 'STORE'" v-model="selectedStoreIds" multiple collapse-tags collapse-tags-tooltip clearable
@@ -116,12 +124,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 import { getTenantOverview } from '@/api/tenant-overview'
-import { listBusinessEntitlements } from '@/api/business'
+import { listBusinessEntitlements, enableBusiness } from '@/api/business'
 import { listStores } from '@/api/store'
 import { useContextStore } from '@/stores/context'
 import { formatMoney, formatTime } from '@/utils/format'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { businessTypeText } from '@/constants/terms'
+import { hasPermission } from '@/utils/context'
 
 const contextStore = useContextStore()
 const router = useRouter()
@@ -131,6 +140,7 @@ const overview = ref(null)
 const stores = ref([])
 const selectedStoreIds = ref([])
 const entitlements = ref([])
+const entitlementsLoaded = ref(false)
 const scopeMode = ref('ALL')
 const range = ref([])
 const customer = computed(() => overview.value?.customer || {})
