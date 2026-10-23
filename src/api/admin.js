@@ -78,6 +78,9 @@ export function assignRolePermissions(roleId, permissionIds) {
 export function assignUserRole(data) {
   return request.post('/api/v1/admin/iam/user-roles', data)
 }
+export function revokeRoleMember(roleId, accountId) {
+  return request.delete(`/api/v1/admin/iam/roles/${roleId}/accounts/${accountId}`)
+}
 
 // 租户钱包代币配置（名称 + 金额:代币比例）
 export function getWalletTokenConfig(tenantId) {

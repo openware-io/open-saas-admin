@@ -131,6 +131,11 @@
         <el-table-column label="作用域" min-width="180">
           <template #default="{ row }">{{ memberScope(row) }}</template>
         </el-table-column>
+        <el-table-column label="操作" width="90" align="center">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removeMember(row)">移除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
       <div class="member-add">
         <el-select v-model="selectedStaffId" filterable placeholder="选择未分配该角色的运营人员" style="flex:1">
@@ -154,7 +159,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   assignRolePermissions,
   assignUserRole,
@@ -162,6 +167,7 @@ import {
   listPermissions,
   listRoleCatalog,
   listRolePermissions,
+  revokeRoleMember,
 } from '@/api/admin'
 import { listStaff } from '@/api/staff'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
@@ -342,8 +348,26 @@ function memberScope(staff) {
   return scopeTypeText(binding.scopeType)
 }
 
-async function assignMember() {
-  if (!selectedStaffId.value || !memberRole.value) {
+async function removeMember(staff) {
+  try {
+    await ElMessageBox.confirm(
+      `确认移除 ${staff.displayName || staff.username} 的「${memberRole.value?.name}」角色？`,
+      '移除角色',
+      { type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await revokeRoleMember(memberRole.value.id, staff.platformAccountId)
+    ElMessage.success('角色已移除')
+    await openMembers(memberRole.value)
+  } catch (error) {
+    notifyAdminRequestError(error, '移除角色失败')
+  }
+}
+
+async function assignMember() {  if (!selectedStaffId.value || !memberRole.value) {
     ElMessage.warning('请选择运营人员')
     return
   }
