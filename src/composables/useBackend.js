@@ -16,13 +16,20 @@ export function useBackend() {
 
   async function activateScope(scope) {
     authStore.setScope(scope)
-    if (scope === 'TENANT' || scope === 'STORE') await useContextStore().ensureContext(scope)
+    const contextStore = useContextStore()
+    if (scope === 'TENANT' || scope === 'STORE') await contextStore.ensureContext(scope)
+    if (scope === 'STORE') {
+      const storeContext = contextStore.items.find((item) => item.storeId != null)
+      if (storeContext && contextStore.current?.storeId !== storeContext.storeId) {
+        await contextStore.select(storeContext.contextId)
+      }
+    }
     await menuStore.fetchMenus(scope)
     const landing = authStore.landing || ''
     const landingMatches = scope === 'TENANT'
       ? landing.startsWith('/admin/tenant') || landing.startsWith('/business')
       : scope === 'STORE'
-        ? landing.startsWith('/store') || landing.startsWith('/admin/tenant') || landing.startsWith('/business')
+        ? landing.startsWith('/store') || landing.startsWith('/business')
         : landing.startsWith('/admin/platform') || landing.startsWith('/admin/iam')
     const target = (landingMatches && landing) || menuStore.firstLeafPath() ||
       (scope === 'TENANT' ? '/admin/tenant/stores' : scope === 'STORE' ? '/store' : '/select')

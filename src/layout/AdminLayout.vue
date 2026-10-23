@@ -331,6 +331,7 @@ watch(
   () => contextStore.current?.permissions,
   (permissions) => {
     if (permissions && authStore.scope === 'TENANT') menuStore.fetchMenus('TENANT')
+    if (permissions && authStore.scope === 'STORE') menuStore.fetchMenus('STORE')
   }
 )
 
@@ -339,6 +340,9 @@ watch(() => contextStore.current?.tenantId, syncCurrencyWithContext)
 
 function syncScopeFromRoute() {
   const routeScope = route.meta.scope
+  // 门店工作区复用租户业务页面时，路由 meta 仍是 TENANT；不能因此把门店工作区
+  // 降级成租户后台，否则门店菜单/权限会被替换。
+  if (routeScope === 'TENANT' && authStore.scope === 'STORE' && contextStore.current?.storeId) return
   if (routeScope && routeScope !== authStore.scope) {
     authStore.setScope(routeScope)
   }
