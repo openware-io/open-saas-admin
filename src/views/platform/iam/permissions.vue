@@ -1,78 +1,70 @@
 <template>
   <div class="admin-page">
     <div class="page-header">
-      <h2>权限</h2>
-      <el-button type="primary" @click="dialogVisible = true">
-        <el-icon><Plus /></el-icon>新增权限
-      </el-button>
+      <div>
+        <h2>权限目录</h2>
+        <p class="subtle">权限由平台统一维护；角色只能在自己的作用域内勾选可授予的权限。</p>
+      </div>
+      <el-button :loading="loading" @click="load">刷新</el-button>
     </div>
+
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      title="权限不是角色"
+      description="这里看到的是系统权限点；给角色授权请到“角色与权限”页的权限矩阵。"
+    />
 
     <div class="admin-card">
       <div class="filter-bar">
-        <el-input v-model="keyword" placeholder="权限编码 / 名称" clearable style="width: 240px" />
-        <el-button type="primary" @click="search">查询</el-button>
-        <el-button @click="keyword = ''">重置</el-button>
+        <el-input v-model="keyword" placeholder="权限编码 / 名称 / 模块" clearable style="width: 300px" />
       </div>
-
-      <el-table :data="rows" border stripe row-key="code" default-expand-all>
-        <el-table-column prop="name" label="权限名称" min-width="200" />
+      <el-table v-loading="loading" :data="filteredRows" border stripe>
         <el-table-column prop="code" label="权限编码" min-width="220" />
-        <el-table-column label="类型" width="120" align="center">
-          <template #default="{ row }">
-            <el-tag :type="permissionTypeTag(row.type)" size="small">{{ permissionTypeText(row.type) }}</el-tag>
-          </template>
+        <el-table-column label="名称" min-width="170">
+          <template #default="{ row }">{{ row.description || row.code }}</template>
         </el-table-column>
+        <el-table-column prop="module" label="模块" width="130" />
+        <el-table-column prop="domainCode" label="业务域" width="120" />
+        <el-table-column label="适用作用域" width="110" align="center">
+          <template #default="{ row }">{{ scopeTypeText(row.scopeLevel) }}</template>
+        </el-table-column>
+        <el-table-column prop="grantableLevels" label="可授予" width="150" />
       </el-table>
-
-      <div class="admin-pagination">
-        <el-pagination layout="total, prev, pager, next" :total="rows.length" :page-size="10" />
-      </div>
     </div>
-
-    <el-dialog v-model="dialogVisible" title="新增权限" width="480px">
-      <el-form label-width="80px">
-        <el-form-item label="权限编码"><el-input placeholder="如 tenant:read" /></el-form-item>
-        <el-form-item label="权限名称"><el-input placeholder="权限名称" /></el-form-item>
-        <el-form-item label="类型">
-          <el-select placeholder="选择类型" style="width: 100%">
-            <el-option v-for="(label, value) in PERMISSION_TYPE_TEXT" :key="value" :label="label" :value="value" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="save">保存</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { PERMISSION_TYPE_TEXT, permissionTypeTag, permissionTypeText } from '@/constants/terms'
+import { computed, onMounted, ref } from 'vue'
+import { listPermissions } from '@/api/admin'
+import { scopeTypeText } from '@/constants/terms'
+import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 
+const rows = ref([])
 const keyword = ref('')
-const dialogVisible = ref(false)
+const loading = ref(false)
 
-/** 权限类型用后端枚举 MENU / ACTION（与新增表单的取值一致），展示走统一词表。 */
-const rows = ref([
-  { code: 'iam', name: '权限管理', type: 'MENU', children: [
-    { code: 'iam:role:read', name: '角色查询', type: 'ACTION' },
-    { code: 'iam:permission:read', name: '权限查询', type: 'ACTION' },
-  ] },
-  { code: 'tenant', name: '租户管理', type: 'MENU', children: [
-    { code: 'tenant:read', name: '租户查询', type: 'ACTION' },
-    { code: 'tenant:write', name: '租户新增/编辑', type: 'ACTION' },
-  ] },
-])
+const filteredRows = computed(() => {
+  const value = keyword.value.trim().toLowerCase()
+  if (!value) return rows.value
+  return rows.value.filter((row) => [row.code, row.description, row.module, row.domainCode]
+    .filter(Boolean)
+    .some((field) => String(field).toLowerCase().includes(value)))
+})
 
-function search() {
-  ElMessage.info('该查询为占位实现，暂未接入后端接口')
+async function load() {
+  loading.value = true
+  try {
+    rows.value = (await listPermissions()) || []
+  } catch (error) {
+    rows.value = []
+    notifyAdminRequestError(error, '加载权限目录失败')
+  } finally {
+    loading.value = false
+  }
 }
 
-function save() {
-  dialogVisible.value = false
-  ElMessage.success('已保存（占位，未写入后端）')
-}
+onMounted(load)
 </script>
