@@ -1030,6 +1030,7 @@ export const HOTEL_BOOKING_STATUS_TEXT = {
   CONFIRMED: '已确认',
   ARRIVAL: '待入住',
   IN_HOUSE: '在住',
+  DUE_OUT: '待退房',
   CHECKED_OUT: '已退房',
   CANCELLED: '已取消',
   NO_SHOW: '未到店',

@@ -8,9 +8,9 @@
       <el-tag type="warning" effect="plain">PROTOTYPE · 2.4.0-hotel</el-tag>
     </div>
 
-    <el-alert type="info" :closable="false" class="hotel-notice">
+    <el-alert type="success" :closable="false" class="hotel-notice">
       <template #title>
-        当前为前端原型：数据为本地 mock，不会调用酒店后端；接口接入后替换为真实数据。
+        前台任务已接入酒店动作接口；入住/退房按 hotel.checkin / hotel.checkout 权限校验。
       </template>
     </el-alert>
 
@@ -27,7 +27,7 @@
         <div class="admin-card">
           <div class="section-head">
             <h3>今日到店 / 离店</h3>
-            <el-button link type="primary" @click="refreshPrototype">刷新原型数据</el-button>
+            <el-button link type="primary" @click="refreshPrototype">刷新前台任务</el-button>
           </div>
           <el-table :data="todayBookings" border stripe>
             <el-table-column prop="bookingNo" label="预订号" width="150" />
@@ -43,7 +43,7 @@
             <el-table-column label="操作" width="150" align="center">
               <template #default="{ row }">
                 <el-button v-if="row.status === 'ARRIVAL'" link type="primary" @click="checkIn(row)">办理入住</el-button>
-                <el-button v-else-if="row.status === 'IN_HOUSE'" link type="primary" @click="checkOut(row)">办理退房</el-button>
+                <el-button v-else-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'" link type="primary" @click="checkOut(row)">办理退房</el-button>
                 <span v-else class="muted">—</span>
               </template>
             </el-table-column>
@@ -278,15 +278,18 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { formatMoneyValue } from '@/utils/format'
 import { hotelBookingStatusText, hotelPaymentModeText } from '@/constants/terms'
 import { DEFAULT_CURRENCY, currencyOptions } from '@/constants/currency'
+import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
+import { checkInHotelBooking, checkOutHotelBooking, listHotelFrontDeskTasks } from '@/api/hotel'
 
 const activeTab = ref('overview')
 const calendarMode = ref('ROOM_TYPE')
 const bookingFilter = ref('ALL')
+const loading = ref(false)
 const currencies = currencyOptions()
 
 const hotel = reactive({
@@ -345,7 +348,7 @@ const bookings = ref([
   { bookingNo: 'H202610220004', guest: '周女士', phone: '136****5522', roomType: '豪华大床房', dates: '10-25 → 10-26', rooms: 1, amount: 368, paymentMode: 'DEPOSIT', status: 'PENDING_PAYMENT', roomNo: '' },
 ])
 
-const todayBookings = computed(() => bookings.value.filter((row) => ['ARRIVAL', 'IN_HOUSE'].includes(row.status)))
+const todayBookings = computed(() => bookings.value.filter((row) => ['ARRIVAL', 'IN_HOUSE', 'DUE_OUT'].includes(row.status)))
 const filteredBookings = computed(() => bookingFilter.value === 'ALL'
   ? bookings.value
   : bookings.value.filter((row) => row.status === bookingFilter.value))
@@ -354,18 +357,44 @@ const statusText = hotelBookingStatusText
 const paymentText = hotelPaymentModeText
 
 function statusType(status) {
-  return { PENDING_PAYMENT: 'warning', CONFIRMED: 'primary', ARRIVAL: 'warning', IN_HOUSE: 'success', CHECKED_OUT: 'info', CANCELLED: 'info', NO_SHOW: 'danger' }[status] || 'info'
+  return { PENDING_PAYMENT: 'warning', CONFIRMED: 'primary', ARRIVAL: 'warning', IN_HOUSE: 'success', DUE_OUT: 'warning', CHECKED_OUT: 'info', CANCELLED: 'info', NO_SHOW: 'danger' }[status] || 'info'
 }
 
-function checkIn(row) {
-  row.status = 'IN_HOUSE'
-  row.roomNo = row.roomNo || `A${1200 + Math.floor(Math.random() * 80)}`
-  ElMessage.success(`${row.guest} 已办理入住，房号 ${row.roomNo}`)
+async function loadFrontDesk() {
+  loading.value = true
+  try {
+    const rows = await listHotelFrontDeskTasks()
+    bookings.value = (rows || []).map((row) => ({
+      ...row,
+      guest: row.guestName,
+      dates: `${row.checkInDate} → ${row.checkOutDate}`,
+      rooms: 1,
+    }))
+  } catch (error) {
+    notifyAdminRequestError(error, '加载酒店前台任务失败')
+  } finally {
+    loading.value = false
+  }
 }
 
-function checkOut(row) {
-  row.status = 'CHECKED_OUT'
-  ElMessage.success(`${row.guest} 已退房，客房进入清扫`)
+async function checkIn(row) {
+  try {
+    await checkInHotelBooking(row.id)
+    ElMessage.success(`${row.guest} 已办理入住`)
+    await loadFrontDesk()
+  } catch (error) {
+    notifyAdminRequestError(error, '办理入住失败')
+  }
+}
+
+async function checkOut(row) {
+  try {
+    await checkOutHotelBooking(row.id)
+    ElMessage.success(`${row.guest} 已退房，客房进入清扫`)
+    await loadFrontDesk()
+  } catch (error) {
+    notifyAdminRequestError(error, '办理退房失败')
+  }
 }
 
 function savePrototype(action) {
@@ -373,8 +402,10 @@ function savePrototype(action) {
 }
 
 function refreshPrototype() {
-  ElMessage.success('原型数据已刷新')
+  loadFrontDesk()
 }
+
+onMounted(loadFrontDesk)
 </script>
 
 <style scoped>
