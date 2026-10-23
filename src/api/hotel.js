@@ -55,6 +55,10 @@ export function refundHotelDeposit(id, data) {
   return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/refund`, data)
 }
 
+export function requestHotelOnlineRefund(id, data) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/refund-requests`, data)
+}
+
 export function listHousekeepingTasks() {
   return request.get('/api/v1/admin/hotel/housekeeping/tasks')
 }

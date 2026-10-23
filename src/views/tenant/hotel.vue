@@ -212,6 +212,7 @@ import {
   listHousekeepingTasks,
   quoteHotelStay,
   refundHotelDeposit,
+  requestHotelOnlineRefund,
   runNightAudit,
   startHousekeepingTask,
 } from '@/api/hotel'
@@ -425,13 +426,22 @@ async function refundDeposit() {
   if (!folioBooking.value || !depositAmount.value) return
   refunding.value = true
   try {
-    await refundHotelDeposit(folioBooking.value.id, {
-      amountMinor: depositAmount.value,
-      note: '押金退款',
-      method: refundMethod.value,
-    })
-    ElMessage.success('退款已记账')
-    folio.value = await getHotelFolio(folioBooking.value.id)
+    if (refundMethod.value === 'ONLINE') {
+      await requestHotelOnlineRefund(folioBooking.value.id, {
+        amountMinor: depositAmount.value,
+        note: '线上押金退款',
+        method: 'ONLINE',
+      })
+      ElMessage.success('线上退款申请已提交，等待支付审批')
+    } else {
+      await refundHotelDeposit(folioBooking.value.id, {
+        amountMinor: depositAmount.value,
+        note: '现金押金退款',
+        method: 'CASH',
+      })
+      ElMessage.success('现金退款已记账')
+      folio.value = await getHotelFolio(folioBooking.value.id)
+    }
   } catch (error) {
     notifyAdminRequestError(error, '退款失败')
   } finally {
