@@ -135,6 +135,7 @@
         <el-input-number v-model="depositAmount" :min="1" :max="folio.folio.chargeMinor" />
         <el-input v-model="depositNote" placeholder="押金备注" style="width:160px" />
         <el-button type="primary" :loading="depositLoading" @click="collectDeposit">收押金</el-button>
+        <el-button type="warning" :loading="refunding" @click="refundDeposit">退款</el-button>
       </div>
     </el-dialog>
 
@@ -206,6 +207,7 @@ import {
   listHotels,
   listHousekeepingTasks,
   quoteHotelStay,
+  refundHotelDeposit,
   runNightAudit,
   startHousekeepingTask,
 } from '@/api/hotel'
@@ -236,6 +238,7 @@ const folio = ref(null)
 const depositAmount = ref(1)
 const depositNote = ref('')
 const depositLoading = ref(false)
+const refunding = ref(false)
 const auditLoading = ref(false)
 const form = reactive({
   roomTypeId: null,
@@ -410,6 +413,23 @@ async function collectDeposit() {
     notifyAdminRequestError(error, '收押金失败')
   } finally {
     depositLoading.value = false
+  }
+}
+
+async function refundDeposit() {
+  if (!folioBooking.value || !depositAmount.value) return
+  refunding.value = true
+  try {
+    await refundHotelDeposit(folioBooking.value.id, {
+      amountMinor: depositAmount.value,
+      note: '押金退款',
+    })
+    ElMessage.success('退款已记账')
+    folio.value = await getHotelFolio(folioBooking.value.id)
+  } catch (error) {
+    notifyAdminRequestError(error, '退款失败')
+  } finally {
+    refunding.value = false
   }
 }
 

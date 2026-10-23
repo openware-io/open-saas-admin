@@ -51,6 +51,10 @@ export function collectHotelDeposit(id, data) {
   return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/deposit`, data)
 }
 
+export function refundHotelDeposit(id, data) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/refund`, data)
+}
+
 export function listHousekeepingTasks() {
   return request.get('/api/v1/admin/hotel/housekeeping/tasks')
 }
