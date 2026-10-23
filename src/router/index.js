@@ -74,7 +74,7 @@ const routes = [
       {
         path: 'store',
         name: 'StoreHome',
-        component: () => import('@/views/tenant/overview.vue'),
+        component: () => import('@/views/store/index.vue'),
         meta: { title: '门店工作台', icon: 'Shop', scope: 'STORE' },
       },
       {
