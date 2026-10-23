@@ -29,12 +29,6 @@ const routes = [
         meta: { title: '租户管理', icon: 'OfficeBuilding', scope: 'PLATFORM' },
       },
       {
-        path: 'admin/pricing-plans',
-        name: 'PricingPlans',
-        component: () => import('@/views/platform/pricing-plans.vue'),
-        meta: { title: '计价方案', icon: 'PriceTag', scope: 'PLATFORM' },
-      },
-      {
         path: 'admin/iam/roles',
         name: 'IamRoles',
         component: () => import('@/views/platform/iam/roleAdmin.vue'),
