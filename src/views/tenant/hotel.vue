@@ -46,7 +46,7 @@
         </el-table-column>
         <el-table-column label="操作" width="130" align="center">
           <template #default="{ row }">
-            <el-button v-if="row.status === 'ARRIVAL' && canCheckIn" link type="primary" @click="checkIn(row)">
+            <el-button v-if="(row.status === 'ARRIVAL' || row.status === 'CONFIRMED') && canCheckIn" link type="primary" @click="checkIn(row)">
               办理入住
             </el-button>
             <el-button
