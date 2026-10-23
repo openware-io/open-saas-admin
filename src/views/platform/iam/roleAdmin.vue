@@ -131,8 +131,9 @@
         <el-table-column label="作用域" min-width="180">
           <template #default="{ row }">{{ memberScope(row) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="90" align="center">
+        <el-table-column label="操作" width="150" align="center">
           <template #default="{ row }">
+            <el-button link type="primary" @click="openScope(row)">调整</el-button>
             <el-button link type="danger" @click="removeMember(row)">移除</el-button>
           </template>
         </el-table-column>
@@ -153,6 +154,28 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="scopeVisible" title="调整作用域" width="480px">
+      <el-form label-width="90px">
+        <el-form-item label="人员">
+          {{ scopeStaff?.displayName || scopeStaff?.username }}
+        </el-form-item>
+        <el-form-item v-if="memberRole?.scopeLevel === 'STORE'" label="门店">
+          <el-select v-model="scopeStoreId" style="width:100%" placeholder="选择门店">
+            <el-option
+              v-for="item in storeOptions"
+              :key="item.storeId"
+              :label="item.storeName"
+              :value="item.storeId"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="scopeVisible = false">取消</el-button>
+        <el-button type="primary" :loading="scopeSaving" @click="saveScope">保存</el-button>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -168,6 +191,7 @@ import {
   listRoleCatalog,
   listRolePermissions,
   revokeRoleMember,
+  updateRoleMemberScope,
 } from '@/api/admin'
 import { listStaff } from '@/api/staff'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
@@ -194,6 +218,10 @@ const members = ref([])
 const membersLoading = ref(false)
 const selectedStaffId = ref(null)
 const assigning = ref(false)
+const scopeVisible = ref(false)
+const scopeStaff = ref(null)
+const scopeStoreId = ref(null)
+const scopeSaving = ref(false)
 const form = reactive({ code: '', name: '', scopeLevel: 'TENANT' })
 
 const isPlatform = computed(() => {
@@ -204,6 +232,7 @@ const canCreate = computed(() => hasPermission(contextStore.current?.permissions
 const scopeHint = computed(() => isPlatform.value
   ? '平台角色只授予平台级权限，不能进入租户业务。'
   : '租户可创建 TENANT/STORE 角色；预置角色只读，修改请复制。')
+const storeOptions = computed(() => (contextStore.items || []).filter((item) => item.storeId != null))
 
 const assignedMembers = computed(() => {
   if (!memberRole.value) return []
@@ -346,6 +375,36 @@ function memberScope(staff) {
   const binding = (staff.roles || []).find((item) => item.roleCode === memberRole.value?.code)
   if (!binding) return '-'
   return scopeTypeText(binding.scopeType)
+}
+
+function openScope(staff) {
+  scopeStaff.value = staff
+  const binding = (staff.roles || []).find((item) => item.roleCode === memberRole.value?.code)
+  scopeStoreId.value = binding?.storeId || contextStore.current?.storeId || null
+  scopeVisible.value = true
+}
+
+async function saveScope() {
+  if (!scopeStaff.value || !memberRole.value) return
+  if (memberRole.value.scopeLevel === 'STORE' && !scopeStoreId.value) {
+    ElMessage.warning('请选择门店')
+    return
+  }
+  scopeSaving.value = true
+  try {
+    await updateRoleMemberScope(memberRole.value.id, scopeStaff.value.platformAccountId, {
+      organizationId: contextStore.current?.organizationId,
+      storeId: memberRole.value.scopeLevel === 'STORE' ? scopeStoreId.value : null,
+      scopeType: memberRole.value.scopeLevel,
+    })
+    ElMessage.success('作用域已调整')
+    scopeVisible.value = false
+    await openMembers(memberRole.value)
+  } catch (error) {
+    notifyAdminRequestError(error, '调整作用域失败')
+  } finally {
+    scopeSaving.value = false
+  }
 }
 
 async function removeMember(staff) {
