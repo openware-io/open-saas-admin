@@ -72,6 +72,12 @@ const routes = [
         meta: { title: '经营总览', icon: 'DataAnalysis', scope: 'TENANT' },
       },
       {
+        path: 'store',
+        name: 'StoreHome',
+        component: () => import('@/views/tenant/overview.vue'),
+        meta: { title: '门店工作台', icon: 'Shop', scope: 'STORE' },
+      },
+      {
         path: 'admin/tenant/stores',
         name: 'TenantStores',
         component: () => import('@/views/tenant/stores.vue'),

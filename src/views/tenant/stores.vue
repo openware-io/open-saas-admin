@@ -4,6 +4,9 @@
       <h2>门店</h2>
       <div style="display: flex; gap: 10px">
         <!-- 币种是租户级配置（门店列展示的是写穿后的租户币种），入口挂在门店设置旁边 -->
+        <el-button v-if="canManageWorkspace" @click="workspaceVisible = true">
+          <el-icon><Setting /></el-icon>工作区模式
+        </el-button>
         <el-button v-if="canManageCurrency" @click="router.push('/admin/tenant/currency')">
           <el-icon><Money /></el-icon>{{ TERMS.currency }}
         </el-button>
@@ -57,14 +60,29 @@
 
       <p class="currency-hint">币种为租户级配置，全部门店统一；历史已结算单据按自身币种快照展示。</p>
     </div>
+
+    <el-dialog v-model="workspaceVisible" title="门店工作区模式" width="480px">
+      <el-radio-group v-model="workspaceMode" class="workspace-mode">
+        <el-radio value="INDEPENDENT">门店独立工作台</el-radio>
+        <p class="subtle">店长登录只进入门店工作台，不看到租户总部。</p>
+        <el-radio value="TENANT_CONTEXT">租户后台内门店上下文</el-radio>
+        <p class="subtle">门店作为租户后台内的经营上下文，适合小客户统一管理。</p>
+      </el-radio-group>
+      <template #footer>
+        <el-button @click="workspaceVisible = false">取消</el-button>
+        <el-button type="primary" :loading="workspaceSaving" @click="saveWorkspaceMode">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Money, Refresh } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { Money, Refresh, Setting } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { listStores } from '@/api/store'
+import { getStoreWorkspaceMode, updateStoreWorkspaceMode } from '@/api/tenantWorkspace'
 import { TERMS, businessTypeText, storeStatusText, storeStatusType } from '@/constants/terms'
 import { useContextStore } from '@/stores/context'
 import { useCurrencyStore } from '@/stores/currency'
@@ -79,9 +97,13 @@ const rows = ref([])
 const loading = ref(false)
 const keyword = ref('')
 const status = ref('')
+const workspaceVisible = ref(false)
+const workspaceSaving = ref(false)
+const workspaceMode = ref('INDEPENDENT')
 
 /** 币种设置入口按权限显示（与后端 tenant.currency.manage 同码），越权由后端强制 403。 */
 const canManageCurrency = computed(() => hasPermission(contextStore.current?.permissions, 'tenant.currency.manage'))
+const canManageWorkspace = computed(() => hasPermission(contextStore.current?.permissions, 'tenant.tenant.manage'))
 
 const filteredRows = computed(() => {
   let list = rows.value
@@ -106,7 +128,29 @@ async function load() {
   }
 }
 
+async function loadWorkspaceMode() {
+  try {
+    workspaceMode.value = (await getStoreWorkspaceMode())?.storeWorkspaceMode || 'INDEPENDENT'
+  } catch {
+    workspaceMode.value = 'INDEPENDENT'
+  }
+}
+
+async function saveWorkspaceMode() {
+  workspaceSaving.value = true
+  try {
+    await updateStoreWorkspaceMode(workspaceMode.value)
+    workspaceVisible.value = false
+    ElMessage.success('门店工作区模式已更新，重新登录后生效')
+  } catch (error) {
+    notifyAdminRequestError(error, '保存工作区模式失败')
+  } finally {
+    workspaceSaving.value = false
+  }
+}
+
 onMounted(load)
+onMounted(loadWorkspaceMode)
 </script>
 
 <style scoped>

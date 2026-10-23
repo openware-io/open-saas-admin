@@ -16,14 +16,16 @@ export function useBackend() {
 
   async function activateScope(scope) {
     authStore.setScope(scope)
-    if (scope === 'TENANT') await useContextStore().ensureContext(scope)
+    if (scope === 'TENANT' || scope === 'STORE') await useContextStore().ensureContext(scope)
     await menuStore.fetchMenus(scope)
     const landing = authStore.landing || ''
     const landingMatches = scope === 'TENANT'
       ? landing.startsWith('/admin/tenant') || landing.startsWith('/business')
-      : landing.startsWith('/admin/platform') || landing.startsWith('/admin/iam')
+      : scope === 'STORE'
+        ? landing.startsWith('/store') || landing.startsWith('/admin/tenant') || landing.startsWith('/business')
+        : landing.startsWith('/admin/platform') || landing.startsWith('/admin/iam')
     const target = (landingMatches && landing) || menuStore.firstLeafPath() ||
-      (scope === 'TENANT' ? '/admin/tenant/stores' : '/select')
+      (scope === 'TENANT' ? '/admin/tenant/stores' : scope === 'STORE' ? '/store' : '/select')
     await router.push(target)
   }
 
@@ -36,6 +38,8 @@ export function useBackend() {
       await activateScope('PLATFORM')
     } else if (code === 'tenant') {
       await activateScope('TENANT')
+    } else if (code === 'store') {
+      await activateScope('STORE')
     } else if (code === 'im') {
       openImAdmin()
     } else {
@@ -59,7 +63,9 @@ export function useBackend() {
       }
       return
     }
-    const preferred = authStore.defaultWorkspace === 'HEADQUARTERS' ? 'tenant' : 'platform'
+    const preferred = authStore.defaultWorkspace === 'STORE'
+      ? 'store'
+      : authStore.defaultWorkspace === 'HEADQUARTERS' ? 'tenant' : 'platform'
     if (backends.some((backend) => backend.code === preferred)) {
       await enterBackend(preferred)
       return
