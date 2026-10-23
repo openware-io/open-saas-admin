@@ -1049,6 +1049,23 @@ export function hotelBookingStatusText(status) {
   return HOTEL_BOOKING_STATUS_TEXT[status] || unknownEnumText(status)
 }
 
+export const HOUSEKEEPING_STATUS_TEXT = {
+  PENDING: '待清扫',
+  IN_PROGRESS: '清扫中',
+  DONE: '已完成',
+}
+export function housekeepingStatusText(status) {
+  return HOUSEKEEPING_STATUS_TEXT[status] || unknownEnumText(status)
+}
+
+export const HOTEL_FOLIO_STATUS_TEXT = {
+  OPEN: '待结算',
+  SETTLED: '已结算',
+}
+export function hotelFolioStatusText(status) {
+  return HOTEL_FOLIO_STATUS_TEXT[status] || unknownEnumText(status)
+}
+
 export const HOTEL_PAYMENT_MODE_TEXT = {
   PREPAY: '全额预付',
   PAY_AT_HOTEL: '到店付',

@@ -52,3 +52,11 @@ export function startHousekeepingTask(id) {
 export function completeHousekeepingTask(id) {
   return request.post(`/api/v1/admin/hotel/housekeeping/tasks/${id}/complete`)
 }
+
+export function listNightAudits() {
+  return request.get('/api/v1/admin/hotel/night-audit')
+}
+
+export function runNightAudit(businessDate) {
+  return request.post('/api/v1/admin/hotel/night-audit/run', { businessDate })
+}

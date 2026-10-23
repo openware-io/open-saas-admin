@@ -7,7 +7,8 @@
       </div>
       <div class="header-actions">
         <el-button v-if="canCreate" type="primary" @click="openBooking">新建预订</el-button>
-        <el-button :loading="loading" @click="loadTasks">刷新</el-button>
+        <el-button v-if="canManageRooms" :loading="auditLoading" @click="runAudit">夜审</el-button>
+        <el-button :loading="loading" @click="reload">刷新</el-button>
       </div>
     </div>
 
@@ -47,7 +48,7 @@
             <el-tag :type="statusType(row.status)">{{ hotelBookingStatusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="130" align="center">
+        <el-table-column label="操作" width="180" align="center">
           <template #default="{ row }">
             <el-button
               v-if="(row.status === 'ARRIVAL' || row.status === 'CONFIRMED') && canCheckIn"
@@ -65,11 +66,69 @@
             >
               办理退房
             </el-button>
-            <span v-else class="muted">-</span>
+            <el-button
+              v-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'"
+              link
+              @click="openFolio(row)"
+            >
+              账单
+            </el-button>
+            <span v-if="!canCheckIn && !canCheckOut" class="muted">-</span>
           </template>
         </el-table-column>
       </el-table>
     </div>
+
+    <div class="admin-card">
+      <div class="section-head">
+        <h3>客房清扫</h3>
+        <el-tag effect="plain">{{ housekeeping.length }} 条</el-tag>
+      </div>
+      <el-table v-loading="housekeepingLoading" :data="housekeeping" border stripe>
+        <el-table-column prop="roomNo" label="房号" width="100" />
+        <el-table-column prop="status" label="状态" width="120">
+          <template #default="{ row }">{{ housekeepingStatusText(row.status) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="160" align="center">
+          <template #default="{ row }">
+            <el-button v-if="row.status === 'PENDING' && canManageRooms" link type="primary" @click="startCleaning(row)">
+              开始清扫
+            </el-button>
+            <el-button
+              v-if="row.status === 'IN_PROGRESS' && canManageRooms"
+              link
+              type="success"
+              @click="finishCleaning(row)"
+            >
+              完成清扫
+            </el-button>
+            <span v-if="row.status === 'DONE'" class="muted">已完成</span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <el-dialog v-model="folioVisible" :title="`账单 · ${folioBooking?.guestName || ''}`" width="620px">
+      <div v-if="folio" class="folio-head">
+        <span>应收：{{ formatMoney(folio.folio.chargeMinor, folio.folio.currency) }}</span>
+        <span>已收：{{ formatMoney(folio.folio.paidMinor, folio.folio.currency) }}</span>
+        <el-tag :type="folio.folio.status === 'SETTLED' ? 'success' : 'warning'">
+          {{ hotelFolioStatusText(folio.folio.status) }}
+        </el-tag>
+      </div>
+      <el-table :data="folio?.items || []" border stripe>
+        <el-table-column prop="type" label="类型" width="100" />
+        <el-table-column prop="description" label="说明" min-width="160" />
+        <el-table-column label="金额" width="120" align="right">
+          <template #default="{ row }">{{ formatMoney(row.amountMinor, row.currency) }}</template>
+        </el-table-column>
+      </el-table>
+      <div v-if="folio?.folio?.status === 'OPEN'" class="deposit-box">
+        <el-input-number v-model="depositAmount" :min="1" :max="folio.folio.chargeMinor" />
+        <el-input v-model="depositNote" placeholder="押金备注" style="width:160px" />
+        <el-button type="primary" :loading="depositLoading" @click="collectDeposit">收押金</el-button>
+      </div>
+    </el-dialog>
 
     <el-dialog v-model="bookingVisible" title="新建酒店预订" width="560px">
       <el-form label-width="100px">
@@ -123,18 +182,28 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   checkInHotelBooking,
   checkOutHotelBooking,
+  collectHotelDeposit,
+  completeHousekeepingTask,
   createHotelBooking,
+  getHotelFolio,
   listHotelFrontDeskTasks,
   listHotelRatePlans,
   listHotelRoomTypes,
   listHotels,
+  listHousekeepingTasks,
   quoteHotelStay,
+  runNightAudit,
+  startHousekeepingTask,
 } from '@/api/hotel'
-import { hotelBookingStatusText } from '@/constants/terms'
+import {
+  hotelBookingStatusText,
+  hotelFolioStatusText,
+  housekeepingStatusText,
+} from '@/constants/terms'
 import { formatMoney } from '@/utils/format'
 import { hasPermission } from '@/utils/context'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
@@ -149,6 +218,15 @@ const ratePlans = ref([])
 const quote = ref(null)
 const quoting = ref(false)
 const submitting = ref(false)
+const housekeeping = ref([])
+const housekeepingLoading = ref(false)
+const folioVisible = ref(false)
+const folioBooking = ref(null)
+const folio = ref(null)
+const depositAmount = ref(1)
+const depositNote = ref('')
+const depositLoading = ref(false)
+const auditLoading = ref(false)
 const form = reactive({
   roomTypeId: null,
   ratePlanId: null,
@@ -162,6 +240,7 @@ const canCheckIn = computed(() => hasPermission(context.value?.permissions, 'hot
 const canCheckOut = computed(() => hasPermission(context.value?.permissions, 'hotel.checkout'))
 const canViewHotel = computed(() => hasPermission(context.value?.permissions, 'hotel.booking.view'))
 const canCreate = computed(() => hasPermission(context.value?.permissions, 'hotel.booking.create'))
+const canManageRooms = computed(() => hasPermission(context.value?.permissions, 'hotel.inventory.manage'))
 
 const counts = computed(() => {
   const result = { CONFIRMED: 0, ARRIVAL: 0, IN_HOUSE: 0, DUE_OUT: 0 }
@@ -274,11 +353,104 @@ async function submitBooking() {
   }
 }
 
+async function loadHousekeeping() {
+  if (!context.value?.storeId || !canViewHotel.value) {
+    housekeeping.value = []
+    return
+  }
+  housekeepingLoading.value = true
+  try {
+    housekeeping.value = (await listHousekeepingTasks()) || []
+  } catch (error) {
+    notifyAdminRequestError(error, '加载清扫任务失败')
+  } finally {
+    housekeepingLoading.value = false
+  }
+}
+
+async function reload() {
+  await Promise.all([loadTasks(), loadHousekeeping()])
+}
+
+async function openFolio(row) {
+  folioBooking.value = row
+  folio.value = null
+  depositAmount.value = Math.max(1, row.amountMinor || 1)
+  depositNote.value = '押金'
+  folioVisible.value = true
+  try {
+    folio.value = await getHotelFolio(row.id)
+  } catch (error) {
+    notifyAdminRequestError(error, '加载账单失败')
+  }
+}
+
+async function collectDeposit() {
+  if (!folioBooking.value || !depositAmount.value) return
+  depositLoading.value = true
+  try {
+    await collectHotelDeposit(folioBooking.value.id, {
+      amountMinor: depositAmount.value,
+      note: depositNote.value,
+    })
+    ElMessage.success('押金已收款')
+    folio.value = await getHotelFolio(folioBooking.value.id)
+  } catch (error) {
+    notifyAdminRequestError(error, '收押金失败')
+  } finally {
+    depositLoading.value = false
+  }
+}
+
+async function startCleaning(row) {
+  try {
+    await startHousekeepingTask(row.id)
+    await loadHousekeeping()
+  } catch (error) {
+    notifyAdminRequestError(error, '开始清扫失败')
+  }
+}
+
+async function finishCleaning(row) {
+  try {
+    await completeHousekeepingTask(row.id)
+    ElMessage.success(`${row.roomNo} 已清扫完成`)
+    await loadHousekeeping()
+  } catch (error) {
+    notifyAdminRequestError(error, '完成清扫失败')
+  }
+}
+
+async function runAudit() {
+  const today = new Date().toISOString().slice(0, 10)
+  let value
+  try {
+    const result = await ElMessageBox.prompt('输入营业日（YYYY-MM-DD）', '夜审', {
+      inputValue: today,
+      inputPattern: /^\d{4}-\d{2}-\d{2}$/,
+      inputErrorMessage: '日期格式应为 YYYY-MM-DD',
+    })
+    value = result.value
+  } catch {
+    return
+  }
+  auditLoading.value = true
+  try {
+    await runNightAudit(value)
+    ElMessage.success('夜审完成')
+    await loadTasks()
+  } catch (error) {
+    notifyAdminRequestError(error, '夜审失败')
+  } finally {
+    auditLoading.value = false
+  }
+}
+
 async function checkIn(row) {
   try {
     await checkInHotelBooking(row.id)
     ElMessage.success(`${row.guestName} 已办理入住`)
-    await loadTasks()
+    await reload()
   } catch (error) {
     notifyAdminRequestError(error, '办理入住失败')
   }
@@ -288,14 +460,14 @@ async function checkOut(row) {
   try {
     await checkOutHotelBooking(row.id)
     ElMessage.success(`${row.guestName} 已退房`)
-    await loadTasks()
+    await reload()
   } catch (error) {
     notifyAdminRequestError(error, '办理退房失败')
   }
 }
 
 onMounted(async () => {
-  await loadTasks()
+  await reload()
   await loadOptions()
 })
 </script>
@@ -306,5 +478,7 @@ onMounted(async () => {
 .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .header-actions { display: flex; gap: 8px; }
 .quote-box { margin: 12px 0; }
+.folio-head { display: flex; gap: 18px; align-items: center; margin-bottom: 12px; }
+.deposit-box { display: flex; gap: 8px; margin-top: 12px; }
 .muted { color: var(--el-text-color-placeholder); }
 </style>
