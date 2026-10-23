@@ -8,6 +8,7 @@
       <div class="header-actions">
         <el-button v-if="canCreate" type="primary" @click="openBooking">新建预订</el-button>
         <el-button v-if="canManageRooms" :loading="auditLoading" @click="runAudit">夜审</el-button>
+        <el-button v-if="canCollect" :loading="refundSyncing" @click="syncRefunds">同步退款</el-button>
         <el-button :loading="loading" @click="reload">刷新</el-button>
       </div>
     </div>
@@ -215,6 +216,7 @@ import {
   requestHotelOnlineRefund,
   runNightAudit,
   startHousekeepingTask,
+  syncHotelRefunds,
 } from '@/api/hotel'
 import {
   hotelBookingStatusText,
@@ -245,6 +247,7 @@ const depositNote = ref('')
 const depositLoading = ref(false)
 const refunding = ref(false)
 const refundMethod = ref('CASH')
+const refundSyncing = ref(false)
 const auditLoading = ref(false)
 const form = reactive({
   roomTypeId: null,
@@ -465,6 +468,19 @@ async function finishCleaning(row) {
     await loadHousekeeping()
   } catch (error) {
     notifyAdminRequestError(error, '完成清扫失败')
+  }
+}
+
+async function syncRefunds() {
+  refundSyncing.value = true
+  try {
+    await syncHotelRefunds()
+    ElMessage.success('退款状态已同步')
+    if (folioBooking.value) folio.value = await getHotelFolio(folioBooking.value.id)
+  } catch (error) {
+    notifyAdminRequestError(error, '同步退款失败')
+  } finally {
+    refundSyncing.value = false
   }
 }
 
