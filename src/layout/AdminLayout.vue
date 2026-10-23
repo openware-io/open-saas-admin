@@ -4,10 +4,10 @@
     <el-aside :width="isCollapse ? '64px' : '220px'" class="sidebar" :class="{ 'sidebar-expanded': !isCollapse }">
       <div class="logo" @click="router.push('/select')">
         <el-icon :size="24"><OfficeBuilding /></el-icon>
-        <span v-show="!isCollapse" class="logo-text">SaaS 管理后台</span>
+        <span v-show="!isCollapse" class="logo-text">{{ shellTitle }}</span>
       </div>
-      <div v-if="authStore.scope === 'TENANT'" class="context-panel">
-        <div class="context-tenant">租户 · {{ contextStore.current?.tenantName || '请选择租户' }}</div>
+      <div v-if="authStore.scope === 'TENANT' || authStore.scope === 'STORE'" class="context-panel">
+        <div v-if="authStore.scope === 'TENANT'" class="context-tenant">租户 · {{ contextStore.current?.tenantName || '请选择租户' }}</div>
         <div v-if="contextStore.current?.storeId" class="context-store">
           <span>门店 · {{ contextStore.current?.storeName || '当前门店' }}</span>
           <span class="context-meta">{{ contextStore.current?.businessType || '业务' }} · {{ contextStore.current?.timezone || '时区未设置' }}</span>
@@ -276,6 +276,7 @@ onUnmounted(() => {
 })
 
 const scopeLabel = computed(() => SCOPE_LABELS[authStore.scope] || authStore.scope)
+const shellTitle = computed(() => SCOPE_LABELS[authStore.scope] || 'SaaS 管理后台')
 const showPendingApproval = computed(() => authStore.scope === 'TENANT')
 
 watch(

@@ -7,6 +7,7 @@ import { resetCurrencyRuntime } from '@/utils/currency-runtime'
 export const SCOPE_LABELS = {
   PLATFORM: '平台运营后台',
   TENANT: '租户后台',
+  STORE: '门店工作台',
 }
 
 export const useAuthStore = defineStore('auth', () => {
