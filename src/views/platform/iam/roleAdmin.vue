@@ -46,8 +46,7 @@
               v-if="!isPlatform"
               link
               type="primary"
-              :disabled="!canAssignMembers"
-              @click="router.push('/admin/staff')"
+              @click="openMembers(row)"
             >
               分配人员
             </el-button>
@@ -118,6 +117,37 @@
         <el-button v-else type="primary" @click="copyCurrentRole">复制角色</el-button>
       </template>
     </el-dialog>
+    <el-dialog v-model="memberVisible" :title="memberRole ? `分配人员 · ${memberRole.name}` : '分配人员'" width="620px">
+      <el-alert
+        v-if="memberRole?.scopeLevel === 'STORE'"
+        type="info"
+        :closable="false"
+        title="门店角色只分配到当前门店；请在顶部先选择门店"
+        class="permission-alert"
+      />
+      <el-table v-loading="membersLoading" :data="assignedMembers" border stripe>
+        <el-table-column prop="username" label="账号" min-width="140" />
+        <el-table-column prop="displayName" label="姓名" min-width="120" />
+        <el-table-column label="作用域" min-width="180">
+          <template #default="{ row }">{{ memberScope(row) }}</template>
+        </el-table-column>
+      </el-table>
+      <div class="member-add">
+        <el-select v-model="selectedStaffId" filterable placeholder="选择未分配该角色的运营人员" style="flex:1">
+          <el-option
+            v-for="staff in assignableStaff"
+            :key="staff.id"
+            :label="`${staff.displayName || staff.username}（${staff.username}）`"
+            :value="staff.id"
+          />
+        </el-select>
+        <el-button type="primary" :loading="assigning" @click="assignMember">分配</el-button>
+      </div>
+      <template #footer>
+        <el-button @click="memberVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -127,11 +157,13 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   assignRolePermissions,
+  assignUserRole,
   createRole,
   listPermissions,
   listRoleCatalog,
   listRolePermissions,
 } from '@/api/admin'
+import { listStaff } from '@/api/staff'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { hasPermission } from '@/utils/context'
 import { useContextStore } from '@/stores/context'
@@ -150,6 +182,12 @@ const saving = ref(false)
 const savingPermissions = ref(false)
 const currentRole = ref(null)
 const selectedPermissionIds = ref([])
+const memberVisible = ref(false)
+const memberRole = ref(null)
+const members = ref([])
+const membersLoading = ref(false)
+const selectedStaffId = ref(null)
+const assigning = ref(false)
 const form = reactive({ code: '', name: '', scopeLevel: 'TENANT' })
 
 const isPlatform = computed(() => {
@@ -157,10 +195,21 @@ const isPlatform = computed(() => {
   return current?.scopeType === 'PLATFORM' || !current?.tenantId
 })
 const canCreate = computed(() => hasPermission(contextStore.current?.permissions, 'iam.role.manage'))
-const canAssignMembers = computed(() => hasPermission(contextStore.current?.permissions, 'tenant.staff.manage'))
 const scopeHint = computed(() => isPlatform.value
   ? '平台角色只授予平台级权限，不能进入租户业务。'
   : '租户可创建 TENANT/STORE 角色；预置角色只读，修改请复制。')
+
+const assignedMembers = computed(() => {
+  if (!memberRole.value) return []
+  return members.value.filter((staff) =>
+    (staff.roles || []).some((binding) => binding.roleCode === memberRole.value.code && binding.status === 'ACTIVE'))
+})
+
+const assignableStaff = computed(() => {
+  if (!memberRole.value) return []
+  const assignedIds = new Set(assignedMembers.value.map((staff) => staff.id))
+  return members.value.filter((staff) => !assignedIds.has(staff.id))
+})
 
 const scopeOptions = computed(() => isPlatform.value
   ? [{ value: 'PLATFORM', label: '平台' }]
@@ -272,6 +321,62 @@ function copyCurrentRole() {
   openCreate(role)
 }
 
+async function openMembers(role) {
+  memberRole.value = role
+  selectedStaffId.value = null
+  memberVisible.value = true
+  membersLoading.value = true
+  try {
+    members.value = (await listStaff()) || []
+  } catch (error) {
+    members.value = []
+    notifyAdminRequestError(error, '加载运营人员失败')
+  } finally {
+    membersLoading.value = false
+  }
+}
+
+function memberScope(staff) {
+  const binding = (staff.roles || []).find((item) => item.roleCode === memberRole.value?.code)
+  if (!binding) return '-'
+  return scopeTypeText(binding.scopeType)
+}
+
+async function assignMember() {
+  if (!selectedStaffId.value || !memberRole.value) {
+    ElMessage.warning('请选择运营人员')
+    return
+  }
+  const staff = members.value.find((item) => item.id === selectedStaffId.value)
+  if (!staff?.platformAccountId) {
+    ElMessage.warning('该运营人员没有可分配的平台账号')
+    return
+  }
+  const context = contextStore.current
+  if (memberRole.value.scopeLevel === 'STORE' && !context?.storeId) {
+    ElMessage.warning('请在顶部先选择门店，再分配门店角色')
+    return
+  }
+  assigning.value = true
+  try {
+    await assignUserRole({
+      accountId: staff.platformAccountId,
+      tenantId: context?.tenantId,
+      organizationId: context?.organizationId,
+      storeId: memberRole.value.scopeLevel === 'STORE' ? context?.storeId : null,
+      roleId: memberRole.value.id,
+      scopeType: memberRole.value.scopeLevel,
+    })
+    ElMessage.success('角色已分配')
+    selectedStaffId.value = null
+    await openMembers(memberRole.value)
+  } catch (error) {
+    notifyAdminRequestError(error, '分配角色失败')
+  } finally {
+    assigning.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -282,4 +387,5 @@ onMounted(load)
 .permission-group { padding: 10px 0; border-bottom: 1px solid var(--el-border-color-lighter); }
 .permission-group h4 { margin: 0 0 8px; font-size: 13px; color: var(--el-text-color-regular); }
 .permission-group :deep(.el-checkbox) { width: 46%; margin-right: 0; }
+.member-add { display: flex; gap: 10px; margin-top: 14px; }
 </style>
