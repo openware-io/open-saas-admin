@@ -3,9 +3,9 @@
     <div class="page-header">
       <div>
         <h2>酒店管理</h2>
-        <span class="page-desc">酒店资料 / 房型房价 / 库存日历 / 预订与入住 · 原型数据</span>
+        <span class="page-desc">前台任务已接入；酒店资料 / 房型房价 / 库存日历尚未接入，配置动作不可写。</span>
       </div>
-      <el-tag type="warning" effect="plain">PROTOTYPE · 2.4.0-hotel</el-tag>
+      <el-tag type="warning" effect="plain">PARTIAL · 2.4.0-hotel</el-tag>
     </div>
 
     <el-alert type="success" :closable="false" class="hotel-notice">
@@ -398,7 +398,7 @@ async function checkOut(row) {
 }
 
 function savePrototype(action) {
-  ElMessage.success(`${action}：原型操作已记录（未写后端）`)
+  ElMessage.warning(`${action}：酒店主数据接口尚未接入，未保存`)
 }
 
 function refreshPrototype() {
