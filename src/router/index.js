@@ -92,6 +92,12 @@ const routes = [
         meta: { title: '运营人员', icon: 'Service', scope: 'TENANT' },
       },
       {
+        path: 'admin/roles',
+        name: 'TenantRoles',
+        component: () => import('@/views/platform/iam/roleAdmin.vue'),
+        meta: { title: '角色与权限', icon: 'Avatar', scope: 'TENANT' },
+      },
+      {
         path: 'admin/resources',
         name: 'Resources',
         component: () => import('@/views/tenant/resources.vue'),

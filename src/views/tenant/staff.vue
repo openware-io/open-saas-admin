@@ -3,6 +3,7 @@
     <div class="page-header">
       <h2>运营人员</h2>
       <div style="display:flex;gap:10px">
+        <el-button @click="router.push('/admin/roles')">角色与权限</el-button>
         <el-button @click="load"><el-icon><Refresh /></el-icon>刷新</el-button>
         <el-button type="primary" @click="openCreate"><el-icon><Plus /></el-icon>新增运营人员</el-button>
       </div>
@@ -115,6 +116,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { Refresh, Plus } from '@element-plus/icons-vue'
 import { listStaff, createStaff, updateStaffStatus, bindStaffIm, unbindStaffIm, deleteStaff, getStaffOptions } from '@/api/staff'
 import DateRangeFilter from '@/components/DateRangeFilter.vue'
@@ -125,6 +127,7 @@ import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { useContextStore } from '@/stores/context'
 
 const contextStore = useContextStore()
+const router = useRouter()
 
 const rows = ref([])
 const loading = ref(false)
