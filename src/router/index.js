@@ -213,7 +213,7 @@ const routes = [
         path: ':pathMatch(.*)*',
         name: 'GenericStub',
         component: () => import('@/views/GenericStub.vue'),
-        meta: { title: '页面开发中' },
+        meta: { title: '页面不存在' },
       },
     ],
   },
