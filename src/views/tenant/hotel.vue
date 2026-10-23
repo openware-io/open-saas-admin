@@ -134,6 +134,10 @@
       <div v-if="folio?.folio?.status === 'OPEN'" class="deposit-box">
         <el-input-number v-model="depositAmount" :min="1" :max="folio.folio.chargeMinor" />
         <el-input v-model="depositNote" placeholder="押金备注" style="width:160px" />
+        <el-select v-model="refundMethod" style="width:100px">
+          <el-option label="现金" value="CASH" />
+          <el-option label="线上" value="ONLINE" />
+        </el-select>
         <el-button type="primary" :loading="depositLoading" @click="collectDeposit">收押金</el-button>
         <el-button type="warning" :loading="refunding" @click="refundDeposit">退款</el-button>
       </div>
@@ -239,6 +243,7 @@ const depositAmount = ref(1)
 const depositNote = ref('')
 const depositLoading = ref(false)
 const refunding = ref(false)
+const refundMethod = ref('CASH')
 const auditLoading = ref(false)
 const form = reactive({
   roomTypeId: null,
@@ -423,6 +428,7 @@ async function refundDeposit() {
     await refundHotelDeposit(folioBooking.value.id, {
       amountMinor: depositAmount.value,
       note: '押金退款',
+      method: refundMethod.value,
     })
     ElMessage.success('退款已记账')
     folio.value = await getHotelFolio(folioBooking.value.id)
