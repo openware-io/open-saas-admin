@@ -78,6 +78,13 @@
             <el-button
               v-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'"
               link
+              @click="openExtend(row)"
+            >
+              续住
+            </el-button>
+            <el-button
+              v-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'"
+              link
               @click="openFolio(row)"
             >
               账单
@@ -116,6 +123,18 @@
         </el-table-column>
       </el-table>
     </div>
+
+    <el-dialog v-model="extendVisible" title="续住" width="420px">
+      <el-form label-width="100px">
+        <el-form-item label="新离店日期">
+          <el-date-picker v-model="extendDate" type="date" value-format="YYYY-MM-DD" style="width:100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="extendVisible = false">取消</el-button>
+        <el-button type="primary" :loading="extending" @click="submitExtend">确认续住</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="folioVisible" :title="`账单 · ${folioBooking?.guestName || ''}`" width="620px">
       <div v-if="folio" class="folio-head">
@@ -205,6 +224,7 @@ import {
   completeHousekeepingTask,
   confirmHotelBooking,
   createHotelBooking,
+  extendHotelBooking,
   getHotelFolio,
   listHotelFrontDeskTasks,
   listHotelRatePlans,
@@ -248,6 +268,10 @@ const depositLoading = ref(false)
 const refunding = ref(false)
 const refundMethod = ref('CASH')
 const refundSyncing = ref(false)
+const extendVisible = ref(false)
+const extendBooking = ref(null)
+const extendDate = ref('')
+const extending = ref(false)
 const auditLoading = ref(false)
 const form = reactive({
   roomTypeId: null,
@@ -393,6 +417,28 @@ async function loadHousekeeping() {
 
 async function reload() {
   await Promise.all([loadTasks(), loadHousekeeping()])
+}
+
+function openExtend(row) {
+  extendBooking.value = row
+  const base = row.checkOutDate ? new Date(`${row.checkOutDate}T00:00:00`) : new Date()
+  extendDate.value = new Date(base.getTime() + 86400000).toISOString().slice(0, 10)
+  extendVisible.value = true
+}
+
+async function submitExtend() {
+  if (!extendBooking.value || !extendDate.value) return
+  extending.value = true
+  try {
+    await extendHotelBooking(extendBooking.value.id, extendDate.value)
+    ElMessage.success('续住已办理')
+    extendVisible.value = false
+    await reload()
+  } catch (error) {
+    notifyAdminRequestError(error, '续住失败')
+  } finally {
+    extending.value = false
+  }
 }
 
 async function openFolio(row) {

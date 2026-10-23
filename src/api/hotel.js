@@ -13,6 +13,10 @@ export function checkOutHotelBooking(id) {
   return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/checkout`)
 }
 
+export function extendHotelBooking(id, newCheckOutDate) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/extend`, { newCheckOutDate })
+}
+
 export function listHotels() {
   return request.get('/api/v1/admin/hotel/hotels')
 }
