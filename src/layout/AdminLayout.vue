@@ -1,13 +1,13 @@
 <template>
-  <el-container class="admin-layout">
+  <el-container class="admin-layout" :class="shell.className">
     <button v-if="!isCollapse" class="sidebar-backdrop" aria-label="收起导航" @click="isCollapse = true" />
     <el-aside :width="isCollapse ? '64px' : '220px'" class="sidebar" :class="{ 'sidebar-expanded': !isCollapse }">
       <div class="logo" @click="router.push('/select')">
         <el-icon :size="24"><OfficeBuilding /></el-icon>
-        <span v-show="!isCollapse" class="logo-text">{{ shellTitle }}</span>
+        <span v-show="!isCollapse" class="logo-text">{{ shell.title }}</span>
       </div>
-      <div v-if="authStore.scope === 'TENANT' || authStore.scope === 'STORE'" class="context-panel">
-        <div v-if="authStore.scope === 'TENANT'" class="context-tenant">租户 · {{ contextStore.current?.tenantName || '请选择租户' }}</div>
+      <div v-if="shell.showStoreContext" class="context-panel">
+        <div v-if="shell.showTenantSelector" class="context-tenant">租户 · {{ contextStore.current?.tenantName || '请选择租户' }}</div>
         <div v-if="contextStore.current?.storeId" class="context-store">
           <span>门店 · {{ contextStore.current?.storeName || '当前门店' }}</span>
           <span class="context-meta">{{ contextStore.current?.businessType || '业务' }} · {{ contextStore.current?.timezone || '时区未设置' }}</span>
@@ -68,7 +68,7 @@
           <el-tag :type="authStore.scope === 'PLATFORM' ? 'primary' : 'success'" effect="plain">
             {{ scopeLabel }}
           </el-tag>
-          <TenantContextSelector v-if="authStore.scope === 'TENANT'" />
+          <TenantContextSelector v-if="shell.showTenantSelector" />
           <el-button size="small" @click="goToSelect">
             <el-icon><Grid /></el-icon>后台入口
           </el-button>
@@ -149,6 +149,7 @@ import { changePassword, getSession } from '@/api/admin'
 import { refreshCsrfToken, resetAuthRedirectGuard } from '@/api/request'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, SCOPE_LABELS } from '@/stores/auth'
+import { workspaceShell } from '@/layout/workspaceShell'
 import { useMenuStore } from '@/stores/menu'
 import { usePendingApprovalStore } from '@/stores/pendingApproval'
 import { useContextStore } from '@/stores/context'
@@ -276,7 +277,7 @@ onUnmounted(() => {
 })
 
 const scopeLabel = computed(() => SCOPE_LABELS[authStore.scope] || authStore.scope)
-const shellTitle = computed(() => SCOPE_LABELS[authStore.scope] || 'SaaS 管理后台')
+const shell = computed(() => workspaceShell(authStore.scope))
 const showPendingApproval = computed(() => authStore.scope === 'TENANT')
 
 watch(
@@ -430,6 +431,15 @@ async function submitPasswordChange() {
 .admin-layout {
   height: 100vh;
   min-width: 0;
+}
+
+.workspace-platform { --workspace-accent: #3b82f6; }
+.workspace-tenant { --workspace-accent: #10b981; }
+.workspace-store { --workspace-accent: #f59e0b; }
+.workspace-platform .logo,
+.workspace-tenant .logo,
+.workspace-store .logo {
+  box-shadow: inset 3px 0 0 var(--workspace-accent);
 }
 
 .content-container {
