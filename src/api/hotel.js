@@ -33,6 +33,16 @@ export function createHotelBooking(data) {
   return request.post('/api/v1/admin/hotel/bookings', data)
 }
 
+export function confirmHotelBooking(id) {
+  return request.post(`/api/v1/admin/hotel/bookings/${id}/confirm`)
+}
+
+export function collectHotelOrder(orderId, data, idempotencyKey) {
+  return request.post(`/api/v1/business/orders/${orderId}/collect`, data, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
 export function getHotelFolio(id) {
   return request.get(`/api/v1/admin/hotel/frontdesk/bookings/${id}/folio`)
 }

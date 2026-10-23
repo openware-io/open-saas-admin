@@ -48,7 +48,7 @@
             <el-tag :type="statusType(row.status)">{{ hotelBookingStatusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" align="center">
+        <el-table-column label="操作" width="240" align="center">
           <template #default="{ row }">
             <el-button
               v-if="(row.status === 'ARRIVAL' || row.status === 'CONFIRMED') && canCheckIn"
@@ -65,6 +65,14 @@
               @click="checkOut(row)"
             >
               办理退房
+            </el-button>
+            <el-button
+              v-if="row.status === 'PENDING_PAYMENT' && row.orderId && canCollect"
+              link
+              type="success"
+              @click="payAndConfirm(row)"
+            >
+              收款确认
             </el-button>
             <el-button
               v-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'"
@@ -186,8 +194,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   checkInHotelBooking,
   checkOutHotelBooking,
+  collectHotelOrder,
   collectHotelDeposit,
   completeHousekeepingTask,
+  confirmHotelBooking,
   createHotelBooking,
   getHotelFolio,
   listHotelFrontDeskTasks,
@@ -241,6 +251,7 @@ const canCheckOut = computed(() => hasPermission(context.value?.permissions, 'ho
 const canViewHotel = computed(() => hasPermission(context.value?.permissions, 'hotel.booking.view'))
 const canCreate = computed(() => hasPermission(context.value?.permissions, 'hotel.booking.create'))
 const canManageRooms = computed(() => hasPermission(context.value?.permissions, 'hotel.inventory.manage'))
+const canCollect = computed(() => hasPermission(context.value?.permissions, 'payment.collect'))
 
 const counts = computed(() => {
   const result = { CONFIRMED: 0, ARRIVAL: 0, IN_HOUSE: 0, DUE_OUT: 0 }
@@ -443,6 +454,34 @@ async function runAudit() {
     notifyAdminRequestError(error, '夜审失败')
   } finally {
     auditLoading.value = false
+  }
+}
+
+async function payAndConfirm(row) {
+  if (!row.orderId || !row.amountMinor) {
+    ElMessage.warning('该预订缺少订单应收，不能收款')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确认按现金收取 ${formatMoney(row.amountMinor, row.currency)} 并确认预订？`,
+      '收款确认',
+      { type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await collectHotelOrder(row.orderId, {
+      currencyCode: row.currency,
+      payable: row.amountMinor,
+      payments: [{ method: 'CASH', amount: row.amountMinor }],
+    }, `hotel-booking-${row.id}-${Date.now()}`)
+    await confirmHotelBooking(row.id)
+    ElMessage.success('收款成功，预订已确认')
+    await reload()
+  } catch (error) {
+    notifyAdminRequestError(error, '收款确认失败')
   }
 }
 
