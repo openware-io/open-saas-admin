@@ -43,8 +43,14 @@ const routes = [
       {
         path: 'admin/iam/roles',
         name: 'IamRoles',
-        component: () => import('@/views/platform/iam/roles.vue'),
+        component: () => import('@/views/platform/iam/roleAdmin.vue'),
         meta: { title: '角色', icon: 'Avatar', scope: 'PLATFORM' },
+      },
+      {
+        path: 'admin/iam/role-profiles',
+        name: 'IamRoleProfiles',
+        component: () => import('@/views/platform/iam/roles.vue'),
+        meta: { title: '工作台默认值', icon: 'Setting', scope: 'PLATFORM', hidden: true },
       },
       {
         path: 'admin/iam/permissions',

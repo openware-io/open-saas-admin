@@ -489,6 +489,16 @@ export function scopeTypeHintText(scope) {
   return SCOPE_TYPE_HINT_TEXT[scope] || scopeTypeText(scope)
 }
 
+/** IAM 角色类型（iam_role.role_type）。 */
+export const ROLE_TYPE_TEXT = {
+  PRESET: '预置',
+  TENANT: '自定义',
+  PLATFORM: '平台',
+}
+export function roleTypeText(type) {
+  return ROLE_TYPE_TEXT[type] || unknownEnumText(type)
+}
+
 /** IAM 权限项类型（iam_permission.type）。 */
 export const PERMISSION_TYPE_TEXT = { MENU: '菜单', ACTION: '操作' }
 export const PERMISSION_TYPE_TAG = { MENU: 'primary', ACTION: 'warning' }

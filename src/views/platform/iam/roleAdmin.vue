@@ -1,0 +1,285 @@
+<template>
+  <div class="admin-page">
+    <div class="page-header">
+      <div>
+        <h2>角色与权限</h2>
+        <p class="subtle">
+          平台角色、租户角色、门店角色分层管理；权限按角色作用域过滤，保存后立即生效。
+        </p>
+      </div>
+      <div class="header-actions">
+        <el-button @click="router.push('/admin/iam/role-profiles')">工作台默认值</el-button>
+        <el-button type="primary" :disabled="!canCreate" @click="openCreate()">新建角色</el-button>
+      </div>
+    </div>
+
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      title="权限范围由角色作用域决定"
+      :description="scopeHint"
+    />
+
+    <div class="admin-card">
+      <el-table v-loading="loading" :data="roles" border stripe>
+        <el-table-column prop="name" label="角色" min-width="160" />
+        <el-table-column prop="code" label="角色编码" min-width="190" />
+        <el-table-column label="类型" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.roleType === 'PRESET' ? 'info' : 'success'">
+              {{ roleTypeText(row.roleType) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="作用域" width="110" align="center">
+          <template #default="{ row }">{{ scopeTypeText(row.scopeLevel) }}</template>
+        </el-table-column>
+        <el-table-column label="权限" width="90" align="center">
+          <template #default="{ row }">{{ permissionCounts[row.id] ?? '-' }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="250" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="openPermissions(row)">权限矩阵</el-button>
+            <el-button link type="primary" :disabled="!canCreate" @click="openCreate(row)">复制</el-button>
+            <el-button
+              v-if="!isPlatform"
+              link
+              type="primary"
+              :disabled="!canAssignMembers"
+              @click="router.push('/admin/staff')"
+            >
+              分配人员
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <el-dialog v-model="createVisible" title="新建角色" width="520px" :close-on-click-modal="false">
+      <el-form label-width="100px">
+        <el-form-item label="角色名称">
+          <el-input v-model="form.name" maxlength="64" placeholder="例如：值班主管" />
+        </el-form-item>
+        <el-form-item label="角色编码">
+          <el-input v-model="form.code" maxlength="64" placeholder="例如：store.supervisor" />
+        </el-form-item>
+        <el-form-item label="作用域">
+          <el-select v-model="form.scopeLevel" style="width: 100%" :disabled="isPlatform">
+            <el-option v-for="option in scopeOptions" :key="option.value" :label="option.label" :value="option.value" />
+          </el-select>
+        </el-form-item>
+        <el-alert
+          type="warning"
+          :closable="false"
+          :title="isPlatform ? '平台角色只包含平台级权限' : '租户角色只能授予本租户范围内的权限'"
+        />
+      </el-form>
+      <template #footer>
+        <el-button @click="createVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveRole">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="permissionVisible"
+      :title="currentRole ? `权限矩阵 · ${currentRole.name}` : '权限矩阵'"
+      width="720px"
+      :close-on-click-modal="false"
+    >
+      <el-alert
+        v-if="isPreset(currentRole)"
+        type="warning"
+        :closable="false"
+        title="预置角色只读；需要调整请复制为租户自定义角色"
+        class="permission-alert"
+      />
+      <div v-loading="permissionLoading" class="permission-groups">
+        <section v-for="group in permissionGroups" :key="group.module" class="permission-group">
+          <h4>{{ group.module }}</h4>
+          <el-checkbox-group v-model="selectedPermissionIds" :disabled="isPreset(currentRole)">
+            <el-checkbox v-for="permission in group.items" :key="permission.id" :value="permission.id">
+              {{ permission.description || permission.code }}
+            </el-checkbox>
+          </el-checkbox-group>
+        </section>
+        <el-empty v-if="!permissionLoading && !permissionGroups.length" description="当前作用域没有可授予权限" />
+      </div>
+      <template #footer>
+        <el-button @click="permissionVisible = false">取消</el-button>
+        <el-button
+          v-if="!isPreset(currentRole)"
+          type="primary"
+          :loading="savingPermissions"
+          @click="savePermissions"
+        >
+          保存权限
+        </el-button>
+        <el-button v-else type="primary" @click="copyCurrentRole">复制角色</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import {
+  assignRolePermissions,
+  createRole,
+  listPermissions,
+  listRoleCatalog,
+  listRolePermissions,
+} from '@/api/admin'
+import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
+import { hasPermission } from '@/utils/context'
+import { useContextStore } from '@/stores/context'
+import { roleTypeText, scopeTypeText } from '@/constants/terms'
+
+const router = useRouter()
+const contextStore = useContextStore()
+const roles = ref([])
+const permissions = ref([])
+const permissionCounts = reactive({})
+const loading = ref(false)
+const permissionLoading = ref(false)
+const createVisible = ref(false)
+const permissionVisible = ref(false)
+const saving = ref(false)
+const savingPermissions = ref(false)
+const currentRole = ref(null)
+const selectedPermissionIds = ref([])
+const form = reactive({ code: '', name: '', scopeLevel: 'TENANT' })
+
+const isPlatform = computed(() => {
+  const current = contextStore.current
+  return current?.scopeType === 'PLATFORM' || !current?.tenantId
+})
+const canCreate = computed(() => hasPermission(contextStore.current?.permissions, 'iam.role.manage'))
+const canAssignMembers = computed(() => hasPermission(contextStore.current?.permissions, 'tenant.staff.manage'))
+const scopeHint = computed(() => isPlatform.value
+  ? '平台角色只授予平台级权限，不能进入租户业务。'
+  : '租户可创建 TENANT/STORE 角色；预置角色只读，修改请复制。')
+
+const scopeOptions = computed(() => isPlatform.value
+  ? [{ value: 'PLATFORM', label: '平台' }]
+  : [
+      { value: 'TENANT', label: '租户' },
+      { value: 'STORE', label: '门店' },
+    ])
+
+const permissionGroups = computed(() => {
+  if (!currentRole.value) return []
+  const level = currentRole.value.scopeLevel
+  const groups = new Map()
+  for (const permission of permissions.value) {
+    const levels = String(permission.grantableLevels || '').split(',').map((item) => item.trim())
+    if (!levels.includes(level)) continue
+    const module = permission.module || '其它'
+    if (!groups.has(module)) groups.set(module, [])
+    groups.get(module).push(permission)
+  }
+  return [...groups.entries()].map(([module, items]) => ({ module, items }))
+})
+
+function isPreset(role) {
+  return role?.roleType === 'PRESET'
+}
+
+async function load() {
+  loading.value = true
+  try {
+    roles.value = (await listRoleCatalog()) || []
+    permissions.value = (await listPermissions()) || []
+    for (const role of roles.value) {
+      try {
+        permissionCounts[role.id] = (await listRolePermissions(role.id)).length
+      } catch {
+        permissionCounts[role.id] = 0
+      }
+    }
+  } catch (error) {
+    notifyAdminRequestError(error, '加载角色失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+function openCreate(source) {
+  form.code = source ? `${source.code}.copy` : ''
+  form.name = source ? `${source.name} 副本` : ''
+  form.scopeLevel = isPlatform.value ? 'PLATFORM' : (source?.scopeLevel || 'TENANT')
+  createVisible.value = true
+}
+
+async function saveRole() {
+  if (!form.name.trim() || !form.code.trim()) {
+    ElMessage.warning('请填写角色名称和编码')
+    return
+  }
+  saving.value = true
+  try {
+    await createRole({
+      code: form.code.trim(),
+      name: form.name.trim(),
+      scopeLevel: form.scopeLevel,
+    })
+    createVisible.value = false
+    ElMessage.success('角色已创建')
+    await load()
+  } catch (error) {
+    notifyAdminRequestError(error, '创建角色失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function openPermissions(role) {
+  currentRole.value = role
+  selectedPermissionIds.value = []
+  permissionVisible.value = true
+  permissionLoading.value = true
+  try {
+    const codes = (await listRolePermissions(role.id)) || []
+    const byCode = new Map(permissions.value.map((permission) => [permission.code, permission.id]))
+    selectedPermissionIds.value = codes.map((code) => byCode.get(code)).filter(Boolean)
+  } catch (error) {
+    notifyAdminRequestError(error, '加载角色权限失败')
+  } finally {
+    permissionLoading.value = false
+  }
+}
+
+async function savePermissions() {
+  if (!currentRole.value) return
+  savingPermissions.value = true
+  try {
+    await assignRolePermissions(currentRole.value.id, selectedPermissionIds.value)
+    permissionCounts[currentRole.value.id] = selectedPermissionIds.value.length
+    ElMessage.success('角色权限已保存')
+    permissionVisible.value = false
+  } catch (error) {
+    notifyAdminRequestError(error, '保存角色权限失败')
+  } finally {
+    savingPermissions.value = false
+  }
+}
+
+function copyCurrentRole() {
+  const role = currentRole.value
+  permissionVisible.value = false
+  openCreate(role)
+}
+
+onMounted(load)
+</script>
+
+<style scoped>
+.header-actions { display: flex; gap: 10px; }
+.permission-alert { margin-bottom: 12px; }
+.permission-groups { max-height: 52vh; overflow: auto; }
+.permission-group { padding: 10px 0; border-bottom: 1px solid var(--el-border-color-lighter); }
+.permission-group h4 { margin: 0 0 8px; font-size: 13px; color: var(--el-text-color-regular); }
+.permission-group :deep(.el-checkbox) { width: 46%; margin-right: 0; }
+</style>

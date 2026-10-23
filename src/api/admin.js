@@ -59,6 +59,23 @@ export function updateRoleProfile(id, data) {
   return request.put('/api/v1/admin/iam/role-profiles/' + id, data)
 }
 
+// 角色与权限：平台/租户目录、权限矩阵、租户自定义角色
+export function listRoleCatalog() {
+  return request.get('/api/v1/admin/iam/roles/catalog')
+}
+export function listPermissions() {
+  return request.get('/api/v1/admin/iam/permissions')
+}
+export function listRolePermissions(roleId) {
+  return request.get('/api/v1/admin/iam/roles/' + roleId + '/permissions')
+}
+export function createRole(data) {
+  return request.post('/api/v1/admin/iam/roles', data)
+}
+export function assignRolePermissions(roleId, permissionIds) {
+  return request.post('/api/v1/admin/iam/roles/' + roleId + '/permissions', { permissionIds })
+}
+
 // 租户钱包代币配置（名称 + 金额:代币比例）
 export function getWalletTokenConfig(tenantId) {
   return request.get('/api/v1/admin/tenant/config', { params: { tenantId } })
