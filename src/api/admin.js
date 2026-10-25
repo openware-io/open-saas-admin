@@ -43,6 +43,11 @@ export function createTenant(data) {
   return request.post('/api/v1/admin/platform/tenants', data)
 }
 
+/** 平台：为新租户创建首个租户管理员（tenant.owner）。 */
+export function bootstrapTenantOwner(tenantId, data) {
+  return request.post('/api/v1/admin/staff/bootstrap-owner', { tenantId, ...data })
+}
+
 // 脱敏权限管理（租户级安全：member.pii.view）
 export function listMaskingRoles() {
   return request.get('/api/v1/admin/iam/masking')

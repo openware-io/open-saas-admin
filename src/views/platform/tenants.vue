@@ -34,6 +34,16 @@
         <el-form-item label="租户名称"><el-input v-model="form.name" placeholder="租户名称" /></el-form-item>
         <el-form-item label="默认语言"><el-input v-model="form.defaultLocale" placeholder="zh-CN" /></el-form-item>
         <el-form-item label="默认时区"><el-input v-model="form.defaultTimezone" placeholder="Asia/Shanghai" /></el-form-item>
+        <el-divider content-position="left">初始租户管理员（必填）</el-divider>
+        <el-form-item label="登录账号">
+          <el-input v-model="form.adminUsername" placeholder="3–64 位字母、数字、下划线、点或短横线" autocomplete="off" />
+        </el-form-item>
+        <el-form-item label="初始密码">
+          <el-input v-model="form.adminPassword" type="password" show-password placeholder="至少 8 位，最多 72 字节" autocomplete="new-password" />
+        </el-form-item>
+        <el-form-item label="显示名">
+          <el-input v-model="form.adminDisplayName" placeholder="租户管理员姓名" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -47,7 +57,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { listTenants, createTenant } from '@/api/admin'
+import { listTenants, createTenant, bootstrapTenantOwner } from '@/api/admin'
 import DateRangeFilter from '@/components/DateRangeFilter.vue'
 import { dateRangeParams, dateRangeWarning, emptyDateRange } from '@/utils/dateRange'
 import { formatTime } from '@/utils/format'
@@ -60,7 +70,7 @@ const loading = ref(false)
 const range = ref(emptyDateRange())
 const saving = ref(false)
 const dialogVisible = ref(false)
-const form = ref({ tenantCode: '', name: '', defaultLocale: 'zh-CN', defaultTimezone: 'Asia/Shanghai' })
+const form = ref({ tenantCode: '', name: '', defaultLocale: 'zh-CN', defaultTimezone: 'Asia/Shanghai', adminUsername: '', adminPassword: '', adminDisplayName: '' })
 
 // 租户状态词表统一在 constants/terms（TENANT_STATUS_TEXT），未知枚举回落「未知（CODE）」。
 
@@ -80,20 +90,36 @@ async function load() {
 }
 
 function openCreate() {
-  form.value = { tenantCode: '', name: '', defaultLocale: 'zh-CN', defaultTimezone: 'Asia/Shanghai' }
+  form.value = { tenantCode: '', name: '', defaultLocale: 'zh-CN', defaultTimezone: 'Asia/Shanghai', adminUsername: '', adminPassword: '', adminDisplayName: '' }
   dialogVisible.value = true
 }
 
 async function save() {
   if (!form.value.tenantCode || !form.value.name) { ElMessage.warning('请填写租户编码和名称'); return }
+  if (!form.value.adminUsername || !form.value.adminPassword) { ElMessage.warning('请填写初始管理员的登录账号和密码'); return }
   saving.value = true
+  let tenant = null
   try {
-    await createTenant(form.value)
-    ElMessage.success('已创建租户')
+    tenant = await createTenant({
+      tenantCode: form.value.tenantCode,
+      name: form.value.name,
+      defaultLocale: form.value.defaultLocale,
+      defaultTimezone: form.value.defaultTimezone
+    })
+    await bootstrapTenantOwner(tenant.id, {
+      username: form.value.adminUsername.trim(),
+      password: form.value.adminPassword,
+      displayName: (form.value.adminDisplayName || form.value.adminUsername).trim()
+    })
+    ElMessage.success('已创建租户和初始管理员')
     dialogVisible.value = false
     load()
   } catch (e) {
-    notifyAdminRequestError(e, '创建失败')
+    if (tenant) {
+      ElMessage.warning('租户已创建，但初始管理员创建失败，请用相同租户编码重试')
+    } else {
+      notifyAdminRequestError(e, '创建失败')
+    }
   } finally {
     saving.value = false
   }
