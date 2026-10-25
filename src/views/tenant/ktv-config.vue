@@ -903,7 +903,14 @@ async function loadStores() {
       storeName: item.name ?? item.storeName,
       businessType: item.businessType,
     })).filter((item) => item.storeId != null && item.businessType === 'KTV')
-    if (!pricingStoreIds.value.length && contextStore.storeId) pricingStoreIds.value = [contextStore.storeId]
+    const current = stores.value.find((s) => s.storeId === contextStore.storeId)
+    if (current) {
+      if (!pricingStoreIds.value.length) pricingStoreIds.value = [current.storeId]
+      if (!paymentStoreIds.value.length) paymentStoreIds.value = [current.storeId]
+      if (!ruleStoreId.value) ruleStoreId.value = current.storeId
+      if (!paymentRuleStoreId.value) paymentRuleStoreId.value = current.storeId
+      await Promise.all([loadPricing(), loadPayment(), loadRules(), loadPaymentRules()])
+    }
   } catch { stores.value = [] }
 }
 </script>
