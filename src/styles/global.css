@@ -192,7 +192,9 @@ body,
 }
 
 /* ========== 业务指标卡（KTV/酒店等业务页共用） ========== */
-.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .metric-card { display: flex; flex-direction: column; padding: 16px 18px; border: 1px solid var(--el-border-color-lighter); border-radius: var(--admin-radius); background: var(--el-bg-color); box-shadow: var(--admin-shadow-card); }
 .metric-card span, .metric-card small { color: var(--el-text-color-secondary); font-size: 13px; }
 .metric-card strong { margin: 8px 0 4px; color: var(--el-text-color-primary); font-size: 26px; line-height: 1.1; }
+@media (max-width: 640px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .metric-grid { grid-template-columns: 1fr; } }
