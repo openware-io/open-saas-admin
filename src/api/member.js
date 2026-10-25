@@ -12,6 +12,11 @@ export function listPointsAccounts(params) {
 export function createMember(data) {
   return request.post('/api/v1/business/members', data)
 }
+
+/** 租户后台：为客户开通 C 端手机号 + 密码登录。 */
+export function provisionCustomerLogin(data) {
+  return request.post('/api/v1/admin/customers/c-login', data)
+}
 // 把客户绑定到 IM 账号；IM 账号已被其它客户占用时返回 409 IM_ACCOUNT_ALREADY_BOUND
 export function bindMemberIm(id, data) {
   return request.put('/api/v1/business/members/' + id + '/im-binding', data)
