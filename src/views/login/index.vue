@@ -2,7 +2,7 @@
   <div class="login-page">
     <div class="login-card">
       <div class="login-header">
-        <el-icon :size="40" color="#409eff"><OfficeBuilding /></el-icon>
+        <el-icon :size="40" color="var(--brand-primary)"><OfficeBuilding /></el-icon>
         <h1>SaaS 管理后台</h1>
         <p>IM 后台 · 平台运营后台 · 租户后台</p>
         <p class="sub">统一登录入口</p>

@@ -20,7 +20,7 @@
         :router="true"
         background-color="#1d1e2c"
         text-color="#a3a6ad"
-        active-text-color="#409eff"
+        active-text-color="var(--brand-primary)"
         class="sidebar-menu"
         @select="collapseOnNavigation"
       >
@@ -574,7 +574,7 @@ async function submitPasswordChange() {
 }
 
 .collapse-btn:hover {
-  color: #409eff;
+  color: var(--brand-primary);
 }
 
 .header-right {

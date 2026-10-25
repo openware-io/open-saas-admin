@@ -171,7 +171,7 @@ async function handleLogout() {
   width: 52px;
   height: 52px;
   border-radius: 12px;
-  background: #409eff;
+  background: var(--brand-primary);
   color: #fff;
   display: flex;
   align-items: center;
