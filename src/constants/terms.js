@@ -443,6 +443,10 @@ export const TENANT_STATUS_TYPE = { ACTIVE: 'success', PENDING: 'warning', SUSPE
 export function tenantStatusText(status) {
   return TENANT_STATUS_TEXT[status] || unknownEnumText(status)
 }
+export function tenantStatusActionText(status) {
+  return status === 'ACTIVE' ? '停用' : '启用'
+}
+
 export function tenantStatusType(status) {
   return TENANT_STATUS_TYPE[status] || 'info'
 }

@@ -24,6 +24,13 @@
         <el-table-column prop="createdAt" label="创建时间" width="180">
           <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
         </el-table-column>
+        <el-table-column label="操作" width="120" align="center">
+          <template #default="{ row }">
+            <el-button link type="primary" :loading="row.saving" @click="toggleStatus(row)">
+              {{ tenantStatusActionText(row.status) }}
+            </el-button>
+          </template>
+        </el-table-column>
         <template #empty><el-empty description="暂无租户" /></template>
       </el-table>
     </div>
@@ -55,13 +62,13 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { listTenants, createTenant, bootstrapTenantOwner } from '@/api/admin'
+import { listTenants, createTenant, bootstrapTenantOwner, updateTenantStatus } from '@/api/admin'
 import DateRangeFilter from '@/components/DateRangeFilter.vue'
 import { dateRangeParams, dateRangeWarning, emptyDateRange } from '@/utils/dateRange'
 import { formatTime } from '@/utils/format'
-import { tenantStatusText, tenantStatusType } from '@/constants/terms'
+import { tenantStatusActionText, tenantStatusText, tenantStatusType } from '@/constants/terms'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 
 const rows = ref([])
@@ -92,6 +99,26 @@ async function load() {
 function openCreate() {
   form.value = { tenantCode: '', name: '', defaultLocale: 'zh-CN', defaultTimezone: 'Asia/Shanghai', adminUsername: '', adminPassword: '', adminDisplayName: '' }
   dialogVisible.value = true
+}
+
+async function toggleStatus(row) {
+  const target = row.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'
+  try {
+    await ElMessageBox.confirm(
+      target === 'ACTIVE' ? '启用后该租户的成员可登录租户后台。' : '停用后该租户成员将无法选择该租户上下文。',
+      target === 'ACTIVE' ? '启用租户' : '停用租户',
+      { confirmButtonText: target === 'ACTIVE' ? '启用' : '停用', cancelButtonText: '取消', type: 'warning' }
+    )
+    row.saving = true
+    await updateTenantStatus(row.id, target)
+    row.status = target
+    ElMessage.success(target === 'ACTIVE' ? '已启用租户' : '已停用租户')
+    load()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') notifyAdminRequestError(e, '更新租户状态失败')
+  } finally {
+    row.saving = false
+  }
 }
 
 async function save() {

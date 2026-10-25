@@ -48,6 +48,11 @@ export function bootstrapTenantOwner(tenantId, data) {
   return request.post('/api/v1/admin/staff/bootstrap-owner', { tenantId, ...data })
 }
 
+/** 平台：启用/停用租户。 */
+export function updateTenantStatus(tenantId, status) {
+  return request.patch('/api/v1/admin/platform/tenants/' + tenantId + '/status', { status })
+}
+
 // 脱敏权限管理（租户级安全：member.pii.view）
 export function listMaskingRoles() {
   return request.get('/api/v1/admin/iam/masking')
