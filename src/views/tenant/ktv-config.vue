@@ -27,7 +27,7 @@
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
             </el-select>
             <el-select v-if="pricingScope === 'STORE'" v-model="pricingStoreIds" multiple collapse-tags placeholder="选择门店（可多选）" style="width: 260px" @change="loadPricing">
-              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+              <el-option v-for="store in ktvStores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
             </el-select>
             <el-button type="primary" @click="openPricingDialog()">
               <el-icon><Plus /></el-icon>新增计价方案
@@ -127,7 +127,7 @@
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
             </el-select>
             <el-select v-if="paymentScope === 'STORE'" v-model="paymentStoreIds" multiple collapse-tags placeholder="选择门店（可多选）" style="width: 260px" @change="loadPayment">
-              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+              <el-option v-for="store in ktvStores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
             </el-select>
             <span class="muted">仅展示平台已授权的线上渠道（支付宝 / 微信支付 / Stripe）；未授权渠道不显示。现金 / {{ walletBrand }} / 积分不依赖渠道配置。</span>
           </div>
@@ -175,7 +175,7 @@
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
             </el-select>
             <el-select v-if="ruleScope === 'STORE'" v-model="ruleStoreId" placeholder="选择门店" style="width: 220px" @change="loadRules">
-              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+              <el-option v-for="store in ktvStores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
             </el-select>
             <el-button type="primary" @click="saveRules">保存规则</el-button>
             <el-button @click="loadRules">刷新</el-button>
@@ -214,7 +214,7 @@
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
             </el-select>
             <el-select v-if="paymentRuleScope === 'STORE'" v-model="paymentRuleStoreId" placeholder="选择门店" style="width: 220px" @change="loadPaymentRules">
-              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+              <el-option v-for="store in ktvStores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
             </el-select>
             <el-button @click="loadPaymentRules">刷新</el-button>
           </div>
@@ -462,6 +462,7 @@ const paymentRuleBusinessType = ref('KTV')
 const paymentRuleStoreId = ref(null)
 const paymentRuleForm = ref({ approvalThreshold: 0, offlineRefundEnabled: true, closingTime: '00:00', requireVoidApproval: false, voidVersion: 0, refundVersion: 0, closingVersion: 0 })
 const stores = ref([])
+const ktvStores = computed(() => stores.value.filter((s) => s.businessType === 'KTV'))
 const businessTypes = Object.keys(BUSINESS_TYPE_TEXT)
 const scopeLabel = (scope) => CONFIG_SCOPE_TEXT[scope] || scope
 const pricingDialogVisible = ref(false)
@@ -489,8 +490,14 @@ function emptyPricing() {
 }
 
 async function loadPricing() {
+  const storeId = pricingScope.value === 'STORE' ? (pricingStoreIds.value[0] || null) : null
+  if (pricingScope.value === 'STORE' && !storeId) {
+    pricingRows.value = []
+    loadError.value = '请选择 KTV 门店'
+    return
+  }
   try {
-    const storeId = pricingScope.value === 'STORE' ? (pricingStoreIds.value[0] || contextStore.storeId || null) : null
+    loadError.value = ''
     pricingRows.value = await getPricingPlans({ storeId, businessType: pricingScope.value === 'TENANT' ? undefined : pricingBusinessType.value })
   } catch (e) {
     pricingRows.value = []
@@ -502,6 +509,7 @@ function ruleParams() {
   return { storeId: ruleScope.value === 'STORE' ? ruleStoreId.value : undefined, businessType: ruleScope.value === 'TENANT' ? undefined : ruleBusinessType.value }
 }
 async function loadRules() {
+  if (ruleScope.value === 'STORE' && !ruleStoreId.value) return
   try {
     const [points, reservation] = await Promise.all([getPointRule(ruleParams()), getReservationRule(ruleParams())])
     pointRuleForm.value = { ...pointRuleForm.value, ...points }
@@ -742,6 +750,7 @@ const paymentForm = ref({
 })
 
 async function loadPayment() {
+  if (paymentScope.value === 'STORE' && !paymentStoreIds.value[0]) return
   try {
     // 1) 平台已授权（granted）的支付方式
     const grants = await listPaymentMethodGrants(contextStore.tenantId)
@@ -882,8 +891,6 @@ onMounted(() => {
   loadPayment()
   loadWalletBrand()
   loadBusinessHours()
-  ruleStoreId.value = contextStore.storeId || null
-  paymentRuleStoreId.value = contextStore.storeId || null
   loadRules()
   loadPaymentRules()
 })
@@ -894,10 +901,9 @@ async function loadStores() {
     stores.value = (Array.isArray(list) ? list : []).map((item) => ({
       storeId: item.id ?? item.storeId,
       storeName: item.name ?? item.storeName,
-    })).filter((item) => item.storeId != null)
+      businessType: item.businessType,
+    })).filter((item) => item.storeId != null && item.businessType === 'KTV')
     if (!pricingStoreIds.value.length && contextStore.storeId) pricingStoreIds.value = [contextStore.storeId]
-    if (!paymentStoreIds.value.length && contextStore.storeId) paymentStoreIds.value = [contextStore.storeId]
-    if (!paymentRuleStoreId.value && contextStore.storeId) paymentRuleStoreId.value = contextStore.storeId
   } catch { stores.value = [] }
 }
 </script>
