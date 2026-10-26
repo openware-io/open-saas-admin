@@ -47,6 +47,10 @@ export function listHotels() {
   return request.get('/api/v1/admin/hotel/hotels')
 }
 
+export function listHotelBookings(params) {
+  return request.get('/api/v1/admin/hotel/bookings', { params })
+}
+
 export function listHotelRoomTypes(hotelId) {
   return request.get('/api/v1/admin/hotel/room-types', { params: { hotelId } })
 }

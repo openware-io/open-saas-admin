@@ -132,6 +132,35 @@
 
     <div class="admin-card">
       <div class="section-head">
+        <h3>全部预订</h3>
+        <div class="inline-actions">
+          <el-select v-model="bookingStatusFilter" clearable placeholder="全部状态" style="width:150px" @change="loadBookings">
+            <el-option v-for="item in bookingStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+          <el-tag effect="plain">{{ bookings.length }} 条</el-tag>
+        </div>
+      </div>
+      <el-table v-loading="bookingsLoading" :data="bookings" border stripe>
+        <el-table-column prop="bookingNo" label="预订号" width="170" />
+        <el-table-column prop="guestName" label="住客" width="120" />
+        <el-table-column prop="roomType" label="房型" min-width="140" />
+        <el-table-column prop="roomNo" label="房号" width="90" />
+        <el-table-column label="入住 / 离店" min-width="180">
+          <template #default="{ row }">{{ row.checkInDate }} → {{ row.checkOutDate }}</template>
+        </el-table-column>
+        <el-table-column label="状态" width="110">
+          <template #default="{ row }">
+            <el-tag :type="statusType(row.status)">{{ hotelBookingStatusText(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="金额" width="130" align="right">
+          <template #default="{ row }">{{ formatMoney(row.amountMinor, row.currency) }}</template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <div class="admin-card">
+      <div class="section-head">
         <h3>房态</h3>
         <el-tag effect="plain">{{ roomStates.length }} 间</el-tag>
       </div>
@@ -327,6 +356,7 @@ import {
   extendHotelBooking,
   getHotelFolio,
   getHotelPolicy,
+  listHotelBookings,
   listHotelFrontDeskTasks,
   listHotelRatePlans,
   listHotelRoomTypes,
@@ -365,6 +395,20 @@ const quoting = ref(false)
 const submitting = ref(false)
 const housekeeping = ref([])
 const housekeepingLoading = ref(false)
+const bookings = ref([])
+const bookingsLoading = ref(false)
+const bookingStatusFilter = ref('')
+const bookingStatusOptions = [
+  { value: 'PENDING_PAYMENT', label: '待支付' },
+  { value: 'PENDING_DEPOSIT', label: '待付定金' },
+  { value: 'CONFIRMED', label: '已确认' },
+  { value: 'ARRIVAL', label: '待入住' },
+  { value: 'IN_HOUSE', label: '在住' },
+  { value: 'DUE_OUT', label: '待退房' },
+  { value: 'CHECKED_OUT', label: '已退房' },
+  { value: 'CANCELLED', label: '已取消' },
+  { value: 'NO_SHOW', label: '未到店' },
+]
 const roomStates = ref([])
 const roomStatesLoading = ref(false)
 const checkInVisible = ref(false)
@@ -563,7 +607,7 @@ async function loadHousekeeping() {
 }
 
 async function reload() {
-  await Promise.all([loadTasks(), loadHousekeeping(), loadRoomStates()])
+  await Promise.all([loadTasks(), loadBookings(), loadHousekeeping(), loadRoomStates()])
 }
 
 function openExtend(row) {
@@ -838,6 +882,21 @@ async function markNoShow(row) {
   }
 }
 
+async function loadBookings() {
+  if (!context.value?.storeId || !canViewHotel.value) {
+    bookings.value = []
+    return
+  }
+  bookingsLoading.value = true
+  try {
+    bookings.value = (await listHotelBookings({ status: bookingStatusFilter.value || undefined })) || []
+  } catch (error) {
+    notifyAdminRequestError(error, '加载预订列表失败')
+  } finally {
+    bookingsLoading.value = false
+  }
+}
+
 async function loadRoomStates() {
   if (!context.value?.storeId || !canViewHotel.value) {
     roomStates.value = []
@@ -877,6 +936,7 @@ onMounted(async () => {
 .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .header-actions { display: flex; gap: 8px; }
 .quote-box { margin: 12px 0; }
+.inline-actions { display: flex; align-items: center; gap: 8px; }
 .folio-head { display: flex; gap: 18px; align-items: center; margin-bottom: 12px; }
 .deposit-box { display: flex; gap: 8px; margin-top: 12px; }
 .muted { color: var(--el-text-color-placeholder); }
