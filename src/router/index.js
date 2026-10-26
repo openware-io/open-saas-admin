@@ -251,15 +251,22 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.scope === 'PLATFORM' && !authStore.workspaces.includes('PLATFORM')) {
     return next(authStore.workspaces.includes('STORE') ? '/store' : '/admin/tenant/overview')
   }
-  // 租户经营页只对租户总部账号开放；店长直达 /admin/ktv/config 等租户配置
-  // 必须回门店工作台，不能把租户默认计价/权限配置暴露给单店角色。
+  // 租户经营页只对租户总部账号开放；店长仍可进入共享的业务运营页
+  //（预约/收银/订单/资源/库存/报表/酒店前台），但不能进入租户默认配置、
+  // 角色权限、门店管理和 KTV 配置。
+  const storeOperations = (path) =>
+    (path.startsWith('/business/') && !path.startsWith('/business/tenant')) ||
+    ['/admin/orders', '/admin/resources', '/admin/products', '/admin/inventory',
+      '/admin/reports', '/admin/tenant/hotel'].some((prefix) => path === prefix || path.startsWith(prefix + '/'))
   if (to.meta.scope === 'TENANT' && !authStore.workspaces.includes('HEADQUARTERS')) {
-    return next(authStore.workspaces.includes('STORE') ? '/store' : '/select')
+    if (!(authStore.workspaces.includes('STORE') && storeOperations(to.path))) {
+      return next(authStore.workspaces.includes('STORE') ? '/store' : '/select')
+    }
   }
 
   // PLATFORM 工作区没有租户/门店上下文：不能调用 ensureContext，否则空 contextId
   // 会被后端拒绝成 403，页面会误报“没有操作权限”。平台页面使用平台级接口。
-  if (to.meta.scope === 'TENANT') {
+  if (to.meta.scope === 'TENANT' && authStore.workspaces.includes('HEADQUARTERS')) {
     if (contextStore.settled) {
       contextStore.revalidateInBackground(to.meta.scope)
     } else {
