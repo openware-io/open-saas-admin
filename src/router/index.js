@@ -252,7 +252,9 @@ router.beforeEach(async (to, from, next) => {
     return next(authStore.workspaces.includes('STORE') ? '/store' : '/admin/tenant/overview')
   }
 
-  if (to.meta.scope === 'TENANT' || to.meta.scope === 'PLATFORM') {
+  // PLATFORM 工作区没有租户/门店上下文：不能调用 ensureContext，否则空 contextId
+  // 会被后端拒绝成 403，页面会误报“没有操作权限”。平台页面使用平台级接口。
+  if (to.meta.scope === 'TENANT') {
     if (contextStore.settled) {
       contextStore.revalidateInBackground(to.meta.scope)
     } else {
