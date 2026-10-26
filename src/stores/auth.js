@@ -94,10 +94,13 @@ export const useAuthStore = defineStore('auth', () => {
           clearLocalState()
           return false
         }
-        setAuth(sessionUser, session.scope || scope.value || 'PLATFORM', {
+        const workspace = session.defaultWorkspace || 'PLATFORM'
+        const sessionScope = session.scope ||
+          (workspace === 'STORE' ? 'STORE' : workspace === 'HEADQUARTERS' ? 'TENANT' : 'PLATFORM')
+        setAuth(sessionUser, sessionScope, {
           roles: session.roles || [],
           workspaces: session.workspaces || [],
-          defaultWorkspace: session.defaultWorkspace || 'PLATFORM',
+          defaultWorkspace: workspace,
           landing: session.landing || '',
         })
         authenticated.value = true
