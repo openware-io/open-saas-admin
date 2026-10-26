@@ -280,6 +280,7 @@ const form = reactive({
   rooms: 1,
   guestName: '',
   guestPhone: '',
+  bookedByAccountId: '',
 })
 const context = computed(() => contextStore.current)
 const canCheckIn = computed(() => hasPermission(context.value?.permissions, 'hotel.checkin'))
@@ -347,6 +348,7 @@ function openBooking() {
   form.rooms = 1
   form.guestName = ''
   form.guestPhone = ''
+  form.bookedByAccountId = ''
   quote.value = null
   bookingVisible.value = true
   loadOptions()
@@ -389,7 +391,12 @@ async function submitBooking() {
   }
   submitting.value = true
   try {
-    await createHotelBooking({ ...stayBody(), guestName: form.guestName, guestPhone: form.guestPhone })
+    await createHotelBooking({
+      ...stayBody(),
+      guestName: form.guestName,
+      guestPhone: form.guestPhone,
+      bookedByAccountId: form.bookedByAccountId ? Number(form.bookedByAccountId) : null,
+    })
     ElMessage.success('预订已创建，等待确认/支付')
     bookingVisible.value = false
     await loadTasks()
