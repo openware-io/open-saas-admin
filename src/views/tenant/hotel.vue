@@ -1,9 +1,14 @@
 <template>
   <div class="admin-page hotel-page">
-    <div class="page-header">
-      <div>
+    <div class="page-header hotel-hero">
+      <div class="hero-copy">
+        <span class="hero-eyebrow">FRONT DESK · {{ todayLabel }}</span>
         <h2>酒店前台</h2>
-        <p class="subtle">前台任务、房态与账务；酒店资料、房型、房价和库存在「酒店资料」中维护。</p>
+        <p class="subtle">{{ hotelName }} · 今日房态、到店与离店任务</p>
+        <div class="hero-meta">
+          <span><i class="hero-dot"></i>{{ context?.businessType === 'HOTEL' ? '酒店门店' : '当前门店' }}</span>
+          <span>{{ context?.timezone || 'Asia/Shanghai' }}</span>
+        </div>
       </div>
       <div class="header-actions">
         <el-button @click="router.push('/admin/tenant/hotel-master')">酒店资料</el-button>
@@ -14,11 +19,14 @@
       </div>
     </div>
 
-    <div class="metric-grid">
-      <div v-for="metric in metrics" :key="metric.label" class="metric-card">
-        <span>{{ metric.label }}</span>
-        <strong>{{ metric.value }}</strong>
-        <small>{{ metric.hint }}</small>
+    <div class="metric-grid hotel-metrics">
+      <div v-for="metric in metrics" :key="metric.label" class="metric-card hotel-metric" :class="`tone-${metric.tone}`">
+        <div class="metric-icon"><el-icon><component :is="metric.icon" /></el-icon></div>
+        <div class="metric-copy">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.value }}</strong>
+          <small>{{ metric.hint }}</small>
+        </div>
       </div>
     </div>
 
@@ -69,12 +77,44 @@
     </div>
 
 
-    <div class="admin-card">
+    <section class="hotel-quick admin-card">
       <div class="section-head">
-        <h3>前台任务</h3>
-        <el-tag effect="plain">{{ tasks.length }} 条</el-tag>
+        <div>
+          <h3>快捷操作</h3>
+          <p class="section-subtitle">把高频动作放在手边，减少前台来回切页</p>
+        </div>
       </div>
-      <el-table v-loading="loading" :data="tasks" border stripe>
+      <div class="hotel-quick-grid">
+        <button v-for="action in quickActions" :key="action.key" class="hotel-quick-action" @click="runQuick(action.key)">
+          <span class="quick-icon" :class="`is-${action.tone}`"><el-icon><component :is="action.icon" /></el-icon></span>
+          <span class="quick-copy"><strong>{{ action.label }}</strong><small>{{ action.hint }}</small></span>
+          <span class="quick-arrow">›</span>
+        </button>
+      </div>
+    </section>
+
+    <div class="admin-card">
+      <div class="section-head task-heading">
+        <div>
+          <h3>前台任务</h3>
+          <p class="section-subtitle">优先处理到店、在住和待退房客人</p>
+        </div>
+        <el-tag effect="plain">{{ filteredTasks.length }} 条</el-tag>
+      </div>
+      <div class="task-toolbar">
+        <div class="task-filters">
+          <button
+            v-for="option in taskFilterOptions"
+            :key="option.value"
+            class="task-filter"
+            :class="{ active: taskFilter === option.value }"
+            @click="taskFilter = option.value"
+          >
+            <span>{{ option.label }}</span><b>{{ option.count }}</b>
+          </button>
+        </div>
+      </div>
+      <el-table v-loading="loading" :data="filteredTasks" border stripe>
         <el-table-column prop="bookingNo" label="预订号" width="170" />
         <el-table-column prop="guestName" label="住客" width="120" />
         <el-table-column prop="roomType" label="房型" min-width="140" />
@@ -359,6 +399,8 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Bell, Calendar, Document, House, Moon, Plus, Refresh, Tickets } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   cancelHotelBooking,
@@ -401,6 +443,7 @@ import { hasPermission } from '@/utils/context'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { useContextStore } from '@/stores/context'
 
+const router = useRouter()
 const contextStore = useContextStore()
 const tasks = ref([])
 const loading = ref(false)
@@ -523,11 +566,42 @@ const roomBoard = computed(() => {
 })
 
 const metrics = computed(() => [
-  { label: '待入住', value: (counts.value.CONFIRMED || 0) + counts.value.ARRIVAL, hint: '已确认/今日到店' },
-  { label: '在住', value: counts.value.IN_HOUSE, hint: '当前在店' },
-  { label: '待退房', value: counts.value.DUE_OUT, hint: '今日离店' },
-  { label: '任务总数', value: tasks.value.length, hint: '当前门店' },
+  { label: '待入住', value: (counts.value.CONFIRMED || 0) + (counts.value.ARRIVAL || 0), hint: '已确认 / 今日到店', icon: Calendar, tone: 'amber' },
+  { label: '在住', value: counts.value.IN_HOUSE || 0, hint: '当前在店', icon: House, tone: 'blue' },
+  { label: '待退房', value: counts.value.DUE_OUT || 0, hint: '今日离店', icon: Tickets, tone: 'violet' },
+  { label: '待处理', value: tasks.value.length, hint: '前台任务', icon: Bell, tone: 'green' },
 ])
+
+const quickActions = computed(() => [
+  canCreate.value && { key: 'booking', label: '新建预订', hint: '为到店客人快速开单', icon: Plus, tone: 'amber' },
+  { key: 'master', label: '酒店资料', hint: '房型、房价与库存', icon: Document, tone: 'blue' },
+  canManageRooms.value && { key: 'audit', label: '夜审', hint: '结算今日营业数据', icon: Moon, tone: 'violet' },
+  canCollect.value && { key: 'refund', label: '同步退款', hint: '同步线上退款状态', icon: Refresh, tone: 'green' },
+].filter(Boolean))
+
+function runQuick(key) {
+  if (key === 'booking') openBooking()
+  else if (key === 'master') router.push('/admin/tenant/hotel-master')
+  else if (key === 'audit') runAudit()
+  else if (key === 'refund') syncRefunds()
+}
+
+const taskFilter = ref('ALL')
+const taskFilterOptions = computed(() => [
+  { value: 'ALL', label: '全部', count: tasks.value.length },
+  { value: 'ARRIVAL', label: '待入住', count: (counts.value.CONFIRMED || 0) + (counts.value.ARRIVAL || 0) },
+  { value: 'IN_HOUSE', label: '在住', count: counts.value.IN_HOUSE || 0 },
+  { value: 'DUE_OUT', label: '待退房', count: counts.value.DUE_OUT || 0 },
+])
+
+const filteredTasks = computed(() => {
+  if (taskFilter.value === 'ALL') return tasks.value
+  if (taskFilter.value === 'ARRIVAL') return tasks.value.filter((task) => ['CONFIRMED', 'ARRIVAL'].includes(task.status))
+  return tasks.value.filter((task) => task.status === taskFilter.value)
+})
+
+const hotelName = computed(() => context.value?.storeName || '当前酒店')
+const todayLabel = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date())
 
 function statusType(status) {
   return { CONFIRMED: 'primary', ARRIVAL: 'warning', IN_HOUSE: 'success', DUE_OUT: 'warning' }[status] || 'info'
@@ -998,6 +1072,54 @@ onMounted(async () => {
 
 <style scoped>
 .hotel-page { display: flex; flex-direction: column; padding-bottom: 32px; }
+.hotel-hero {
+  align-items: flex-start;
+  padding: 22px 24px;
+  border: 1px solid #e5ecf7;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 92% 12%, rgba(64, 158, 255, .12), transparent 28%),
+    linear-gradient(120deg, #f8fbff 0%, #fff 58%, #f4f8ff 100%);
+  box-shadow: 0 8px 24px rgba(31, 56, 96, .05);
+}
+.hero-copy h2 { margin: 6px 0 4px; font-size: 26px; letter-spacing: -.4px; }
+.hero-eyebrow { color: #4b7bec; font-size: 10px; font-weight: 800; letter-spacing: 1.7px; }
+.hero-meta { display: flex; gap: 16px; align-items: center; margin-top: 10px; color: #7d8ca3; font-size: 12px; }
+.hero-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.hero-dot { width: 7px; height: 7px; border-radius: 50%; background: #35b87a; box-shadow: 0 0 0 4px rgba(53, 184, 122, .12); }
+.hotel-metrics { margin-top: 16px; }
+.hotel-metric { display: flex; align-items: center; gap: 13px; min-height: 92px; padding: 15px 17px; border: 1px solid #edf1f7; border-radius: 14px; background: #fff; box-shadow: 0 4px 14px rgba(33, 48, 74, .04); }
+.metric-icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 11px; font-size: 19px; }
+.metric-copy { display: flex; flex-direction: column; min-width: 0; }
+.metric-copy span { color: #6f7e93; font-size: 12px; }
+.metric-copy strong { margin: 2px 0; color: #1f2d43; font-size: 27px; line-height: 1.05; letter-spacing: -.5px; }
+.metric-copy small { color: #9aa7b8; font-size: 11px; }
+.hotel-metric.tone-amber .metric-icon { color: #b87512; background: #fff4e2; }
+.hotel-metric.tone-blue .metric-icon { color: #2f6fce; background: #eaf2ff; }
+.hotel-metric.tone-violet .metric-icon { color: #7650a7; background: #f3edff; }
+.hotel-metric.tone-green .metric-icon { color: #21875b; background: #e9f8f0; }
+.section-subtitle { margin: 3px 0 0; color: var(--el-text-color-secondary); font-size: 12px; }
+.hotel-quick { margin-top: 16px; }
+.hotel-quick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.hotel-quick-action { display: flex; align-items: center; gap: 11px; min-height: 62px; padding: 11px 13px; text-align: left; border: 1px solid #e9eef6; border-radius: 12px; background: #fff; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.hotel-quick-action:hover { border-color: #b9d4fb; box-shadow: 0 7px 18px rgba(49, 99, 180, .1); transform: translateY(-1px); }
+.quick-icon { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border-radius: 10px; font-size: 17px; }
+.quick-icon.is-amber { color: #b87512; background: #fff4e2; }
+.quick-icon.is-blue { color: #2f6fce; background: #eaf2ff; }
+.quick-icon.is-violet { color: #7650a7; background: #f3edff; }
+.quick-icon.is-green { color: #21875b; background: #e9f8f0; }
+.quick-copy { display: flex; flex-direction: column; min-width: 0; }
+.quick-copy strong { color: #2b3a50; font-size: 13px; }
+.quick-copy small { margin-top: 2px; color: #93a0b1; font-size: 11px; }
+.quick-arrow { margin-left: auto; color: #b2bccb; font-size: 19px; }
+.task-heading { align-items: flex-start; }
+.task-toolbar { display: flex; align-items: center; justify-content: space-between; margin: -2px 0 12px; }
+.task-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.task-filter { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid transparent; border-radius: 999px; color: #7d8ca3; background: #f5f7fa; font-size: 12px; cursor: pointer; }
+.task-filter b { min-width: 16px; color: #9aa7b8; font-size: 11px; text-align: center; }
+.task-filter.active { border-color: #cfe1ff; color: #2f6fce; background: #edf4ff; }
+.task-filter.active b { color: #2f6fce; }
+
 .hotel-page .metric-grid { order: 1; }
 .hotel-page .admin-card.room-board-card { order: 2; }
 .hotel-page .admin-card { order: 3; }
