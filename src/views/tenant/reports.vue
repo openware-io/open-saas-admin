@@ -9,7 +9,10 @@
 
     <div class="admin-card">
       <div class="filter-bar">
-        <el-select v-model="storeId" placeholder="选择门店" clearable style="width: 200px">
+        <el-tag v-if="isStoreScope" effect="plain" class="store-scope-tag">
+          当前门店 · {{ currentStoreName }}
+        </el-tag>
+        <el-select v-else v-model="storeId" placeholder="选择门店" clearable style="width: 200px">
           <el-option v-for="s in stores" :key="s.id" :label="s.name" :value="s.id" />
         </el-select>
         <DateRangeFilter v-model="range" @change="onFilterChange" />
@@ -226,6 +229,9 @@ const walletBrand = ref(WALLET_BRAND_NAME_DEFAULT)
 
 /** 运营上下文（取当前租户，用于读租户级储值展示名）。 */
 const contextStore = useContextStore()
+const isStoreScope = computed(() => Number(contextStore.current?.storeId) > 0)
+const currentStoreName = computed(() => contextStore.current?.storeName || '当前门店')
+if (isStoreScope.value) storeId.value = contextStore.current.storeId
 
 const isGrossProfit = computed(() => type.value === INVENTORY_GROSS_PROFIT)
 const isSales = computed(() => type.value === SALES)
@@ -544,6 +550,12 @@ async function load() {
 }
 
 async function loadStores() {
+  if (isStoreScope.value) {
+    const current = contextStore.current
+    stores.value = current?.storeId ? [{ id: current.storeId, name: current.storeName || '当前门店' }] : []
+    storeId.value = current?.storeId || null
+    return
+  }
   try { stores.value = (await listStores()) || [] } catch (e) { /* 门店加载失败不阻塞报表 */ }
 }
 
