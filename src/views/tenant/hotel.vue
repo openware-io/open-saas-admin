@@ -13,7 +13,7 @@
       </div>
     </div>
 
-    <img class="hotel-cover-img" src="./hotel-cover.svg" alt="SaaS Hotel 封面" />
+    <img class="hotel-cover-img" :src="hotelCover" alt="SaaS Hotel 封面" />
 
     <el-alert
       type="info"
@@ -226,6 +226,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import hotelCover from '@/assets/hotel-cover.svg'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   checkInHotelBooking,
