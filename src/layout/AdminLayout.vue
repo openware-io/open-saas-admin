@@ -323,7 +323,18 @@ const contextBlocked = computed(() =>
  * 「无 tenant.currency.manage 就不显示」的可见性口径统一登记在 `utils/menuPermission`
  * 的映射里，避免页面各自维护一份固定入口。
  */
-const visibleMenus = computed(() => filterMenusByPermission(menuStore.menus, contextStore.current?.permissions))
+const HOTEL_STORE_MENUS = [
+  { id: 'hotel-frontdesk', code: 'hotel.frontdesk', name: '酒店前台', path: '/admin/tenant/hotel', icon: 'OfficeBuilding', scope: 'STORE', requiredPermission: 'hotel.booking.view' },
+  { id: 'hotel-orders', code: 'hotel.orders', name: '订单管理', path: '/admin/orders', icon: 'Tickets', scope: 'STORE', requiredPermission: 'order.view' },
+  { id: 'hotel-members', code: 'hotel.members', name: '客户管理', path: '/business/members', icon: 'User', scope: 'STORE', requiredPermission: 'member.view' },
+  { id: 'hotel-inventory', code: 'hotel.inventory', name: '库存管理', path: '/admin/inventory', icon: 'Box', scope: 'STORE', requiredPermission: 'inventory.material.view' },
+  { id: 'hotel-reports', code: 'hotel.reports', name: '门店报表', path: '/admin/reports', icon: 'DataAnalysis', scope: 'STORE' },
+]
+const visibleMenus = computed(() => {
+  const hotelStore = authStore.scope === 'STORE' && contextStore.current?.businessType === 'HOTEL'
+  const source = hotelStore ? HOTEL_STORE_MENUS : menuStore.menus
+  return filterMenusByPermission(source, contextStore.current?.permissions)
+})
 const menuSections = computed(() => {
   const sections = []
   for (const scope of ['TENANT', 'STORE', 'PLATFORM']) {

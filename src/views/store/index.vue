@@ -125,14 +125,22 @@ const counts = computed(() => {
 
 const entries = computed(() => {
   const permissions = context.value?.permissions
-  const candidates = [
+  const hotelCandidates = [
+    { path: '/admin/tenant/hotel', label: '酒店前台', hint: '预订与入住', permission: 'hotel.booking.view' },
+    { path: '/admin/orders', label: '订单管理', hint: '住客订单', permission: 'order.view' },
+    { path: '/business/members', label: '客户管理', hint: '住客档案', permission: 'member.view' },
+    { path: '/admin/inventory', label: '库存管理', hint: '客耗与物料', permission: 'inventory.material.view' },
+    { path: '/admin/reports', label: '门店报表', hint: '经营数据' },
+  ]
+  const ktvCandidates = [
     { path: '/business/reservations', label: '预约管理', hint: '到店与排期', permission: 'reservation.view' },
     { path: '/business/orders', label: '收银台', hint: '订单与收款', permission: 'order.view' },
     { path: '/admin/resources', label: '资源管理', hint: '房态与占用', permission: 'resource.manage' },
     { path: '/admin/inventory', label: '库存', hint: '物料与盘点', permission: 'inventory.material.view' },
     { path: '/admin/reports', label: '门店报表', hint: '经营数据', permission: 'tenant.overview.view' },
   ]
-  return candidates.filter((entry) => hasPermission(permissions, entry.permission))
+  const candidates = context.value?.businessType === 'HOTEL' ? hotelCandidates : ktvCandidates
+  return candidates.filter((entry) => !entry.permission || hasPermission(permissions, entry.permission))
 })
 
 function statusType(status) {
