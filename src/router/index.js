@@ -241,6 +241,11 @@ router.beforeEach(async (to, from, next) => {
   //    校验丢进后台（节流只读一次会话），交互不再等网络；
   //  - 只有冷启动的第一次导航才等待，避免页面刚挂载就打出一串 401。
   // 权限/上下文真变了仍拦得住：服务端按会话签名授权，接口层 403/401 会自愈重试。
+  // 平台工作区只对平台运营开放；租户/门店账号直达平台 URL 时直接回到自己的工作区。
+  if (to.meta.scope === 'PLATFORM' && !authStore.workspaces.includes('PLATFORM')) {
+    return next(authStore.workspaces.includes('STORE') ? '/store' : '/admin/tenant/overview')
+  }
+
   if (to.meta.scope === 'TENANT' || to.meta.scope === 'PLATFORM') {
     if (contextStore.settled) {
       contextStore.revalidateInBackground(to.meta.scope)
