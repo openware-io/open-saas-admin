@@ -5,8 +5,22 @@ export function listHotelFrontDeskTasks() {
   return request.get('/api/v1/admin/hotel/frontdesk/tasks')
 }
 
-export function checkInHotelBooking(id) {
-  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/checkin`)
+export function checkInHotelBooking(id, roomId) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/checkin`, null, {
+    params: roomId ? { roomId } : undefined,
+  })
+}
+
+export function moveHotelRoom(id, roomId) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/move-room`, { roomId })
+}
+
+export function cancelHotelBooking(id, reason) {
+  return request.post(`/api/v1/admin/hotel/bookings/${id}/cancel`, { reason })
+}
+
+export function noShowHotelBooking(id) {
+  return request.post(`/api/v1/admin/hotel/bookings/${id}/no-show`)
 }
 
 export function checkOutHotelBooking(id) {
@@ -25,8 +39,56 @@ export function listHotelRoomTypes(hotelId) {
   return request.get('/api/v1/admin/hotel/room-types', { params: { hotelId } })
 }
 
+export function createHotelRoomType(data) {
+  return request.post('/api/v1/admin/hotel/room-types', data)
+}
+
+export function updateHotelRoomType(id, data) {
+  return request.put(`/api/v1/admin/hotel/room-types/${id}`, data)
+}
+
+export function listHotelRooms(roomTypeId) {
+  return request.get('/api/v1/admin/hotel/rooms', { params: { roomTypeId } })
+}
+
+export function createHotelRoom(data) {
+  return request.post('/api/v1/admin/hotel/rooms', data)
+}
+
+export function updateHotelRoom(id, data) {
+  return request.put(`/api/v1/admin/hotel/rooms/${id}`, data)
+}
+
+export function setHotelRoomStatus(id, status) {
+  return request.put(`/api/v1/admin/hotel/rooms/${id}/status`, { status })
+}
+
 export function listHotelRatePlans(hotelId) {
   return request.get('/api/v1/admin/hotel/rate-plans', { params: { hotelId } })
+}
+
+export function createHotelRatePlan(data) {
+  return request.post('/api/v1/admin/hotel/rate-plans', data)
+}
+
+export function updateHotelRatePlan(id, data) {
+  return request.put(`/api/v1/admin/hotel/rate-plans/${id}`, data)
+}
+
+export function listHotelDailyRates(params) {
+  return request.get('/api/v1/admin/hotel/daily-rates', { params })
+}
+
+export function setHotelDailyRate(data) {
+  return request.put('/api/v1/admin/hotel/daily-rates', data)
+}
+
+export function listHotelInventory(params) {
+  return request.get('/api/v1/admin/hotel/inventory', { params })
+}
+
+export function setHotelInventory(data) {
+  return request.put('/api/v1/admin/hotel/inventory', data)
 }
 
 export function quoteHotelStay(data) {

@@ -1070,6 +1070,16 @@ export function hotelFolioStatusText(status) {
   return HOTEL_FOLIO_STATUS_TEXT[status] || unknownEnumText(status)
 }
 
+export const HOTEL_ROOM_STATUS_TEXT = {
+  ACTIVE: '可用',
+  OCCUPIED: '在住',
+  DIRTY: '待清扫',
+  MAINTENANCE: '维修中',
+}
+export function hotelRoomStatusText(status) {
+  return HOTEL_ROOM_STATUS_TEXT[status] || unknownEnumText(status)
+}
+
 export const HOTEL_PAYMENT_MODE_TEXT = {
   PREPAY: '全额预付',
   PAY_AT_HOTEL: '到店付',

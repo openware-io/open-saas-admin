@@ -257,7 +257,7 @@ router.beforeEach(async (to, from, next) => {
   const storeOperations = (path) =>
     (path.startsWith('/business/') && !path.startsWith('/business/tenant')) ||
     ['/admin/orders', '/admin/resources', '/admin/products', '/admin/inventory',
-      '/admin/reports', '/admin/tenant/hotel'].some((prefix) => path === prefix || path.startsWith(prefix + '/'))
+      '/admin/reports', '/admin/tenant/hotel', '/admin/tenant/hotel-master'].some((prefix) => path === prefix || path.startsWith(prefix + '/'))
   if (to.meta.scope === 'TENANT' && !authStore.workspaces.includes('HEADQUARTERS')) {
     if (!(authStore.workspaces.includes('STORE') && storeOperations(to.path))) {
       return next(authStore.workspaces.includes('STORE') ? '/store' : '/select')

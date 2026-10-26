@@ -52,13 +52,13 @@
             <el-tag :type="statusType(row.status)">{{ hotelBookingStatusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="240" align="center">
+        <el-table-column label="操作" width="340" align="center">
           <template #default="{ row }">
             <el-button
               v-if="(row.status === 'ARRIVAL' || row.status === 'CONFIRMED') && canCheckIn"
               link
               type="primary"
-              @click="checkIn(row)"
+              @click="openCheckIn(row)"
             >
               办理入住
             </el-button>
@@ -92,7 +92,49 @@
             >
               账单
             </el-button>
+            <el-button
+              v-if="row.status === 'IN_HOUSE' && canCheckIn"
+              link
+              @click="openMove(row)"
+            >
+              换房
+            </el-button>
+            <el-button
+              v-if="(row.status === 'CONFIRMED' || row.status === 'ARRIVAL') && canCreate"
+              link
+              type="danger"
+              @click="cancelBooking(row)"
+            >
+              取消
+            </el-button>
+            <el-button
+              v-if="(row.status === 'CONFIRMED' || row.status === 'ARRIVAL') && canCreate"
+              link
+              type="warning"
+              @click="markNoShow(row)"
+            >
+              未到店
+            </el-button>
             <span v-if="!canCheckIn && !canCheckOut" class="muted">-</span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <div class="admin-card">
+      <div class="section-head">
+        <h3>房态</h3>
+        <el-tag effect="plain">{{ roomStates.length }} 间</el-tag>
+      </div>
+      <el-table v-loading="roomStatesLoading" :data="roomStates" border stripe>
+        <el-table-column prop="roomNo" label="房号" width="100" />
+        <el-table-column prop="roomTypeName" label="房型" min-width="150" />
+        <el-table-column prop="floor" label="楼层" width="90" />
+        <el-table-column label="房态" width="120">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'ACTIVE' ? 'success' : row.status === 'DIRTY' ? 'warning' : 'info'">
+              {{ hotelRoomStatusText(row.status) }}
+            </el-tag>
           </template>
         </el-table-column>
       </el-table>
@@ -223,6 +265,40 @@
       </template>
     </el-dialog>
   </div>
+
+  <el-dialog v-model="checkInVisible" title="办理入住" width="460px">
+    <el-form label-width="90px">
+      <el-form-item label="住客">{{ checkInBooking?.guestName }}</el-form-item>
+      <el-form-item label="房型">{{ checkInBooking?.roomType }}</el-form-item>
+      <el-form-item label="分配房号">
+        <el-select v-model="checkInRoomId" placeholder="选择可用客房" style="width:100%">
+          <el-option v-for="room in checkInRooms" :key="room.id" :label="`${room.roomNo}（${room.floor || '未填楼层'}）`" :value="room.id" />
+        </el-select>
+      </el-form-item>
+      <div v-if="!checkInRooms.length" class="muted">该房型当前没有可用客房，请先维护客房或处理清扫。</div>
+    </el-form>
+    <template #footer>
+      <el-button @click="checkInVisible = false">取消</el-button>
+      <el-button type="primary" :loading="checkInLoading" :disabled="!checkInRoomId" @click="submitCheckIn">确认入住</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="moveVisible" title="换房" width="460px">
+    <el-form label-width="90px">
+      <el-form-item label="住客">{{ moveBooking?.guestName }}</el-form-item>
+      <el-form-item label="原房号">{{ moveBooking?.roomNo || '未分配' }}</el-form-item>
+      <el-form-item label="新房号">
+        <el-select v-model="moveRoomId" placeholder="选择可用客房" style="width:100%">
+          <el-option v-for="room in moveRooms" :key="room.id" :label="`${room.roomNo}（${room.floor || '未填楼层'}）`" :value="room.id" />
+        </el-select>
+      </el-form-item>
+      <div v-if="!moveRooms.length" class="muted">该房型当前没有可用客房。</div>
+    </el-form>
+    <template #footer>
+      <el-button @click="moveVisible = false">取消</el-button>
+      <el-button type="primary" :loading="moveLoading" :disabled="!moveRoomId" @click="submitMove">确认换房</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -230,6 +306,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import hotelCover from '@/assets/hotel-cover.svg'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
+  cancelHotelBooking,
   checkInHotelBooking,
   checkOutHotelBooking,
   collectHotelOrder,
@@ -242,7 +319,10 @@ import {
   listHotelFrontDeskTasks,
   listHotelRatePlans,
   listHotelRoomTypes,
+  listHotelRooms,
   listHotels,
+  moveHotelRoom,
+  noShowHotelBooking,
   listHousekeepingTasks,
   quoteHotelStay,
   refundHotelDeposit,
@@ -255,6 +335,7 @@ import { listMembers } from '@/api/member'
 import {
   hotelBookingStatusText,
   hotelFolioStatusText,
+  hotelRoomStatusText,
   housekeepingStatusText,
 } from '@/constants/terms'
 import { formatMoney } from '@/utils/format'
@@ -273,6 +354,18 @@ const quoting = ref(false)
 const submitting = ref(false)
 const housekeeping = ref([])
 const housekeepingLoading = ref(false)
+const roomStates = ref([])
+const roomStatesLoading = ref(false)
+const checkInVisible = ref(false)
+const checkInBooking = ref(null)
+const checkInRooms = ref([])
+const checkInRoomId = ref(null)
+const checkInLoading = ref(false)
+const moveVisible = ref(false)
+const moveBooking = ref(null)
+const moveRooms = ref([])
+const moveRoomId = ref(null)
+const moveLoading = ref(false)
 const folioVisible = ref(false)
 const folioBooking = ref(null)
 const folio = ref(null)
@@ -456,7 +549,7 @@ async function loadHousekeeping() {
 }
 
 async function reload() {
-  await Promise.all([loadTasks(), loadHousekeeping()])
+  await Promise.all([loadTasks(), loadHousekeeping(), loadRoomStates()])
 }
 
 function openExtend(row) {
@@ -623,13 +716,102 @@ async function payAndConfirm(row) {
   }
 }
 
-async function checkIn(row) {
+async function openCheckIn(row) {
+  checkInBooking.value = row
+  checkInRoomId.value = null
+  checkInRooms.value = []
   try {
-    await checkInHotelBooking(row.id)
-    ElMessage.success(`${row.guestName} 已办理入住`)
+    const rooms = await listHotelRooms(row.roomTypeId)
+    checkInRooms.value = (rooms || []).filter((room) => room.status === 'ACTIVE')
+    checkInVisible.value = true
+  } catch (error) {
+    notifyAdminRequestError(error, '加载可用客房失败')
+  }
+}
+
+async function submitCheckIn() {
+  if (!checkInBooking.value || !checkInRoomId.value) return
+  checkInLoading.value = true
+  try {
+    await checkInHotelBooking(checkInBooking.value.id, checkInRoomId.value)
+    ElMessage.success(`${checkInBooking.value.guestName} 已办理入住`)
+    checkInVisible.value = false
     await reload()
   } catch (error) {
     notifyAdminRequestError(error, '办理入住失败')
+  } finally {
+    checkInLoading.value = false
+  }
+}
+
+async function openMove(row) {
+  moveBooking.value = row
+  moveRoomId.value = null
+  moveRooms.value = []
+  try {
+    const rooms = await listHotelRooms(row.roomTypeId)
+    moveRooms.value = (rooms || []).filter((room) => room.status === 'ACTIVE')
+    moveVisible.value = true
+  } catch (error) {
+    notifyAdminRequestError(error, '加载可换客房失败')
+  }
+}
+
+async function submitMove() {
+  if (!moveBooking.value || !moveRoomId.value) return
+  moveLoading.value = true
+  try {
+    await moveHotelRoom(moveBooking.value.id, moveRoomId.value)
+    ElMessage.success('换房已完成')
+    moveVisible.value = false
+    await reload()
+  } catch (error) {
+    notifyAdminRequestError(error, '换房失败')
+  } finally {
+    moveLoading.value = false
+  }
+}
+
+async function cancelBooking(row) {
+  try {
+    await ElMessageBox.confirm(`确认取消 ${row.guestName} 的预订 ${row.bookingNo}？`, '取消预订', { type: 'warning' })
+  } catch { return }
+  try {
+    await cancelHotelBooking(row.id)
+    ElMessage.success('预订已取消')
+    await reload()
+  } catch (error) {
+    notifyAdminRequestError(error, '取消预订失败')
+  }
+}
+
+async function markNoShow(row) {
+  try {
+    await ElMessageBox.confirm(`确认将 ${row.guestName} 标记为未到店？`, '未到店', { type: 'warning' })
+  } catch { return }
+  try {
+    await noShowHotelBooking(row.id)
+    ElMessage.success('已标记未到店')
+    await reload()
+  } catch (error) {
+    notifyAdminRequestError(error, '标记未到店失败')
+  }
+}
+
+async function loadRoomStates() {
+  if (!context.value?.storeId || !canViewHotel.value) {
+    roomStates.value = []
+    return
+  }
+  roomStatesLoading.value = true
+  try {
+    const rooms = (await listHotelRooms()) || []
+    const typeNames = new Map(roomTypes.value.map((type) => [type.id, type.name]))
+    roomStates.value = rooms.map((room) => ({ ...room, roomTypeName: typeNames.get(room.roomTypeId) || `房型 ${room.roomTypeId}` }))
+  } catch (error) {
+    notifyAdminRequestError(error, '加载房态失败')
+  } finally {
+    roomStatesLoading.value = false
   }
 }
 
