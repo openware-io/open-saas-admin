@@ -251,6 +251,11 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.scope === 'PLATFORM' && !authStore.workspaces.includes('PLATFORM')) {
     return next(authStore.workspaces.includes('STORE') ? '/store' : '/admin/tenant/overview')
   }
+  // 租户经营页只对租户总部账号开放；店长直达 /admin/ktv/config 等租户配置
+  // 必须回门店工作台，不能把租户默认计价/权限配置暴露给单店角色。
+  if (to.meta.scope === 'TENANT' && !authStore.workspaces.includes('HEADQUARTERS')) {
+    return next(authStore.workspaces.includes('STORE') ? '/store' : '/select')
+  }
 
   // PLATFORM 工作区没有租户/门店上下文：不能调用 ensureContext，否则空 contextId
   // 会被后端拒绝成 403，页面会误报“没有操作权限”。平台页面使用平台级接口。

@@ -8,7 +8,11 @@
       </div>
       <div v-if="shell.showStoreContext" class="context-panel">
         <div v-if="shell.showTenantSelector" class="context-tenant">租户 · {{ contextStore.current?.tenantName || '请选择租户' }}</div>
-        <div v-if="contextStore.current?.storeId" class="context-store">
+        <div v-if="contextStore.current?.scopeType === 'TENANT' || contextStore.current?.storeId === 0" class="context-store">
+          <span>总部 · {{ contextStore.current?.tenantName || '租户总部' }}</span>
+          <span class="context-meta">跨店汇总 / 租户配置</span>
+        </div>
+        <div v-else-if="contextStore.current?.storeId" class="context-store">
           <span>门店 · {{ contextStore.current?.storeName || '当前门店' }}</span>
           <span class="context-meta">{{ contextStore.current?.businessType || '业务' }} · {{ contextStore.current?.timezone || '时区未设置' }}</span>
         </div>
