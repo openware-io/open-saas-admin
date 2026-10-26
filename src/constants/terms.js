@@ -94,7 +94,7 @@ export const DURATION_LABELS = {
  * 储值品牌展示名默认值。规则：只取租户配置 `tnt_tenant_config.wallet_brand_name`，
  * 没有配置时才回落本默认值；全后台只有这一处可以写死品牌名（审计 §4.7）。
  */
-export const WALLET_BRAND_NAME_DEFAULT = 'OpenChat币'
+export const WALLET_BRAND_NAME_DEFAULT = 'SaaS 币'
 
 /** 解析储值展示名：只认租户配置，缺配置回落唯一默认值（页面不得自行拼默认名）。 */
 export function resolveWalletBrandName(config) {
@@ -668,7 +668,7 @@ export const GRANULARITY_DEFAULT = 'DAY'
 /**
  * 销售报表的收款构成分类（后端 `pay_transaction.provider` 已归类，前端只做展示，不再自己映射渠道）。
  *
- * 口径：现金 CASH / 线上（ALIPAY、WECHAT、STRIPE）/ 储值币 WALLET（OpenChat币）/ 积分 POINT /
+ * 口径：现金 CASH / 线上（ALIPAY、WECHAT、STRIPE）/ 储值币 WALLET（SaaS 币）/ 积分 POINT /
  * 其它（新增渠道未归类时后端显式暴露，保证「构成之和 = 收款金额」可核对）。
  *
  * 五个字段都是**金额**（最小货币单位、行内币种），不是代币数量：储值币/积分支付时，

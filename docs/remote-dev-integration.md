@@ -11,7 +11,7 @@
    - 会话 Cookie 带 `Secure`(+`SameSite=Lax`)。浏览器从 **http://其他电脑IP** 直接访问/跨源请求时，`Secure` Cookie 不会被存储；跨站 XHR 下 `Lax` 也不会随请求发送 → 后端看不到会话 → 401/403。
    - 直接跨源（你本机 5173 直连对方 http://IP:30080）还叠加 CORS：网关默认只放行 `http://localhost:5173` 等固定来源（可用 `IM_GATEWAY_ALLOWED_ORIGINS` 环境变量扩展），且 http 下无法用 SameSite=None 方案。
 2. **账号缺少该环境的后台/租户授权**
-   - SaaS 运营后台账号在 `platform-admin-service.saa_admin_account` 表（种子：`admin`=SUPER_ADMIN 平台级；`openchat-admin`=OpenChat 租户运营）。菜单/接口按 `AdminRole` + tenant IAM 角色绑定过滤；账号存在但无角色绑定/无上下文 → 界面提示无权限。
+   - SaaS 运营后台账号在 `platform-admin-service.saa_admin_account` 表（种子：`admin`=SUPER_ADMIN 平台级；`tenant-admin`=OpenChat 租户运营）。菜单/接口按 `AdminRole` + tenant IAM 角色绑定过滤；账号存在但无角色绑定/无上下文 → 界面提示无权限。
 
 ## 2. 推荐模式（长期、ACK 一致）：前端本地 Vite 代理（同源）
 
@@ -47,7 +47,7 @@ ACK/生产联调与上完全一致，仅把 `VITE_API_PROXY_TARGET` 换成对应
 ## 4. 联调账号与授权
 
 - 平台/全局：种子账号 `admin`（SUPER_ADMIN）。
-- OpenChat 租户运营：种子账号 `openchat-admin`（TENANT_ADMIN，platform_account_id=100）。
+- OpenChat 租户运营：种子账号 `tenant-admin`（TENANT_ADMIN，platform_account_id=100）。
 - 口令：以团队默认/`.env`-外共享为准，**不写入仓库**；遗忘或需重置：为 `saa_admin_account.password_hash` 写 BCrypt(10) 哈希（`UPDATE saa_admin_account SET password_hash=? WHERE username='admin';`）或走“员工/运营人员”开通流程自动建号并绑定角色。
 - 新同事专用：建议由平台管理员在 SaaS Admin “员工/运营人员”里开通（identity 建 EMPLOYEE → `saa_admin_account` → tenant `iam_user_role` 绑定），而不是复制管理员口令。
 - 若登录成功仍“无权限”：多半是**上下文/角色绑定缺失**——`/api/v1/admin/contexts` 为空时选择页即无权限；给该平台账号在 tenant-service 绑定对应租户/门店角色后再刷新。

@@ -225,7 +225,7 @@ describe('术语词表', () => {
 
 describe('储值品牌名', () => {
   it('默认值与后端 tnt_tenant_config.wallet_brand_name 的默认值一致', () => {
-    expect(WALLET_BRAND_NAME_DEFAULT).toBe('OpenChat币')
+    expect(WALLET_BRAND_NAME_DEFAULT).toBe('SaaS 币')
   })
 
   it('只认租户配置，缺配置/空配置回落唯一默认值', () => {
@@ -371,7 +371,7 @@ describe('i18n 防回退（源码扫描）', () => {
         const relative = path.relative(srcRoot, file).split(path.sep).join('/')
         if (relative === 'constants/terms.js') continue
         const source = await readSource(file)
-        expect(`${relative}:${/OpenChat币/.test(source)}`).toBe(`${relative}:false`)
+        expect(`${relative}:${/SaaS 币/.test(source)}`).toBe(`${relative}:false`)
       }
     }
   })
