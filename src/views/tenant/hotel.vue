@@ -63,7 +63,7 @@
               办理入住
             </el-button>
             <el-button
-              v-else-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && canCheckOut"
+              v-else-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && row.hasStay !== false && canCheckOut"
               link
               type="primary"
               @click="checkOut(row)"
@@ -102,7 +102,7 @@
               账单
             </el-button>
             <el-button
-              v-if="row.status === 'IN_HOUSE' && canCheckIn"
+              v-if="row.status === 'IN_HOUSE' && row.hasStay !== false && canCheckIn"
               link
               @click="openMove(row)"
             >
