@@ -51,7 +51,7 @@
             </el-icon>
           </button>
           <el-breadcrumb class="header-breadcrumb" separator="/">
-            <el-breadcrumb-item :to="{ path: '/select' }">后台入口</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: '/select' }">{{ scopeLabel }}</el-breadcrumb-item>
             <el-breadcrumb-item>{{ route.meta.title || '页面' }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
