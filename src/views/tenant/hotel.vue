@@ -730,6 +730,32 @@ async function payAndConfirm(row) {
   }
 }
 
+async function payDeposit(row) {
+  const amount = row.depositAmountMinor || 0
+  if (!row.depositOrderId || amount <= 0) {
+    ElMessage.warning('该预订没有定金收款单，请重新创建预订或改用全额收款')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确认收取定金 ${formatMoney(amount, row.currency)} 并确认预订？`, '收定金', { type: 'warning' })
+  } catch { return }
+  depositPaying.value = true
+  try {
+    await collectHotelOrder(row.depositOrderId, {
+      currencyCode: row.currency,
+      payable: amount,
+      payments: [{ method: 'CASH', amount }],
+    }, `hotel-deposit-${row.id}-${Date.now()}`)
+    await confirmHotelDeposit(row.id)
+    ElMessage.success('定金已收取，预订已确认')
+    await reload()
+  } catch (error) {
+    notifyAdminRequestError(error, '收取定金失败')
+  } finally {
+    depositPaying.value = false
+  }
+}
+
 async function openCheckIn(row) {
   checkInBooking.value = row
   checkInRoomId.value = null
