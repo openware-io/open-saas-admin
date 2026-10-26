@@ -15,7 +15,7 @@
              本页没有「查询」按钮，选完即按区间重新拉取。 -->
         <DateRangeFilter v-model="range" @change="load" @clear="load" />
       </div>
-      <p class="tip">运营人员使用账号密码登录管理后台，IM 账号可选。所有 IM 用户均可授权进入 A380；绑定运营人员后，可按所授角色使用管理功能。</p>
+      <p class="tip">运营人员使用账号密码登录管理后台，IM 账号可选。所有 IM 用户均可授权进入 C 端；绑定运营人员后，可按所授角色使用管理功能。</p>
       <el-table :data="rows" v-loading="loading" border stripe>
         <el-table-column prop="username" label="登录账号" min-width="150" />
         <el-table-column prop="displayName" label="显示名" min-width="110" />
@@ -96,7 +96,7 @@
     </el-dialog>
 
     <el-dialog v-model="bindImVisible" title="关联 IM 账号" width="min(420px, 94vw)">
-      <p class="tip">关联后，运营人员仍使用原登录账号和密码进入 SaaS 后台；该 IM 身份同时获得当前角色的管理权限。所有已授权 IM 用户进入 A380 C 端的能力不受影响。</p>
+      <p class="tip">关联后，运营人员仍使用原登录账号和密码进入 SaaS 后台；该 IM 身份同时获得当前角色的管理权限。所有已授权 IM 用户进入 C 端的能力不受影响。</p>
       <el-form label-width="80px">
         <el-form-item label="运营人员">
           {{ bindTarget?.displayName || bindTarget?.username }}

@@ -371,7 +371,7 @@ describe('i18n 防回退（源码扫描）', () => {
         const relative = path.relative(srcRoot, file).split(path.sep).join('/')
         if (relative === 'constants/terms.js') continue
         const source = await readSource(file)
-        expect(`${relative}:${/A380币/.test(source)}`).toBe(`${relative}:false`)
+        expect(`${relative}:${/OpenChat币/.test(source)}`).toBe(`${relative}:false`)
       }
     }
   })

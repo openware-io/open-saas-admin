@@ -129,7 +129,7 @@ describe('全后台文案一致性', () => {
   it('消费端页面不在硬编码储值品牌名（取租户配置 wallet_brand_name）', async () => {
     for (const view of ['tenant/orders.vue', 'tenant/payments.vue', 'tenant/ktv-config.vue']) {
       const source = await readSource(`views/${view}`)
-      expect(source).not.toContain('A380币')
+      expect(source).not.toContain('OpenChat币')
     }
   })
 
