@@ -20,7 +20,13 @@ export function chooseSingleContext(items, preferredScope) {
   if (preferredScope === 'PLATFORM') {
     return scoped[0] || list[0]
   }
-  const withStore = list.filter((c) => c.storeId != null)
+  // 租户后台默认进总部；门店是独立工作区。否则租户管理员一进来就被
+  // 带到某家 KTV，经营总览必然报“必须在租户上下文”。
+  if (preferredScope === 'TENANT') {
+    const headquarters = list.filter((c) => c.scopeType === 'TENANT' || !c.storeId || c.storeId === 0)
+    if (headquarters.length) return headquarters[0]
+  }
+  const withStore = list.filter((c) => c.storeId != null && c.storeId !== 0)
   if (withStore.length) return withStore[0]
   if (scoped.length) return scoped[0]
   return list[0]

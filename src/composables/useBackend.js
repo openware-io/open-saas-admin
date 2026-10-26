@@ -18,6 +18,12 @@ export function useBackend() {
     authStore.setScope(scope)
     const contextStore = useContextStore()
     if (scope === 'TENANT' || scope === 'STORE') await contextStore.ensureContext(scope)
+    if (scope === 'TENANT') {
+      const headquarters = contextStore.items.find((item) => item.scopeType === 'TENANT' || !item.storeId || item.storeId === 0)
+      if (headquarters && contextStore.current?.storeId) {
+        await contextStore.select(headquarters.contextId)
+      }
+    }
     if (scope === 'STORE') {
       const storeContext = contextStore.items.find((item) => item.storeId != null)
       if (storeContext && contextStore.current?.storeId !== storeContext.storeId) {

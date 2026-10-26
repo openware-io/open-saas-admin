@@ -11,12 +11,12 @@ describe('chooseSingleContext', () => {
     expect(chooseSingleContext(items)).toMatchObject({ contextId: 'one' })
   })
 
-  it('进入租户后台优先带门店的上下文（开台/订单需要 storeId）', () => {
+  it('进入租户后台优先总部上下文；门店是独立工作区', () => {
     const items = [
-      { contextId: 'tenant-only', storeId: null, scopeType: 'TENANT' },
+      { contextId: 'tenant-only', storeId: 0, scopeType: 'TENANT' },
       { contextId: 'store-ctx', storeId: 100, scopeType: 'STORE' },
     ]
-    expect(chooseSingleContext(items, 'TENANT')).toMatchObject({ contextId: 'store-ctx' })
+    expect(chooseSingleContext(items, 'TENANT')).toMatchObject({ contextId: 'tenant-only' })
   })
 
   it('进入平台运营后台优先 PLATFORM 上下文（即使另有门店上下文）', () => {
