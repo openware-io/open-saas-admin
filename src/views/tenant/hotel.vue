@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h2>酒店前台</h2>
-        <p class="subtle">预订、入住、退房和账务已接后端；酒店资料/房型/房价配置暂未提供页面。</p>
+        <p class="subtle">前台任务、房态与账务；酒店资料、房型、房价和库存在「酒店资料」中维护。</p>
       </div>
       <div class="header-actions">
         <el-button @click="router.push('/admin/tenant/hotel-master')">酒店资料</el-button>
@@ -13,16 +13,6 @@
         <el-button :loading="loading" @click="reload">刷新</el-button>
       </div>
     </div>
-
-    <img class="hotel-cover-img" :src="hotelCover" alt="SaaS Hotel 封面" />
-
-    <el-alert
-      type="info"
-      :closable="false"
-      class="hotel-notice"
-      title="酒店主数据页面尚未接入"
-      description="房型、房价、库存目前通过接口维护；本页只做前台预订和入住退房。"
-    />
 
     <div class="metric-grid">
       <div v-for="metric in metrics" :key="metric.label" class="metric-card">
@@ -368,7 +358,6 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import hotelCover from '@/assets/hotel-cover.svg'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   cancelHotelBooking,
@@ -1000,7 +989,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.hotel-page { padding-bottom: 32px; }
+.hotel-page { display: flex; flex-direction: column; padding-bottom: 32px; }
+.hotel-page .metric-grid { order: 1; }
+.hotel-page .admin-card.room-board-card { order: 2; }
+.hotel-page .admin-card { order: 3; }
 .hotel-notice { margin-bottom: 12px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .header-actions { display: flex; gap: 8px; }
