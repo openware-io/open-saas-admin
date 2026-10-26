@@ -2,7 +2,7 @@
   <div class="admin-page">
     <div class="page-header">
       <h2>KTV 配置</h2>
-      <span class="page-desc">计价方案 / 服务人员 / 支付开关（租户后台）</span>
+      <span class="page-desc">租户管理员维护本租户默认/业态默认/门店覆盖；平台级支付渠道由平台配置</span>
       <!-- 储值是租户级、跨门店共用的资产，不在 KTV 配置里再开一套充值入口：统一去「储值管理」。 -->
       <el-button link type="primary" class="wallet-entry" @click="goWallet">
         {{ walletBrand }}储值在「储值管理」<el-icon><ArrowRight /></el-icon>
