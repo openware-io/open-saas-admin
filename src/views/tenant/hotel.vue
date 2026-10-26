@@ -194,6 +194,15 @@
         <el-form-item label="手机号">
           <el-input v-model="form.guestPhone" maxlength="32" />
         </el-form-item>
+        <el-form-item label="关联客户">
+          <el-select v-model="form.bookedByAccountId" filterable remote clearable style="width:100%"
+            :remote-method="searchCustomers" :loading="customerLoading"
+            placeholder="可选：输入手机号/姓名搜索客户，关联后客户在“我的预约”可见">
+            <el-option v-for="item in customerOptions" :key="item.accountId"
+              :label="(item.name || item.phone || '客户') + ' · ' + (item.phone || '')"
+              :value="item.accountId" />
+          </el-select>
+        </el-form-item>
       </el-form>
 
       <el-alert v-if="quote" :closable="false" type="success" class="quote-box">
@@ -238,6 +247,7 @@ import {
   startHousekeepingTask,
   syncHotelRefunds,
 } from '@/api/hotel'
+import { listMembers } from '@/api/member'
 import {
   hotelBookingStatusText,
   hotelFolioStatusText,
@@ -273,6 +283,9 @@ const extendBooking = ref(null)
 const extendDate = ref('')
 const extending = ref(false)
 const auditLoading = ref(false)
+const customerOptions = ref([])
+const customerLoading = ref(false)
+
 const form = reactive({
   roomTypeId: null,
   ratePlanId: null,
@@ -336,6 +349,22 @@ async function loadOptions() {
     ratePlans.value = (await listHotelRatePlans(hotelId)) || []
   } catch (error) {
     notifyAdminRequestError(error, '加载酒店房型/房价失败')
+  }
+}
+
+async function searchCustomers(keyword) {
+  if (!keyword || keyword.trim().length < 2) {
+    customerOptions.value = []
+    return
+  }
+  customerLoading.value = true
+  try {
+    const page = await listMembers({ page: 1, pageSize: 20, keyword: keyword.trim() })
+    customerOptions.value = (page?.records || []).filter((item) => item.accountId)
+  } catch (error) {
+    customerOptions.value = []
+  } finally {
+    customerLoading.value = false
   }
 }
 
