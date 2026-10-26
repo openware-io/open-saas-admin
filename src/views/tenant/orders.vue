@@ -1994,7 +1994,7 @@ async function closeOrderSession(order, closeItemsDialog = false) {
 
 // —— 收银：组合支付（KTV_BUSINESS_01 §7.2）——
 // 抵扣顺序固定「积分 → 储值 → 现金补差额」，每笔 ≤ 剩余应收；支付方式取后台授权口径，
-// 储值展示名取租户配置 wallet_brand_name，与 A380 商户端 H5 收银台保持同一套口径。
+// 储值展示名取租户配置 wallet_brand_name，与 SaaS 商户端 H5 收银台保持同一套口径。
 const collectOrderTotalMinor = computed(() => Math.round(Number(collectOrder.value?.totalAmount || 0)))
 const collectOrderPaidMinor = computed(() => Math.round(Number(collectOrder.value?.paidAmount || 0)))
 /** 应收优先用服务端账单的 payableAmount，缺省时退回「合计 − 已收」。 */
@@ -2627,7 +2627,7 @@ onUnmounted(() => {
   .catalog-manage-toolbar { align-items: stretch; flex-direction: column; }
   .catalog-manage-form { grid-template-columns: 1fr; }
 }
-/* 收银台：组合支付金额与拆分校验提示（与 A380 商户端 H5 一致的口径） */
+/* 收银台：组合支付金额与拆分校验提示（与 SaaS 商户端 H5 一致的口径） */
 .collect-amount { font-size: 20px; font-weight: 700; color: #f56c6c; }
 .collect-muted { margin-left: 8px; color: var(--el-text-color-secondary); font-size: 12px; }
 .collect-mismatch { margin-left: 8px; color: var(--el-color-warning); font-size: 13px; }

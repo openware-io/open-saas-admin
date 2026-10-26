@@ -79,8 +79,8 @@ describe('分配候选：服务端给的可分配性与原因', () => {
     { resourceId: 3, name: 'A303', roomTypeId: 7, assignable: false, reason: '清洁中', roomState: 'CLEANING' },
     {
       resourceId: 4, name: 'A304', roomTypeId: 7, assignable: false, currentAssignment: false,
-      reason: '本时段已被预约 A380123（09-19 20:00–23:00）占用',
-      conflictReservationNo: 'A380123', conflictWindow: '09-19 20:00–23:00', roomState: 'IDLE',
+      reason: '本时段已被预约 SaaS123（09-19 20:00–23:00）占用',
+      conflictReservationNo: 'SaaS123', conflictWindow: '09-19 20:00–23:00', roomState: 'IDLE',
     },
   ]
 
@@ -93,7 +93,7 @@ describe('分配候选：服务端给的可分配性与原因', () => {
     expect(summarizeUnavailableRooms(candidates)).toEqual([
       { reason: '使用中', count: 1 },
       { reason: '清洁中', count: 1 },
-      { reason: '本时段已被预约 A380123（09-19 20:00–23:00）占用', count: 1 },
+      { reason: '本时段已被预约 SaaS123（09-19 20:00–23:00）占用', count: 1 },
     ])
   })
 
