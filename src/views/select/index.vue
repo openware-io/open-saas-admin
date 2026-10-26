@@ -50,7 +50,7 @@
           </div>
           <div class="backend-info">
             <div class="backend-name">
-              {{ b.name }}
+              {{ backendDisplayName(b) }}
               <el-tag v-if="b.code === 'im'" size="small" type="info">外部</el-tag>
             </div>
             <div class="backend-path">{{ b.code === 'im' ? IM_ADMIN_BASE_URL : b.path }}</div>
@@ -152,6 +152,16 @@ onMounted(() => {
     contextStore.fetchContexts()
   }
 })
+
+function backendDisplayName(backend) {
+  if (backend.code === 'platform') {
+    return persona.value.badge === '超级管理员' ? 'SaaS 平台管理后台' : 'SaaS 平台运营后台'
+  }
+  if (backend.code === 'tenant') return 'SaaS 租户管理后台'
+  if (backend.code === 'store') return 'SaaS 门店经营后台'
+  if (backend.code === 'im') return 'IM 管理后台'
+  return backend.name
+}
 
 function enter(code) {
   enterBackend(code)
