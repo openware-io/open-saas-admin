@@ -38,6 +38,15 @@
 
       <el-tab-pane label="支付与押金" name="policy">
         <el-form :model="policyForm" label-width="150px" class="master-form">
+          <el-form-item label="接入模式">
+            <el-select v-model="policyForm.accessMode" style="width:260px">
+              <el-option label="单店" value="SINGLE_STORE" />
+              <el-option label="集团" value="GROUP" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="销售入口">
+            <el-input v-model="policyForm.entryPoints" maxlength="255" placeholder="服务中心,休闲娱乐" />
+          </el-form-item>
           <el-form-item label="支付模式">
             <el-select v-model="policyForm.paymentMode" style="width:260px">
               <el-option label="全额预付" value="PREPAY" />
@@ -280,7 +289,7 @@ const activeTab = ref('hotel')
 const savingHotel = ref(false)
 const savingMaster = ref(false)
 const policyForm = reactive({
-  paymentMode: 'PREPAY', depositRatioBps: 3000, stayDepositRequired: true, stayDepositMode: 'COLLECT',
+  accessMode: 'SINGLE_STORE', entryPoints: '', paymentMode: 'PREPAY', depositRatioBps: 3000, stayDepositRequired: true, stayDepositMode: 'COLLECT',
   stayDepositMinor: 0, stayDepositRatioBps: 0, cancelPolicy: 'FREE_UNTIL_24H',
   pointsRedeemEnabled: false, pointsMaxRatioBps: 0,
 })
