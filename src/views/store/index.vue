@@ -2,7 +2,7 @@
   <div class="admin-page store-home">
     <div class="page-header">
       <div>
-        <h2>门店工作台</h2>
+        <h2>门店管理后台</h2>
         <p class="subtle">
           {{ context?.storeName || '未选择门店' }}
           <span v-if="context?.businessType"> · {{ businessTypeText(context.businessType) }}</span>
