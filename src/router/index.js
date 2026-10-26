@@ -199,6 +199,12 @@ const routes = [
         component: () => import('@/views/tenant/hotel.vue'),
         meta: { title: '酒店管理', icon: 'OfficeBuilding', scope: 'TENANT' },
       },
+      {
+        path: 'admin/tenant/hotel-master',
+        name: 'HotelMasterData',
+        component: () => import('@/views/tenant/hotel-master.vue'),
+        meta: { title: '酒店资料', icon: 'OfficeBuilding', scope: 'TENANT', hidden: true },
+      },
       // 审计日志：菜单与 audit.view 权限由后端下发（不新增后端菜单/权限），
       // 因此这里刻意不绑定 meta.scope —— 平台/租户两种视角都能直达本页，
       // 「租户」列由页面按当前 scope 决定是否展示，越权拦截由后端强制。

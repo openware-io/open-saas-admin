@@ -6,6 +6,7 @@
         <p class="subtle">预订、入住、退房和账务已接后端；酒店资料/房型/房价配置暂未提供页面。</p>
       </div>
       <div class="header-actions">
+        <el-button @click="router.push('/admin/tenant/hotel-master')">酒店资料</el-button>
         <el-button v-if="canCreate" type="primary" @click="openBooking">新建预订</el-button>
         <el-button v-if="canManageRooms" :loading="auditLoading" @click="runAudit">夜审</el-button>
         <el-button v-if="canCollect" :loading="refundSyncing" @click="syncRefunds">同步退款</el-button>
