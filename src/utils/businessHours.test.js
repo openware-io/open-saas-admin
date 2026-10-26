@@ -10,10 +10,10 @@ import {
 
 /**
  * 营业时间判定：与服务端（KtvBusinessHoursApplicationService / TenantBusinessHoursClient）
- * 同一语义 —— 左闭右开、跨自然日、全天营业；缺省 KTV 夜间业态 18:00 – 次日 05:00。
+ * 同一语义 —— 左闭右开、跨自然日、全天营业；缺省 KTV 夜间业务类型 18:00 – 次日 05:00。
  */
 describe('营业时间：缺省与文案', () => {
-  it('缺省就是 KTV 夜间业态 18:00 – 次日 05:00', () => {
+  it('缺省就是 KTV 夜间业务类型 18:00 – 次日 05:00', () => {
     expect(DEFAULT_BUSINESS_HOURS.openTime).toBe('18:00')
     expect(DEFAULT_BUSINESS_HOURS.closeTime).toBe('05:00')
     expect(DEFAULT_BUSINESS_HOURS.crossesMidnight).toBe(true)

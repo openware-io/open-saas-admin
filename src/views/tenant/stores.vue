@@ -18,11 +18,11 @@
 
     <section v-if="onboardingIssues.length" class="admin-card onboarding-card">
       <div class="section-title">门店开通清单</div>
-      <p class="subtle">以下门店还缺少业态或时区，补齐后才适合进入日常经营。</p>
+      <p class="subtle">以下门店还缺少业务类型或时区，补齐后才适合进入日常经营。</p>
       <div class="onboarding-list">
         <div v-for="store in onboardingIssues" :key="store.id" class="onboarding-item">
           <strong>{{ store.name }}</strong>
-          <span>{{ store.businessType ? '缺少时区' : '缺少业态' }}</span>
+          <span>{{ store.businessType ? '缺少时区' : '缺少业务类型' }}</span>
         </div>
       </div>
     </section>
@@ -40,7 +40,7 @@
       <el-table :data="filteredRows" v-loading="loading" border stripe>
         <el-table-column prop="code" label="门店编号" width="160" />
         <el-table-column prop="name" label="门店名称" min-width="180" />
-        <el-table-column label="业态" width="100" align="center">
+        <el-table-column label="业务类型" width="100" align="center">
           <template #default="{ row }">{{ row.businessTypeName || businessTypeText(row.businessType) }}</template>
         </el-table-column>
         <el-table-column label="币种" width="140" align="center">

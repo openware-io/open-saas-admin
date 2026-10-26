@@ -96,7 +96,7 @@
         <div class="section-title">订单经营事实</div>
         <el-table :data="overview.order.rows || []" size="small" border>
           <el-table-column prop="storeId" label="门店" width="100" />
-          <el-table-column label="业态" width="120">
+          <el-table-column label="业务类型" width="120">
             <template #default="{ row }">{{ businessTypeText(row.businessType) }}</template>
           </el-table-column>
           <el-table-column prop="currencyCode" label="币种" width="100" />
@@ -108,7 +108,7 @@
             <template #default="{ row }">{{ formatMoney(Number(row.paidAmount || 0), row.currencyCode) }}</template>
           </el-table-column>
         </el-table>
-        <p class="subtle">订单事实按门店、业态和币种分组；退款事实由支付领域独立展示。</p>
+        <p class="subtle">订单事实按门店、业务类型和币种分组；退款事实由支付领域独立展示。</p>
       </section>
       <el-alert v-if="overview?.dataStatus === 'PARTIAL'" type="warning" :closable="false" show-icon
         title="部分领域暂不可用" description="页面展示的指标来自当前可用领域，失败项可稍后刷新重试。" class="error-alert" />
@@ -146,7 +146,7 @@ const range = ref([])
 const customer = computed(() => overview.value?.customer || {})
 const onboardingSteps = computed(() => [
   { key: 'store', label: '创建门店', hint: '至少有一家营业门店', done: stores.value.length > 0, action: '/admin/tenant/stores', actionLabel: '去创建' },
-  { key: 'business', label: '开通业态', hint: '门店已绑定酒店/KTV等业态', done: stores.value.some((store) => !!store.businessType), action: '/admin/tenant/stores', actionLabel: '去配置' },
+  { key: 'business', label: '开通业务类型', hint: '门店已绑定酒店/KTV等业务类型', done: stores.value.some((store) => !!store.businessType), action: '/admin/tenant/stores', actionLabel: '去配置' },
   { key: 'payment', label: '配置支付方式', hint: '至少配置一种可用收款方式', done: (overview.value?.payment?.rows || []).length > 0, action: '/business/payment-methods', actionLabel: '去配置' },
   { key: 'order', label: '产生首笔订单', hint: '有订单后经营总览才有真实数据', done: (overview.value?.order?.rows || []).length > 0, action: '/business/orders', actionLabel: '去查看' },
 ])

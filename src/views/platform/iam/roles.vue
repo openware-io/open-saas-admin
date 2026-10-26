@@ -28,7 +28,7 @@
         <el-table-column label="数据范围" width="120">
           <template #default="{ row }">{{ scopeTypeText(row.defaultScope) }}</template>
         </el-table-column>
-        <el-table-column prop="defaultBusinessType" label="默认业态" width="110">
+        <el-table-column prop="defaultBusinessType" label="默认业务类型" width="110">
           <template #default="{ row }">{{ row.defaultBusinessType || '全部' }}</template>
         </el-table-column>
         <el-table-column prop="sortNo" label="优先级" width="90" align="center" />

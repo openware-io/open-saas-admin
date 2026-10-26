@@ -418,11 +418,11 @@ export function pointsEntryTypeText(type) {
 }
 
 /**
- * 门店业态（tnt_store.business_type，字典 tnt_business_type.code）：后端已种子的唯一业态是
- * KTV（字典里的 name 也是「KTV」），因此界面展示保持「KTV」；新增业态必须补进本词表。
+ * 门店业务类型（tnt_store.business_type，字典 tnt_business_type.code）：后端已种子的唯一业务类型是
+ * KTV（字典里的 name 也是「KTV」），因此界面展示保持「KTV」；新增业务类型必须补进本词表。
  */
-export const BUSINESS_TYPE_TEXT = { KTV: 'KTV' }
-export const CONFIG_SCOPE_TEXT = { TENANT: '租户默认', BUSINESS: '业态默认', STORE: '门店覆盖' }
+export const BUSINESS_TYPE_TEXT = { KTV: 'KTV', HOTEL: '酒店' }
+export const CONFIG_SCOPE_TEXT = { TENANT: '租户默认', BUSINESS: '业务类型默认', STORE: '门店覆盖' }
 export function businessTypeText(type) {
   return BUSINESS_TYPE_TEXT[type] || unknownEnumText(type)
 }
@@ -814,7 +814,7 @@ export const AUDIT_RESOURCE_TYPE_TEXT = {
   tnt_store: '门店',
   tnt_organization: '组织',
   tnt_pricing_plan: '计价方案',
-  tnt_business_type: '业态',
+  tnt_business_type: '业务类型',
   iam_role: '角色',
   iam_permission: '权限',
   iam_user_role: '账号角色',

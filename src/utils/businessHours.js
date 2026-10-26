@@ -10,7 +10,7 @@
  *  **左闭右开 `[open, close)`；`close < open` 表示跨自然日（18:00–05:00 覆盖凌晨）；`open == close` 全天营业。**
  */
 
-/** 缺省营业时间：KTV 夜间业态（与服务端 DEFAULT 一致，不要各写一份）。 */
+/** 缺省营业时间：KTV 夜间业务类型（与服务端 DEFAULT 一致，不要各写一份）。 */
 export const DEFAULT_BUSINESS_HOURS = Object.freeze({
   openTime: '18:00',
   closeTime: '05:00',
