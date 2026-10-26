@@ -7,16 +7,25 @@
         <span v-show="!isCollapse" class="logo-text">{{ shell.title }}</span>
       </div>
       <div v-if="shell.showStoreContext" class="context-panel">
-        <div v-if="shell.showTenantSelector" class="context-tenant">租户 · {{ contextStore.current?.tenantName || '请选择租户' }}</div>
+        <div v-if="shell.showTenantSelector" class="context-tenant">
+          <span class="context-kicker">租户</span>
+          <strong>{{ contextStore.current?.tenantName || '请选择租户' }}</strong>
+        </div>
         <div v-if="contextStore.current?.scopeType === 'TENANT' || contextStore.current?.storeId === 0" class="context-store">
-          <span>总部 · {{ contextStore.current?.tenantName || '租户总部' }}</span>
-          <span class="context-meta">跨店汇总 / 租户配置</span>
+          <span class="context-kicker">当前范围</span>
+          <strong>总部</strong>
+          <span class="context-meta">全部门店 · 跨店汇总与租户设置</span>
         </div>
         <div v-else-if="contextStore.current?.storeId" class="context-store">
-          <span>门店 · {{ contextStore.current?.storeName || '当前门店' }}</span>
-          <span class="context-meta">{{ contextStore.current?.businessType || '业务' }} · {{ contextStore.current?.timezone || '时区未设置' }}</span>
+          <span class="context-kicker">当前门店</span>
+          <strong>{{ contextStore.current?.storeName || '当前门店' }}</strong>
+          <span class="context-meta">{{ businessTypeText(contextStore.current?.businessType) }} · {{ contextStore.current?.timezone || '时区未设置' }}</span>
         </div>
-        <div v-else class="context-store context-empty">请选择门店进入门店经营</div>
+        <div v-else class="context-store context-empty">
+          <span class="context-kicker">当前门店</span>
+          <strong>未选择门店</strong>
+          <span class="context-meta">请选择门店进入门店经营</span>
+        </div>
       </div>
       <el-menu
         :default-active="route.path"
@@ -161,7 +170,7 @@ import { useCurrencyStore } from '@/stores/currency'
 import { filterMenusByPermission } from '@/utils/menuPermission'
 import { createSessionWatchdog } from '@/utils/sessionWatchdog'
 import { SESSION_EXPIRED_EVENT, emitRuntimeEvent } from '@/utils/runtime-events'
-import { ERRORS } from '@/constants/terms'
+import { ERRORS, businessTypeText } from '@/constants/terms'
 import SidebarMenuItem from './components/SidebarMenuItem.vue'
 import PendingApprovalDrawer from '@/components/PendingApprovalDrawer.vue'
 import TenantContextSelector from '@/components/TenantContextSelector.vue'
@@ -491,10 +500,47 @@ async function submitPasswordChange() {
   flex: 0 0 auto;
 }
 
-.context-tenant { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.context-store { color: #a3a6ad; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.context-meta { display: block; color: #7e8494; }
-.context-empty { color: #e6a23c; }
+.context-tenant,
+.context-store {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.context-store {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.context-kicker {
+  color: #737b8b;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+}
+
+.context-tenant strong,
+.context-store strong {
+  overflow: hidden;
+  color: #edf2f7;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-meta {
+  overflow: hidden;
+  color: #8b93a4;
+  font-size: 11px;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.context-empty strong { color: #e6a23c; }
 
 .sidebar-menu {
   border-right: none;
