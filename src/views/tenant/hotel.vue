@@ -984,8 +984,8 @@ async function checkOut(row) {
 }
 
 onMounted(async () => {
-  await reload()
   await loadOptions()
+  await reload()
 })
 </script>
 
