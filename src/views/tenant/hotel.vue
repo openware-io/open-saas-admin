@@ -964,12 +964,15 @@ async function loadRoomStates() {
   roomStatesLoading.value = true
   try {
     const rooms = (await listHotelRooms()) || []
-    if (!roomTypes.value.length) {
-      const hotels = (await listHotels()) || []
-      if (hotels[0]?.id) roomTypes.value = (await listHotelRoomTypes(hotels[0].id)) || []
+    if (!roomTypes.value.length && rooms[0]?.hotelId) {
+      roomTypes.value = (await listHotelRoomTypes(rooms[0].hotelId)) || []
     }
     const typeNames = new Map(roomTypes.value.map((type) => [String(type.id), type.name]))
-    roomStates.value = rooms.map((room) => ({ ...room, roomTypeName: typeNames.get(String(room.roomTypeId)) || `房型 ${room.roomTypeId}` }))
+    const taskTypeByRoom = new Map(tasks.value.filter((task) => task.roomNo && task.roomType).map((task) => [task.roomNo, task.roomType]))
+    roomStates.value = rooms.map((room) => ({
+      ...room,
+      roomTypeName: typeNames.get(String(room.roomTypeId)) || taskTypeByRoom.get(room.roomNo) || `房型 ${room.roomTypeId}`,
+    }))
   } catch (error) {
     notifyAdminRequestError(error, '加载房态失败')
   } finally {
