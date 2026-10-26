@@ -6,7 +6,7 @@
         <h2>酒店前台</h2>
         <p class="subtle">{{ hotelName }} · 今日房态、到店与离店任务</p>
         <div class="hero-meta">
-          <span><i class="hero-dot"></i>{{ context?.businessType === 'HOTEL' ? '酒店门店' : '当前门店' }}</span>
+          <span><i class="hero-dot"></i>{{ context?.businessType ? businessTypeText(context.businessType) : '当前门店' }}</span>
           <span>{{ context?.timezone || 'Asia/Shanghai' }}</span>
         </div>
       </div>
@@ -433,6 +433,7 @@ import {
 } from '@/api/hotel'
 import { listMembers } from '@/api/member'
 import {
+  businessTypeText,
   hotelBookingStatusText,
   hotelFolioStatusText,
   hotelRoomStatusText,
