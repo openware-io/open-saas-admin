@@ -194,7 +194,22 @@ async function load() {
   } finally { loading.value = false }
 }
 
-onMounted(async () => { await loadStores(); await loadBusinesses(); await load() })
+onMounted(async () => {
+  // 总部经营总览只属于 HEADQUARTERS 数据范围；门店上下文没有跨店汇总，
+  // 直接进入该门店的业务首页，避免显示一条“没有权限”的空页面。
+  if (contextStore.storeId) {
+    const target = contextStore.businessType === 'HOTEL'
+      ? '/admin/tenant/hotel'
+      : contextStore.businessType === 'KTV'
+        ? '/admin/ktv/config'
+        : '/admin/orders'
+    await router.replace(target)
+    return
+  }
+  await loadStores()
+  await loadBusinesses()
+  await load()
+})
 </script>
 
 <style scoped>

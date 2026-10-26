@@ -64,16 +64,22 @@ async function handleSelect(contextId) {
     // 租户管理员切到门店时进入门店工作区；切回总部时进入租户经营总览。
     // 门店经理没有总部工作区，隐藏此选择器，不会走这里。
     if (canSwitchWorkspace.value) {
+      // 租户管理员始终是 HEADQUARTERS 工作区；门店上下文只是数据范围。
+      // 切到门店时进入该门店的业务首页，而不是切换成门店经理的 /store 工作区。
+      authStore.setScope('TENANT')
+      await menuStore.fetchMenus('TENANT')
       if (selected?.storeId && selected.storeId !== 0) {
-        authStore.setScope('STORE')
-        await menuStore.fetchMenus('STORE')
-        await router.push('/store')
+        const target = selected.businessType === 'HOTEL'
+          ? '/admin/tenant/hotel'
+          : selected.businessType === 'KTV'
+            ? '/admin/ktv/config'
+            : '/admin/orders'
+        await router.push(target)
+        ElMessage.success(`已切换到门店：${selected.storeName || '当前门店'}`)
       } else {
-        authStore.setScope('TENANT')
-        await menuStore.fetchMenus('TENANT')
         await router.push('/admin/tenant/overview')
+        ElMessage.success('已回到租户总部')
       }
-      ElMessage.success(selected?.storeId && selected.storeId !== 0 ? '已进入门店工作区' : '已回到租户总部')
       return
     }
     ElMessage.success('已切换租户上下文')
