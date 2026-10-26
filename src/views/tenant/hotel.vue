@@ -22,6 +22,53 @@
       </div>
     </div>
 
+    <div class="admin-card room-board-card">
+      <div class="section-head room-board-head">
+        <div>
+          <h3>房态图</h3>
+          <p class="room-board-subtitle">按楼层查看实时房态，颜色区分空闲、在住、脏房与维修</p>
+        </div>
+        <div class="room-board-summary">
+          <span v-for="item in roomSummary" :key="item.key" class="room-summary-item" :class="`is-${item.key}`">
+            <b>{{ item.count }}</b><small>{{ item.label }}</small>
+          </span>
+        </div>
+      </div>
+      <div v-loading="roomStatesLoading" class="room-board">
+        <div v-if="!roomBoard.length && !roomStatesLoading" class="room-board-empty">当前门店还没有客房，请先在酒店资料中添加房型与客房。</div>
+        <section v-for="floor in roomBoard" :key="floor.key" class="room-floor">
+          <header class="room-floor-head">
+            <h4>{{ floor.label }}</h4>
+            <span>{{ floor.rooms.length }} 间</span>
+          </header>
+          <div class="room-grid">
+            <article
+              v-for="room in floor.rooms"
+              :key="room.id"
+              class="room-tile"
+              :class="`room-tile-${room.tone}`"
+            >
+              <div class="room-tile-top">
+                <strong>{{ room.roomNo }}</strong>
+                <span class="room-status-dot" :aria-label="room.statusLabel"></span>
+              </div>
+              <span class="room-type">{{ room.roomTypeName }}</span>
+              <span class="room-status-label">{{ room.statusLabel }}</span>
+              <span v-if="room.guestName" class="room-guest">{{ room.guestName }}<template v-if="room.bookingStatusLabel"> · {{ room.bookingStatusLabel }}</template></span>
+              <span v-else class="room-guest room-guest-empty">暂无在住</span>
+            </article>
+          </div>
+        </section>
+      </div>
+      <div class="room-legend">
+        <span><i class="legend-dot is-active"></i>空闲</span>
+        <span><i class="legend-dot is-occupied"></i>在住</span>
+        <span><i class="legend-dot is-dirty"></i>脏房</span>
+        <span><i class="legend-dot is-maintenance"></i>维修</span>
+      </div>
+    </div>
+
+
     <div class="admin-card">
       <div class="section-head">
         <h3>前台任务</h3>
@@ -147,52 +194,6 @@
           <template #default="{ row }">{{ formatMoney(row.amountMinor, row.currency) }}</template>
         </el-table-column>
       </el-table>
-    </div>
-
-    <div class="admin-card room-board-card">
-      <div class="section-head room-board-head">
-        <div>
-          <h3>房态图</h3>
-          <p class="room-board-subtitle">按楼层查看实时房态，颜色区分空闲、在住、脏房与维修</p>
-        </div>
-        <div class="room-board-summary">
-          <span v-for="item in roomSummary" :key="item.key" class="room-summary-item" :class="`is-${item.key}`">
-            <b>{{ item.count }}</b><small>{{ item.label }}</small>
-          </span>
-        </div>
-      </div>
-      <div v-loading="roomStatesLoading" class="room-board">
-        <div v-if="!roomBoard.length && !roomStatesLoading" class="room-board-empty">当前门店还没有客房，请先在酒店资料中添加房型与客房。</div>
-        <section v-for="floor in roomBoard" :key="floor.key" class="room-floor">
-          <header class="room-floor-head">
-            <h4>{{ floor.label }}</h4>
-            <span>{{ floor.rooms.length }} 间</span>
-          </header>
-          <div class="room-grid">
-            <article
-              v-for="room in floor.rooms"
-              :key="room.id"
-              class="room-tile"
-              :class="`room-tile-${room.tone}`"
-            >
-              <div class="room-tile-top">
-                <strong>{{ room.roomNo }}</strong>
-                <span class="room-status-dot" :aria-label="room.statusLabel"></span>
-              </div>
-              <span class="room-type">{{ room.roomTypeName }}</span>
-              <span class="room-status-label">{{ room.statusLabel }}</span>
-              <span v-if="room.guestName" class="room-guest">{{ room.guestName }}<template v-if="room.bookingStatusLabel"> · {{ room.bookingStatusLabel }}</template></span>
-              <span v-else class="room-guest room-guest-empty">暂无在住</span>
-            </article>
-          </div>
-        </section>
-      </div>
-      <div class="room-legend">
-        <span><i class="legend-dot is-active"></i>空闲</span>
-        <span><i class="legend-dot is-occupied"></i>在住</span>
-        <span><i class="legend-dot is-dirty"></i>脏房</span>
-        <span><i class="legend-dot is-maintenance"></i>维修</span>
-      </div>
     </div>
 
     <div class="admin-card">
