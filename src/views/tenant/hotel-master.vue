@@ -36,6 +36,54 @@
         </el-form>
       </el-tab-pane>
 
+      <el-tab-pane label="支付与押金" name="policy">
+        <el-form :model="policyForm" label-width="150px" class="master-form">
+          <el-form-item label="支付模式">
+            <el-select v-model="policyForm.paymentMode" style="width:260px">
+              <el-option label="全额预付" value="PREPAY" />
+              <el-option label="到店付" value="PAY_AT_HOTEL" />
+              <el-option label="定金" value="DEPOSIT" />
+            </el-select>
+            <span class="form-hint">到店付会在下单后直接确认并占用库存；定金模式等待前台收定金确认。</span>
+          </el-form-item>
+          <el-form-item label="定金比例（bps）">
+            <el-input-number v-model="policyForm.depositRatioBps" :min="0" :max="10000" :step="500" />
+            <span class="form-hint">3000 = 30%</span>
+          </el-form-item>
+          <el-form-item label="入住必须收押金">
+            <el-switch v-model="policyForm.stayDepositRequired" />
+          </el-form-item>
+          <el-form-item label="押金模式">
+            <el-select v-model="policyForm.stayDepositMode" style="width:260px">
+              <el-option label="前台收取" value="COLLECT" />
+              <el-option label="银行卡预授权（预留）" value="PRE_AUTH" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="固定押金（分）">
+            <el-input-number v-model="policyForm.stayDepositMinor" :min="0" :step="1000" />
+          </el-form-item>
+          <el-form-item label="押金比例（bps）">
+            <el-input-number v-model="policyForm.stayDepositRatioBps" :min="0" :max="10000" :step="500" />
+            <span class="form-hint">固定押金为 0 时按此比例计算</span>
+          </el-form-item>
+          <el-form-item label="取消政策">
+            <el-select v-model="policyForm.cancelPolicy" style="width:260px">
+              <el-option label="入住前 24 小时免费取消" value="FREE_UNTIL_24H" />
+              <el-option label="不可取消" value="NON_REFUNDABLE" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="积分抵扣">
+            <el-switch v-model="policyForm.pointsRedeemEnabled" />
+          </el-form-item>
+          <el-form-item label="积分最大抵扣比例（bps）">
+            <el-input-number v-model="policyForm.pointsMaxRatioBps" :min="0" :max="10000" :step="500" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="policySaving" @click="savePolicy">保存支付与押金策略</el-button>
+          </el-form-item>
+        </el-form>
+      </el-tab-pane>
+
       <el-tab-pane label="房型与客房" name="rooms">
         <div class="section-head">
           <h3>房型</h3>
@@ -208,8 +256,10 @@ import {
   listHotelInventory,
   listHotelRatePlans,
   listHotelRoomTypes,
+  getHotelPolicy,
   listHotelRooms,
   listHotels,
+  updateHotelPolicy,
   setHotelDailyRate,
   setHotelInventory,
   setHotelRoomStatus,
@@ -229,6 +279,12 @@ const hotelId = ref(null)
 const activeTab = ref('hotel')
 const savingHotel = ref(false)
 const savingMaster = ref(false)
+const policyForm = reactive({
+  paymentMode: 'PREPAY', depositRatioBps: 3000, stayDepositRequired: true, stayDepositMode: 'COLLECT',
+  stayDepositMinor: 0, stayDepositRatioBps: 0, cancelPolicy: 'FREE_UNTIL_24H',
+  pointsRedeemEnabled: false, pointsMaxRatioBps: 0,
+})
+const policySaving = ref(false)
 const roomTypes = ref([])
 const rooms = ref([])
 const ratePlans = ref([])
@@ -286,6 +342,8 @@ async function loadAll() {
     timezone: item.timezone || 'Asia/Shanghai', checkInTime: item.checkInTime || '14:00', checkOutTime: item.checkOutTime || '12:00',
   })
   ;[roomTypes.value, ratePlans.value] = await Promise.all([listHotelRoomTypes(hotelId.value), listHotelRatePlans(hotelId.value)])
+  const policy = await getHotelPolicy(hotelId.value)
+  if (policy) Object.assign(policyForm, policy)
   if (!selectedRoomTypeId.value && roomTypes.value.length) selectedRoomTypeId.value = roomTypes.value[0].id
   rateRoomTypeId.value ||= roomTypes.value[0]?.id || null
   inventoryRoomTypeId.value ||= roomTypes.value[0]?.id || null
@@ -295,6 +353,14 @@ async function loadAll() {
   await loadRooms()
   if (activeTab.value === 'daily-rates') await loadDailyRates()
   if (activeTab.value === 'inventory') await loadInventory()
+}
+
+async function savePolicy() {
+  policySaving.value = true
+  try {
+    await updateHotelPolicy(hotelId.value, { ...policyForm })
+    ElMessage.success('支付与押金策略已保存')
+  } catch (error) { notifyAdminRequestError(error, '保存支付与押金策略失败') } finally { policySaving.value = false }
 }
 
 async function saveHotel() {
@@ -425,5 +491,6 @@ onMounted(async () => {
 .section-head { display: flex; align-items: center; justify-content: space-between; margin: 22px 0 10px; }
 .section-head h3 { margin: 0; }
 .inline-actions, .filter-row { display: flex; align-items: center; gap: 8px; }
+.form-hint { margin-left: 10px; color: var(--el-text-color-secondary); font-size: 12px; }
 .filter-row { margin: 2px 0 14px; flex-wrap: wrap; }
 </style>

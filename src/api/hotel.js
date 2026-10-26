@@ -23,6 +23,18 @@ export function noShowHotelBooking(id) {
   return request.post(`/api/v1/admin/hotel/bookings/${id}/no-show`)
 }
 
+export function confirmHotelDeposit(id) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/confirm-deposit`)
+}
+
+export function getHotelPolicy(hotelId) {
+  return request.get('/api/v1/admin/hotel/policy', { params: { hotelId } })
+}
+
+export function updateHotelPolicy(hotelId, data) {
+  return request.put('/api/v1/admin/hotel/policy', data, { params: { hotelId } })
+}
+
 export function checkOutHotelBooking(id) {
   return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/checkout`)
 }

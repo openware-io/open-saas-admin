@@ -79,6 +79,15 @@
               收款确认
             </el-button>
             <el-button
+              v-if="row.status === 'PENDING_DEPOSIT' && row.orderId && canCollect"
+              link
+              type="success"
+              :loading="depositPaying"
+              @click="payDeposit(row)"
+            >
+              收定金确认
+            </el-button>
+            <el-button
               v-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'"
               link
               @click="openExtend(row)"
@@ -310,12 +319,14 @@ import {
   checkInHotelBooking,
   checkOutHotelBooking,
   collectHotelOrder,
+  confirmHotelDeposit,
   collectHotelDeposit,
   completeHousekeepingTask,
   confirmHotelBooking,
   createHotelBooking,
   extendHotelBooking,
   getHotelFolio,
+  getHotelPolicy,
   listHotelFrontDeskTasks,
   listHotelRatePlans,
   listHotelRoomTypes,
@@ -382,6 +393,8 @@ const extending = ref(false)
 const auditLoading = ref(false)
 const customerOptions = ref([])
 const customerLoading = ref(false)
+const hotelPolicy = ref(null)
+const depositPaying = ref(false)
 
 const form = reactive({
   roomTypeId: null,
@@ -444,6 +457,7 @@ async function loadOptions() {
     }
     roomTypes.value = (await listHotelRoomTypes(hotelId)) || []
     ratePlans.value = (await listHotelRatePlans(hotelId)) || []
+    hotelPolicy.value = await getHotelPolicy(hotelId)
   } catch (error) {
     notifyAdminRequestError(error, '加载酒店房型/房价失败')
   }

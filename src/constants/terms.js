@@ -1041,6 +1041,7 @@ export function orderVoidApprovalStatusText(status) {
 // —— 酒店业务（2.4.0-hotel 原型）——
 export const HOTEL_BOOKING_STATUS_TEXT = {
   PENDING_PAYMENT: '待支付',
+  PENDING_DEPOSIT: '待付定金',
   CONFIRMED: '已确认',
   ARRIVAL: '待入住',
   IN_HOUSE: '在住',
