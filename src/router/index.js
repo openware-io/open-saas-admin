@@ -270,6 +270,15 @@ router.beforeEach(async (to, from, next) => {
       }
     }
   }
+  // 店长直接打开 /store（刷新/书签）时也要自动选唯一可用的门店，
+  // 否则工作台永远停“未选择门店”，什么都不加载。
+  if (to.meta.scope === 'STORE' && !contextStore.current) {
+    try {
+      await contextStore.ensureContext('STORE')
+    } catch (e) {
+      // 保持门店工作台空态，不把导航打断
+    }
+  }
   next()
 })
 
