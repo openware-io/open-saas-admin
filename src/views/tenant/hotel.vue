@@ -13,6 +13,8 @@
       </div>
     </div>
 
+    <img class="hotel-cover-img" src="./hotel-cover.svg" alt="SaaS Hotel 封面" />
+
     <el-alert
       type="info"
       :closable="false"
@@ -654,4 +656,8 @@ onMounted(async () => {
 .folio-head { display: flex; gap: 18px; align-items: center; margin-bottom: 12px; }
 .deposit-box { display: flex; gap: 8px; margin-top: 12px; }
 .muted { color: var(--el-text-color-placeholder); }
+</style>
+
+<style scoped>
+.hotel-cover-img { width: 100%; max-height: 190px; display: block; object-fit: cover; border-radius: 14px; margin: 0 0 16px; }
 </style>
