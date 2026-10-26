@@ -368,6 +368,9 @@ onMounted(() => {
 watch(
   () => route.meta.scope,
   (scope) => {
+    // 门店工作区复用 TENANT 业务页时，路由 meta 仍是 TENANT；
+    // 不能因此把门店 shell/菜单降级成租户后台。
+    if (scope === 'TENANT' && authStore.scope === 'STORE' && contextStore.current?.storeId) return
     if (scope && scope !== authStore.scope) {
       authStore.setScope(scope)
       menuStore.fetchMenus(scope)
