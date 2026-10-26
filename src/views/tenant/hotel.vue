@@ -159,23 +159,50 @@
       </el-table>
     </div>
 
-    <div class="admin-card">
-      <div class="section-head">
-        <h3>房态</h3>
-        <el-tag effect="plain">{{ roomStates.length }} 间</el-tag>
+    <div class="admin-card room-board-card">
+      <div class="section-head room-board-head">
+        <div>
+          <h3>房态图</h3>
+          <p class="room-board-subtitle">按楼层查看实时房态，颜色区分空闲、在住、脏房与维修</p>
+        </div>
+        <div class="room-board-summary">
+          <span v-for="item in roomSummary" :key="item.key" class="room-summary-item" :class="`is-${item.key}`">
+            <b>{{ item.count }}</b><small>{{ item.label }}</small>
+          </span>
+        </div>
       </div>
-      <el-table v-loading="roomStatesLoading" :data="roomStates" border stripe>
-        <el-table-column prop="roomNo" label="房号" width="100" />
-        <el-table-column prop="roomTypeName" label="房型" min-width="150" />
-        <el-table-column prop="floor" label="楼层" width="90" />
-        <el-table-column label="房态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'ACTIVE' ? 'success' : row.status === 'DIRTY' ? 'warning' : 'info'">
-              {{ hotelRoomStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div v-loading="roomStatesLoading" class="room-board">
+        <div v-if="!roomBoard.length && !roomStatesLoading" class="room-board-empty">当前门店还没有客房，请先在酒店资料中添加房型与客房。</div>
+        <section v-for="floor in roomBoard" :key="floor.key" class="room-floor">
+          <header class="room-floor-head">
+            <h4>{{ floor.label }}</h4>
+            <span>{{ floor.rooms.length }} 间</span>
+          </header>
+          <div class="room-grid">
+            <article
+              v-for="room in floor.rooms"
+              :key="room.id"
+              class="room-tile"
+              :class="`room-tile-${room.tone}`"
+            >
+              <div class="room-tile-top">
+                <strong>{{ room.roomNo }}</strong>
+                <span class="room-status-dot" :aria-label="room.statusLabel"></span>
+              </div>
+              <span class="room-type">{{ room.roomTypeName }}</span>
+              <span class="room-status-label">{{ room.statusLabel }}</span>
+              <span v-if="room.guestName" class="room-guest">{{ room.guestName }}<template v-if="room.bookingStatusLabel"> · {{ room.bookingStatusLabel }}</template></span>
+              <span v-else class="room-guest room-guest-empty">暂无在住</span>
+            </article>
+          </div>
+        </section>
+      </div>
+      <div class="room-legend">
+        <span><i class="legend-dot is-active"></i>空闲</span>
+        <span><i class="legend-dot is-occupied"></i>在住</span>
+        <span><i class="legend-dot is-dirty"></i>脏房</span>
+        <span><i class="legend-dot is-maintenance"></i>维修</span>
+      </div>
     </div>
 
     <div class="admin-card">
@@ -461,6 +488,48 @@ const counts = computed(() => {
   const result = { CONFIRMED: 0, ARRIVAL: 0, IN_HOUSE: 0, DUE_OUT: 0 }
   for (const task of tasks.value) result[task.status] = (result[task.status] || 0) + 1
   return result
+})
+
+const roomTone = { ACTIVE: 'active', OCCUPIED: 'occupied', DIRTY: 'dirty', MAINTENANCE: 'maintenance' }
+const roomSummary = computed(() => {
+  const count = { ACTIVE: 0, OCCUPIED: 0, DIRTY: 0, MAINTENANCE: 0 }
+  for (const room of roomStates.value) {
+    if (count[room.status] !== undefined) count[room.status] += 1
+  }
+  return [
+    { key: 'active', label: '空闲', count: count.ACTIVE },
+    { key: 'occupied', label: '在住', count: count.OCCUPIED },
+    { key: 'dirty', label: '脏房', count: count.DIRTY },
+    { key: 'maintenance', label: '维修', count: count.MAINTENANCE },
+  ]
+})
+
+const roomBoard = computed(() => {
+  const activeByRoom = new Map()
+  for (const task of tasks.value) {
+    if (!task.roomNo || !['IN_HOUSE', 'DUE_OUT'].includes(task.status)) continue
+    activeByRoom.set(task.roomNo, task)
+  }
+  const floors = new Map()
+  for (const room of roomStates.value) {
+    const floorKey = room.floor || '未分楼层'
+    if (!floors.has(floorKey)) floors.set(floorKey, [])
+    const task = activeByRoom.get(room.roomNo)
+    floors.get(floorKey).push({
+      ...room,
+      tone: roomTone[room.status] || 'maintenance',
+      statusLabel: hotelRoomStatusText(room.status),
+      guestName: task?.guestName || '',
+      bookingStatusLabel: task ? hotelBookingStatusText(task.status) : '',
+    })
+  }
+  return [...floors.entries()]
+    .map(([floor, rooms]) => ({
+      key: floor,
+      label: floor === '未分楼层' ? floor : `${floor} 楼`,
+      rooms: rooms.sort((a, b) => String(a.roomNo).localeCompare(String(b.roomNo), 'zh-CN', { numeric: true })),
+    }))
+    .sort((a, b) => String(a.key).localeCompare(String(b.key), 'zh-CN', { numeric: true }))
 })
 
 const metrics = computed(() => [
@@ -940,6 +1009,52 @@ onMounted(async () => {
 .folio-head { display: flex; gap: 18px; align-items: center; margin-bottom: 12px; }
 .deposit-box { display: flex; gap: 8px; margin-top: 12px; }
 .muted { color: var(--el-text-color-placeholder); }
+.room-board-card { overflow: hidden; }
+.room-board-head { align-items: flex-start; }
+.room-board-subtitle { margin: 4px 0 0; color: var(--el-text-color-secondary); font-size: 12px; }
+.room-board-summary { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.room-summary-item { min-width: 62px; padding: 8px 10px; border-radius: 10px; background: #f5f7fa; text-align: center; }
+.room-summary-item b { display: block; font-size: 18px; line-height: 1.1; }
+.room-summary-item small { color: var(--el-text-color-secondary); font-size: 11px; }
+.room-summary-item.is-active b { color: #1f9d61; }
+.room-summary-item.is-occupied b { color: #3478d4; }
+.room-summary-item.is-dirty b { color: #d68a19; }
+.room-summary-item.is-maintenance b { color: #8b6bb1; }
+.room-board { min-height: 80px; padding-top: 6px; }
+.room-board-empty { padding: 28px 0; color: var(--el-text-color-secondary); text-align: center; }
+.room-floor + .room-floor { margin-top: 18px; }
+.room-floor-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 9px; }
+.room-floor-head h4 { margin: 0; font-size: 14px; color: #303f59; }
+.room-floor-head span { color: var(--el-text-color-secondary); font-size: 12px; }
+.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 10px; }
+.room-tile { position: relative; display: flex; flex-direction: column; gap: 4px; min-height: 112px; padding: 13px 14px; border: 1px solid #e7ebf2; border-left: 4px solid #b9c2d0; border-radius: 12px; background: #fff; box-shadow: 0 3px 10px rgba(33, 48, 74, .04); }
+.room-tile-top { display: flex; align-items: center; justify-content: space-between; }
+.room-tile-top strong { color: #25344b; font-size: 19px; letter-spacing: .3px; }
+.room-status-dot { width: 9px; height: 9px; border-radius: 50%; background: #b9c2d0; box-shadow: 0 0 0 4px rgba(185, 194, 208, .15); }
+.room-type { color: #7c8799; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-status-label { color: #66758b; font-size: 12px; font-weight: 600; }
+.room-guest { margin-top: auto; color: #34445c; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-guest-empty { color: #aab3c1; }
+.room-tile-active { border-left-color: #35b87a; background: linear-gradient(135deg, #fff 65%, #f1fbf6); }
+.room-tile-active .room-status-dot { background: #35b87a; box-shadow: 0 0 0 4px rgba(53, 184, 122, .14); }
+.room-tile-occupied { border-left-color: #4b8bea; background: linear-gradient(135deg, #fff 65%, #f2f7ff); }
+.room-tile-occupied .room-status-dot { background: #4b8bea; box-shadow: 0 0 0 4px rgba(75, 139, 234, .14); }
+.room-tile-dirty { border-left-color: #e6a23c; background: linear-gradient(135deg, #fff 65%, #fff9ee); }
+.room-tile-dirty .room-status-dot { background: #e6a23c; box-shadow: 0 0 0 4px rgba(230, 162, 60, .14); }
+.room-tile-maintenance { border-left-color: #a984c9; background: linear-gradient(135deg, #fff 65%, #faf5ff); }
+.room-tile-maintenance .room-status-dot { background: #a984c9; box-shadow: 0 0 0 4px rgba(169, 132, 201, .14); }
+.room-legend { display: flex; gap: 16px; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px dashed #e7ebf2; color: #7c8799; font-size: 11px; }
+.room-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.legend-dot.is-active { background: #35b87a; }
+.legend-dot.is-occupied { background: #4b8bea; }
+.legend-dot.is-dirty { background: #e6a23c; }
+.legend-dot.is-maintenance { background: #a984c9; }
+@media (max-width: 760px) {
+  .room-board-head { flex-direction: column; gap: 10px; }
+  .room-board-summary { justify-content: flex-start; }
+  .room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 </style>
 
 <style scoped>

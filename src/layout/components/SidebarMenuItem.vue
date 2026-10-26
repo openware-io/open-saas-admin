@@ -1,7 +1,7 @@
 <template>
   <el-sub-menu v-if="item.children && item.children.length" :index="subIndex">
     <template #title>
-      <el-icon><component :is="resolveIcon(item.icon)" /></el-icon>
+      <el-icon><component :is="resolveIcon(item.icon, item.code)" /></el-icon>
       <span>{{ item.name }}</span>
     </template>
     <SidebarMenuItem
@@ -11,7 +11,7 @@
     />
   </el-sub-menu>
   <el-menu-item v-else :index="item.path || String(item.id)">
-    <el-icon><component :is="resolveIcon(item.icon)" /></el-icon>
+    <el-icon><component :is="resolveIcon(item.icon, item.code)" /></el-icon>
     <template #title>
       <!--
         客户待确认加项角标：只挂在「收银台」菜单项上（客户自助加项后门店必须一眼看到，
