@@ -23,13 +23,20 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Location, ArrowDown } from '@element-plus/icons-vue'
 import { useContextStore } from '@/stores/context'
+import { useAuthStore } from '@/stores/auth'
+import { useMenuStore } from '@/stores/menu'
 import { contextIdOf } from '@/utils/context'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 
+const router = useRouter()
 const contextStore = useContextStore()
+const authStore = useAuthStore()
+const menuStore = useMenuStore()
+const canSwitchWorkspace = computed(() => authStore.workspaces.includes('HEADQUARTERS'))
 
 // 由当前上下文反推 contextId（tenantId:organizationId:storeId，空段为 null）。
 // 与 stores/context.js 的后台校准共用 utils/context 的同一份拼接规则。
@@ -53,8 +60,24 @@ function itemLabel(item) {
 async function handleSelect(contextId) {
   try {
     await contextStore.select(contextId)
+    const selected = contextStore.current
+    // 租户管理员切到门店时进入门店工作区；切回总部时进入租户经营总览。
+    // 门店经理没有总部工作区，隐藏此选择器，不会走这里。
+    if (canSwitchWorkspace.value) {
+      if (selected?.storeId && selected.storeId !== 0) {
+        authStore.setScope('STORE')
+        await menuStore.fetchMenus('STORE')
+        await router.push('/store')
+      } else {
+        authStore.setScope('TENANT')
+        await menuStore.fetchMenus('TENANT')
+        await router.push('/admin/tenant/overview')
+      }
+      ElMessage.success(selected?.storeId && selected.storeId !== 0 ? '已进入门店工作区' : '已回到租户总部')
+      return
+    }
     ElMessage.success('已切换租户上下文')
-    // 切换后重载，让各业务页按新上下文重新拉取数据
+    // 门店经理只有单店范围，保留刷新语义，让门店数据重新拉取。
     setTimeout(() => window.location.reload(), 300)
   } catch (e) {
     notifyAdminRequestError(e, '切换上下文失败')

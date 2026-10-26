@@ -7,7 +7,7 @@
         <span v-show="!isCollapse" class="logo-text">{{ shell.title }}</span>
       </div>
       <div v-if="shell.showStoreContext" class="context-panel">
-        <div v-if="shell.showTenantSelector" class="context-tenant">
+        <div v-if="showContextSwitcher" class="context-tenant">
           <span class="context-kicker">租户</span>
           <strong>{{ contextStore.current?.tenantName || '请选择租户' }}</strong>
         </div>
@@ -81,7 +81,7 @@
           <el-tag :type="authStore.scope === 'PLATFORM' ? 'primary' : 'success'" effect="plain">
             {{ scopeLabel }}
           </el-tag>
-          <TenantContextSelector v-if="shell.showTenantSelector" />
+          <TenantContextSelector v-if="showContextSwitcher" />
           <el-button size="small" @click="goToSelect">
             <el-icon><Grid /></el-icon>后台入口
           </el-button>
@@ -291,6 +291,8 @@ onUnmounted(() => {
 
 const scopeLabel = computed(() => SCOPE_LABELS[authStore.scope] || authStore.scope)
 const shell = computed(() => workspaceShell(authStore.scope))
+// 租户管理员切到门店上下文后仍需要能切回总部；门店经理不展示租户选择器。
+const showContextSwitcher = computed(() => shell.value.showTenantSelector || authStore.workspaces.includes('HEADQUARTERS'))
 const showPendingApproval = computed(() => authStore.scope === 'TENANT')
 
 watch(
