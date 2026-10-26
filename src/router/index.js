@@ -63,7 +63,7 @@ const routes = [
         path: 'store',
         name: 'StoreHome',
         component: () => import('@/views/store/index.vue'),
-        meta: { title: '门店工作台', icon: 'Shop', scope: 'STORE' },
+        meta: { title: '门店管理后台', icon: 'Shop', scope: 'STORE' },
       },
       {
         path: 'admin/tenant/stores',
