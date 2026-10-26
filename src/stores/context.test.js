@@ -72,8 +72,8 @@ describe('server-owned selected context', () => {
     })
     const store = useContextStore()
     await store.ensureContext('TENANT')
-    expect(store.current?.contextId).toBe('200:200:200')
-    expect(selectContext.mock.calls.map((call) => call[0])).toEqual(['100::', '200:200:200'])
+    expect(store.current?.contextId).toBe('1::')
+    expect(selectContext.mock.calls.map((call) => call[0])).toEqual(['100::', '1::'])
   })
 
   it('clears account state on session expiry', async () => {
