@@ -112,6 +112,12 @@ const { routeAfterLogin } = useBackend()
 
 const formRef = ref()
 const loading = ref(false)
+
+function scopeForWorkspace(result) {
+  if (result?.defaultWorkspace === 'STORE') return 'STORE'
+  if (result?.defaultWorkspace === 'HEADQUARTERS') return 'TENANT'
+  return 'PLATFORM'
+}
 const form = reactive({ username: '', password: '', ttlHours: 2 })
 const rules = {
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
@@ -124,7 +130,7 @@ async function handleLogin() {
   try {
     // 服务端设置 HttpOnly 会话 Cookie；前端仅缓存展示信息。
     const res = await login(form.username, form.password, form.ttlHours)
-    authStore.setAuth(res.user, res.defaultWorkspace === 'HEADQUARTERS' ? 'TENANT' : 'PLATFORM', res)
+    authStore.setAuth(res.user, scopeForWorkspace(res), res)
     // 新账号登录时清除旧租户上下文界面状态。
     contextStore.clear()
     await menuStore.fetchBackends()
@@ -146,7 +152,7 @@ onMounted(async () => {
   loading.value = true
   try {
     const res = await ssoLogin(ssoTicket)
-    authStore.setAuth(res.user, res.defaultWorkspace === 'HEADQUARTERS' ? 'TENANT' : 'PLATFORM', res)
+    authStore.setAuth(res.user, scopeForWorkspace(res), res)
     // 新账号登录时清除旧租户上下文界面状态。
     contextStore.clear()
     await menuStore.fetchBackends()
