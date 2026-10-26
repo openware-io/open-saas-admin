@@ -8,7 +8,7 @@
  */
 export const WORKSPACE_SHELLS = {
   PLATFORM: {
-    title: 'SaaS 平台管理后台',
+    title: '平台管理后台',
     home: '/admin/platform/tenants',
     menuScope: 'PLATFORM',
     showTenantSelector: false,
@@ -16,7 +16,7 @@ export const WORKSPACE_SHELLS = {
     className: 'workspace-platform',
   },
   TENANT: {
-    title: 'SaaS 租户管理后台',
+    title: '租户管理后台',
     home: '/admin/tenant/overview',
     menuScope: 'TENANT',
     showTenantSelector: true,
@@ -24,7 +24,7 @@ export const WORKSPACE_SHELLS = {
     className: 'workspace-tenant',
   },
   STORE: {
-    title: 'SaaS 门店经营后台',
+    title: '门店管理后台',
     home: '/store',
     menuScope: 'STORE',
     showTenantSelector: false,

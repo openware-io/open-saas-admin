@@ -3,7 +3,7 @@
     <div class="select-header">
       <div class="brand">
         <el-icon :size="22"><OfficeBuilding /></el-icon>
-        <span>SaaS 管理后台</span>
+        <span>统一管理后台</span>
       </div>
       <div class="header-right">
         <span class="user">{{ authStore.user?.displayName || authStore.user?.username || '管理员' }}</span>
@@ -82,7 +82,7 @@ const { enterBackend } = useBackend()
 
 const personas = {
   super: {
-    scope: 'PLATFORM', badge: '超级管理员', title: '平台治理工作台',
+    scope: 'PLATFORM', badge: '超级管理员', title: '平台管理后台',
     subtitle: '管理租户全生命周期、平台角色权限与支付方式；不进入租户经营数据。',
     capabilities: [
       { title: '租户管理', description: '新增、停用租户，查看租户编码与状态', icon: 'OfficeBuilding' },
@@ -93,7 +93,7 @@ const personas = {
     backendCodes: ['platform'],
   },
   platform: {
-    scope: 'PLATFORM', badge: '平台运营', title: '平台运营工作台',
+    scope: 'PLATFORM', badge: '平台运营', title: '平台运营后台',
     subtitle: '维护租户、权限与支付配置，不进入租户门店经营数据。',
     capabilities: [
       { title: '租户运营', description: '租户资料、状态与运营范围', icon: 'OfficeBuilding' },
@@ -104,7 +104,7 @@ const personas = {
     backendCodes: ['platform'],
   },
   tenant: {
-    scope: 'TENANT', badge: '租户管理员', title: '租户经营工作台',
+    scope: 'TENANT', badge: '租户管理员', title: '租户管理后台',
     subtitle: '管理 SaaS 生活服务的总部、门店、人员与经营数据。',
     capabilities: [
       { title: '经营总览', description: '总部跨店经营数据与待办', icon: 'DataAnalysis' },
@@ -116,7 +116,7 @@ const personas = {
     backendCodes: ['tenant', 'store'],
   },
   store: {
-    scope: 'STORE', badge: '门店店长', title: '门店经营工作台',
+    scope: 'STORE', badge: '门店店长', title: '门店管理后台',
     subtitle: '只处理当前门店的预约、收银、订单、资源与库存。',
     capabilities: [
       { title: '门店工作台', description: '今日到店、在住、待退房与前台任务', icon: 'Shop' },
@@ -155,10 +155,10 @@ onMounted(() => {
 
 function backendDisplayName(backend) {
   if (backend.code === 'platform') {
-    return persona.value.badge === '超级管理员' ? 'SaaS 平台管理后台' : 'SaaS 平台运营后台'
+    return persona.value.badge === '超级管理员' ? '平台管理后台' : '平台运营后台'
   }
-  if (backend.code === 'tenant') return 'SaaS 租户管理后台'
-  if (backend.code === 'store') return 'SaaS 门店经营后台'
+  if (backend.code === 'tenant') return '租户管理后台'
+  if (backend.code === 'store') return '门店管理后台'
   if (backend.code === 'im') return 'IM 管理后台'
   return backend.name
 }

@@ -231,7 +231,7 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-  document.title = `${to.meta.title || 'SaaS 管理后台'} - SaaS 管理后台`
+  document.title = `${to.meta.title || '管理后台'} - 管理后台`
   const authStore = useAuthStore()
   const contextStore = useContextStore()
   if (!to.meta.public && !(await authStore.initialize())) {

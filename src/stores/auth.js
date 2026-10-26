@@ -5,9 +5,9 @@ import { parseStoredJson } from '@/utils/storage'
 import { resetCurrencyRuntime } from '@/utils/currency-runtime'
 
 export const SCOPE_LABELS = {
-  PLATFORM: 'SaaS 平台管理后台',
-  TENANT: 'SaaS 租户管理后台',
-  STORE: 'SaaS 门店经营后台',
+  PLATFORM: '平台管理后台',
+  TENANT: '租户管理后台',
+  STORE: '门店管理后台',
 }
 
 export const useAuthStore = defineStore('auth', () => {
