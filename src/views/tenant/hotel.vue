@@ -42,9 +42,44 @@
           </span>
         </div>
       </div>
+
+      <div class="room-board-filters">
+        <el-select v-model="roomFilter.floor" clearable placeholder="楼层" size="small" style="width: 110px">
+          <el-option v-for="item in roomFloorOptions" :key="item" :label="item" :value="item" />
+        </el-select>
+        <el-select v-model="roomFilter.roomType" clearable placeholder="房型" size="small" style="width: 150px">
+          <el-option v-for="item in roomTypeOptions" :key="item" :label="item" :value="item" />
+        </el-select>
+        <el-select v-model="roomFilter.status" clearable placeholder="房态" size="small" style="width: 120px">
+          <el-option label="空闲" value="active" />
+          <el-option label="在住" value="occupied" />
+          <el-option label="脏房" value="dirty" />
+          <el-option label="维修" value="maintenance" />
+        </el-select>
+        <el-date-picker
+          v-model="roomFilter.date"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="业务日期（可选）"
+          size="small"
+          style="width: 150px"
+        />
+        <el-input
+          v-model="roomFilter.keyword"
+          clearable
+          placeholder="房号 / 住客"
+          size="small"
+          style="width: 150px"
+        />
+        <el-button size="small" @click="resetRoomFilter">重置</el-button>
+        <span class="room-filter-hint">日期筛选只显示当天有在住/到离店业务的客房</span>
+      </div>
+
       <div v-loading="roomStatesLoading" class="room-board">
-        <div v-if="!roomBoard.length && !roomStatesLoading" class="room-board-empty">当前门店还没有客房，请先在酒店资料中添加房型与客房。</div>
-        <section v-for="floor in roomBoard" :key="floor.key" class="room-floor">
+        <div v-if="!filteredRoomBoard.length && !roomStatesLoading" class="room-board-empty">
+          {{ roomStates.length ? '没有符合筛选条件的客房' : '当前门店还没有客房，请先在酒店资料中添加房型与客房。' }}
+        </div>
+        <section v-for="floor in filteredRoomBoard" :key="floor.key" class="room-floor">
           <header class="room-floor-head">
             <h4>{{ floor.label }}</h4>
             <span>{{ floor.rooms.length }} 间</span>
@@ -783,6 +818,8 @@ const roomBoard = computed(() => {
       guestName: task?.guestName || '',
       bookingStatusLabel: task ? hotelBookingStatusText(task.status) : '',
       stayWindow: task ? stayWindowText(task) : '',
+      checkInDate: task?.checkInDate || upcoming?.checkInDate || '',
+      checkOutDate: task?.checkOutDate || upcoming?.checkOutDate || '',
       phoneHint: task ? maskPhone(task.guestPhone) : '',
       cardBadge: task ? activeCardBadge(task) : roomCardBadge(room),
       financeHints: task ? financeHints(task) : [],
@@ -800,6 +837,39 @@ const roomBoard = computed(() => {
     }))
     .sort((a, b) => String(a.key).localeCompare(String(b.key), 'zh-CN', { numeric: true }))
 })
+
+const roomFilter = reactive({ floor: '', roomType: '', status: '', date: '', keyword: '' })
+const roomFloorOptions = computed(() => [...new Set(roomStates.value.map((room) => room.floor || '未分楼层'))]
+  .sort((a, b) => String(a).localeCompare(String(b), 'zh-CN', { numeric: true })))
+const roomTypeOptions = computed(() => [...new Set(roomStates.value.map((room) => room.roomTypeName).filter(Boolean))]
+  .sort((a, b) => String(a).localeCompare(String(b), 'zh-CN')))
+const filteredRoomBoard = computed(() => {
+  const keyword = roomFilter.keyword.trim().toLowerCase()
+  const date = roomFilter.date
+  return roomBoard.value
+    .map((floor) => ({
+      ...floor,
+      rooms: floor.rooms.filter((room) => {
+        if (roomFilter.floor && room.floor !== roomFilter.floor) return false
+        if (roomFilter.roomType && room.roomTypeName !== roomFilter.roomType) return false
+        if (roomFilter.status && room.tone !== roomFilter.status) return false
+        if (keyword) {
+          const haystack = `${room.roomNo || ''} ${room.guestName || ''}`.toLowerCase()
+          if (!haystack.includes(keyword)) return false
+        }
+        if (date) {
+          if (!room.checkInDate || !room.checkOutDate) return false
+          if (date < room.checkInDate || date > room.checkOutDate) return false
+        }
+        return true
+      }),
+    }))
+    .filter((floor) => floor.rooms.length)
+})
+
+function resetRoomFilter() {
+  Object.assign(roomFilter, { floor: '', roomType: '', status: '', date: '', keyword: '' })
+}
 
 const metrics = computed(() => [
   { label: '待入住', value: (counts.value.CONFIRMED || 0) + (counts.value.ARRIVAL || 0), hint: '已确认 / 今日到店', icon: Calendar, tone: 'amber' },
@@ -1454,6 +1524,8 @@ onMounted(async () => {
 .room-board-head { align-items: flex-start; }
 .room-board-subtitle { margin: 4px 0 0; color: var(--el-text-color-secondary); font-size: 12px; }
 .room-board-summary { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.room-board-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; padding: 10px 12px; border-radius: 10px; background: #f7f9fc; }
+.room-filter-hint { color: #8a96a8; font-size: 11px; }
 .room-summary-item { min-width: 62px; padding: 8px 10px; border-radius: 10px; background: #f5f7fa; text-align: center; }
 .room-summary-item b { display: block; font-size: 18px; line-height: 1.1; }
 .room-summary-item small { color: var(--el-text-color-secondary); font-size: 11px; }
