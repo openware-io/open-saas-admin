@@ -39,6 +39,15 @@
 
       <el-table :data="filteredRows" v-loading="loading" border stripe>
         <el-table-column prop="code" label="门店编号" width="160" />
+        <el-table-column label="Logo" width="92" align="center">
+          <template #default="{ row }">
+            <div class="store-logo-cell">
+              <el-avatar v-if="row.logoUrl" shape="square" :size="38" :src="row.logoUrl" />
+              <el-avatar v-else shape="square" :size="38">{{ (row.name || '店').slice(0, 1) }}</el-avatar>
+              <el-button v-if="canManageLogo" link type="primary" size="small" @click="openLogo(row)">编辑</el-button>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="name" label="门店名称" min-width="180" />
         <el-table-column label="业务类型" width="100" align="center">
           <template #default="{ row }">{{ row.businessTypeName || businessTypeText(row.businessType) }}</template>
@@ -61,6 +70,24 @@
       <p class="currency-hint">币种为租户级配置，全部门店统一；历史已结算单据按自身币种快照展示。</p>
     </div>
 
+    <el-dialog v-model="logoVisible" title="门店 Logo" width="640px">
+      <ImageUrlEditor
+        v-model="logoDraft"
+        label="门店 Logo"
+        alt="门店 Logo 预览"
+        :recommended-width="512"
+        :recommended-height="512"
+        :min-width="128"
+        :min-height="128"
+        :max-size-mb="1"
+        aspect="1 / 1"
+      />
+      <template #footer>
+        <el-button @click="logoVisible = false">取消</el-button>
+        <el-button type="primary" :loading="logoSaving" @click="saveLogo">保存 Logo</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="workspaceVisible" title="门店工作区模式" width="480px">
       <el-radio-group v-model="workspaceMode" class="workspace-mode">
         <el-radio value="INDEPENDENT">门店独立工作台</el-radio>
@@ -81,7 +108,8 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Money, Refresh, Setting } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import { listStores } from '@/api/store'
+import ImageUrlEditor from '@/components/ImageUrlEditor.vue'
+import { listStores, updateStoreLogo } from '@/api/store'
 import { getStoreWorkspaceMode, updateStoreWorkspaceMode } from '@/api/tenantWorkspace'
 import { TERMS, businessTypeText, storeStatusText, storeStatusType } from '@/constants/terms'
 import { useContextStore } from '@/stores/context'
@@ -100,10 +128,15 @@ const status = ref('')
 const workspaceVisible = ref(false)
 const workspaceSaving = ref(false)
 const workspaceMode = ref('INDEPENDENT')
+const logoVisible = ref(false)
+const logoSaving = ref(false)
+const logoStore = ref(null)
+const logoDraft = ref('')
 
 /** 币种设置入口按权限显示（与后端 tenant.currency.manage 同码），越权由后端强制 403。 */
 const canManageCurrency = computed(() => hasPermission(contextStore.current?.permissions, 'tenant.currency.manage'))
 const canManageWorkspace = computed(() => hasPermission(contextStore.current?.permissions, 'tenant.tenant.manage'))
+const canManageLogo = computed(() => hasPermission(contextStore.current?.permissions, 'tenant.store.manage'))
 
 const filteredRows = computed(() => {
   let list = rows.value
@@ -149,6 +182,27 @@ async function saveWorkspaceMode() {
   }
 }
 
+function openLogo(row) {
+  logoStore.value = row
+  logoDraft.value = row.logoUrl || ''
+  logoVisible.value = true
+}
+
+async function saveLogo() {
+  if (!logoStore.value) return
+  logoSaving.value = true
+  try {
+    const updated = await updateStoreLogo(logoStore.value.id, logoDraft.value || '')
+    logoStore.value.logoUrl = updated?.logoUrl || ''
+    logoVisible.value = false
+    ElMessage.success('门店 Logo 已更新')
+  } catch (error) {
+    notifyAdminRequestError(error, '保存门店 Logo 失败')
+  } finally {
+    logoSaving.value = false
+  }
+}
+
 onMounted(load)
 onMounted(loadWorkspaceMode)
 </script>
@@ -163,4 +217,5 @@ onMounted(loadWorkspaceMode)
 .onboarding-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .onboarding-item { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border: 1px solid var(--el-color-warning-light-5); border-radius: 6px; font-size: 12px; color: var(--el-text-color-regular); }
 .onboarding-item span { color: var(--el-color-warning); }
+.store-logo-cell { display: flex; align-items: center; justify-content: center; gap: 4px; }
 </style>

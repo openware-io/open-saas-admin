@@ -4,3 +4,8 @@ import request from './request'
 export function listStores(params) {
   return request.get('/api/v1/admin/tenant/stores', { params })
 }
+
+/** 替换门店 Logo；传空字符串恢复默认。 */
+export function updateStoreLogo(id, logoUrl) {
+  return request.put(`/api/v1/admin/tenant/stores/${id}/logo`, { logoUrl })
+}

@@ -21,12 +21,19 @@
           </el-form-item>
           <el-form-item label="名称"><el-input v-model="hotelForm.name" maxlength="128" /></el-form-item>
           <el-form-item label="地址"><el-input v-model="hotelForm.address" maxlength="255" /></el-form-item>
-          <el-form-item label="封面图 URL">
-            <el-input v-model="hotelForm.coverImageUrl" maxlength="512" placeholder="/c/assets/hotel-cover.svg" />
-          </el-form-item>
-          <el-form-item label="封面预览">
-            <img v-if="hotelForm.coverImageUrl" class="cover-preview" :src="hotelForm.coverImageUrl" alt="酒店封面" />
-            <span v-else class="subtle">未配置封面</span>
+          <el-form-item label="封面图">
+            <ImageUrlEditor
+              v-model="hotelForm.coverImageUrl"
+              label="酒店封面"
+              alt="酒店封面预览"
+              default-url="/c/assets/hotel-cover.svg"
+              :recommended-width="1600"
+              :recommended-height="900"
+              :min-width="800"
+              :min-height="450"
+              :max-size-mb="5"
+              aspect="16 / 9"
+            />
           </el-form-item>
           <el-form-item label="时区"><el-input v-model="hotelForm.timezone" maxlength="64" /></el-form-item>
           <el-form-item label="入住 / 退房">
@@ -257,6 +264,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import ImageUrlEditor from '@/components/ImageUrlEditor.vue'
 import {
   createHotelRatePlan,
   createHotelRoom,
