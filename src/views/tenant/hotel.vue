@@ -1022,6 +1022,10 @@ async function submitBooking() {
     ElMessage.warning('请填写住客姓名和手机号')
     return
   }
+  if (form.guestName.includes('?') || form.guestName.includes('\uFFFD')) {
+    ElMessage.warning('住客姓名包含无效问号或替换字符，请重新输入')
+    return
+  }
   submitting.value = true
   try {
     await createHotelBooking({
