@@ -372,7 +372,7 @@ const HOTEL_STORE_MENUS = [
     icon: 'TrendCharts',
     scope: 'STORE',
     children: [
-      { id: 'hotel-reports', code: 'hotel.reports', name: '门店报表', path: '/admin/reports', icon: 'DataAnalysis', requiredPermission: 'report.view' },
+      { id: 'hotel-reports', code: 'hotel.reports', name: '经营报表', path: '/admin/reports', icon: 'DataAnalysis', requiredPermission: 'report.view' },
     ],
   },
 ]
