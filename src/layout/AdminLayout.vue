@@ -329,7 +329,7 @@ const HOTEL_STORE_MENUS = [
   { id: 'hotel-orders', code: 'hotel.orders', name: '订单管理', path: '/admin/orders', icon: 'Tickets', scope: 'STORE', requiredPermission: 'order.view' },
   { id: 'hotel-members', code: 'hotel.members', name: '客户管理', path: '/business/members', icon: 'User', scope: 'STORE', requiredPermission: 'member.view' },
   { id: 'hotel-inventory', code: 'hotel.inventory', name: '库存管理', path: '/admin/inventory', icon: 'Box', scope: 'STORE', requiredPermission: 'inventory.material.view' },
-  { id: 'hotel-reports', code: 'hotel.reports', name: '门店报表', path: '/admin/reports', icon: 'DataAnalysis', scope: 'STORE' },
+  { id: 'hotel-reports', code: 'hotel.reports', name: '门店报表', path: '/admin/reports', icon: 'DataAnalysis', scope: 'STORE', requiredPermission: 'report.view' },
 ]
 const visibleMenus = computed(() => {
   const hotelStore = authStore.scope === 'STORE' && contextStore.current?.businessType === 'HOTEL'
