@@ -77,6 +77,7 @@
                 <span v-if="room.phoneHint" class="room-phone-hint">{{ room.phoneHint }}</span>
               </div>
               <span v-else class="room-guest room-guest-empty">{{ room.emptyHint }}</span>
+              <span v-if="room.serviceHint" class="room-service-hint">{{ room.serviceHint }}</span>
               <div v-if="room.financeHints.length" class="room-finance-hints">
                 <span v-for="hint in room.financeHints" :key="hint" class="room-finance-hint">{{ hint }}</span>
               </div>
@@ -259,6 +260,12 @@
       </div>
       <el-table v-loading="housekeepingLoading" :data="housekeeping" border stripe>
         <el-table-column prop="roomNo" label="房号" width="100" />
+        <el-table-column label="类型" width="120">
+          <template #default="{ row }">{{ housekeepingTypeText(row.taskType) }}</template>
+        </el-table-column>
+        <el-table-column label="来源" width="110">
+          <template #default="{ row }">{{ housekeepingSourceText(row.source) }}</template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">{{ housekeepingStatusText(row.status) }}</template>
         </el-table-column>
@@ -321,7 +328,25 @@
           <div v-if="selectedRoomFinanceHints.length" class="room-finance-summary">
             <span v-for="hint in selectedRoomFinanceHints" :key="hint">{{ hint }}</span>
           </div>
+          <el-alert
+            v-if="selectedRoomHasBalance"
+            class="room-balance-warning"
+            type="warning"
+            :closable="false"
+            show-icon
+            title="账单未结清，退房前请先完成收款或押金抵扣"
+          />
           <div class="room-detail-actions">
+            <el-button
+              v-if="selectedRoomHousekeeping && selectedRoomHousekeeping.status === 'PENDING' && canManageRooms"
+              type="warning"
+              @click="startRoomCleaning"
+            >开始住客清扫</el-button>
+            <el-button
+              v-if="selectedRoomHousekeeping && selectedRoomHousekeeping.status === 'IN_PROGRESS' && canManageRooms"
+              type="success"
+              @click="finishRoomCleaning"
+            >完成住客清扫</el-button>
             <el-button v-if="canCheckOut && selectedRoomTask.hasStay !== false" type="primary" @click="roomCheckout">办理退房</el-button>
             <el-button v-if="canCheckIn" @click="roomExtend">续住</el-button>
             <el-button @click="roomFolio">查看账单</el-button>
@@ -533,7 +558,9 @@ import {
   hotelBookingStatusText,
   hotelFolioStatusText,
   hotelRoomStatusText,
+  housekeepingSourceText,
   housekeepingStatusText,
+  housekeepingTypeText,
 } from '@/constants/terms'
 import { formatMoney } from '@/utils/format'
 import { hasPermission } from '@/utils/context'
@@ -573,8 +600,17 @@ const selectedRoom = ref(null)
 const selectedRoomTask = computed(() => tasks.value.find((task) => task.roomNo === selectedRoom.value?.roomNo
   && ['IN_HOUSE', 'DUE_OUT'].includes(task.status)) || null)
 const selectedRoomFinanceHints = computed(() => selectedRoomTask.value ? financeHints(selectedRoomTask.value) : [])
-const selectedRoomHousekeeping = computed(() => housekeeping.value.find((task) => task.roomNo === selectedRoom.value?.roomNo
-  && task.status !== 'DONE') || null)
+const selectedRoomHasBalance = computed(() => {
+  const task = selectedRoomTask.value
+  return !!task && task.folioChargeMinor != null && task.folioPaidMinor != null
+    && Number(task.folioChargeMinor) > Number(task.folioPaidMinor)
+})
+const selectedRoomHousekeeping = computed(() => {
+  if (!selectedRoom.value) return null
+  const candidates = housekeeping.value.filter((task) => task.roomNo === selectedRoom.value.roomNo && task.status !== 'DONE')
+  const expectedType = selectedRoomTask.value ? 'STAYOVER' : 'DEPARTURE'
+  return candidates.find((task) => (task.taskType || 'DEPARTURE') === expectedType) || null
+})
 const roomEmptyCopy = computed(() => {
   const status = selectedRoom.value?.status
   if (status === 'ACTIVE') return { title: '客房空闲', hint: '可以直接为到店客人创建预订或办理入住。' }
@@ -695,8 +731,12 @@ function emptyRoomHint(room, upcoming) {
 
 const roomSummary = computed(() => {
   const count = { ACTIVE: 0, OCCUPIED: 0, DIRTY: 0, MAINTENANCE: 0 }
+  const activeRooms = new Set(tasks.value
+    .filter((task) => task.roomNo && ['IN_HOUSE', 'DUE_OUT'].includes(task.status))
+    .map((task) => task.roomNo))
   for (const room of roomStates.value) {
-    if (count[room.status] !== undefined) count[room.status] += 1
+    const status = activeRooms.has(room.roomNo) ? 'OCCUPIED' : room.status
+    if (count[status] !== undefined) count[status] += 1
   }
   return [
     { key: 'active', label: '空闲', count: count.ACTIVE },
@@ -709,6 +749,7 @@ const roomSummary = computed(() => {
 const roomBoard = computed(() => {
   const activeByRoom = new Map()
   const upcomingByRoom = new Map()
+  const stayoverByRoom = new Map()
   for (const task of tasks.value) {
     if (!task.roomNo) continue
     if (['IN_HOUSE', 'DUE_OUT'].includes(task.status)) {
@@ -720,22 +761,33 @@ const roomBoard = computed(() => {
       }
     }
   }
+  for (const task of housekeeping.value) {
+    if (!task.roomNo || task.status === 'DONE' || task.taskType !== 'STAYOVER') continue
+    stayoverByRoom.set(task.roomNo, task)
+  }
   const floors = new Map()
   for (const room of roomStates.value) {
     const floorKey = room.floor || '未分楼层'
     if (!floors.has(floorKey)) floors.set(floorKey, [])
     const task = activeByRoom.get(room.roomNo)
     const upcoming = upcomingByRoom.get(room.roomNo)
+    const stayover = stayoverByRoom.get(room.roomNo)
     floors.get(floorKey).push({
       ...room,
-      tone: roomTone[room.status] || 'maintenance',
-      statusLabel: hotelRoomStatusText(room.status),
+      // 在住/待离店优先于物理房态：即使历史数据把客房标成 DIRTY，也不能把住客显示成“待清扫”。
+      tone: task ? 'occupied' : (roomTone[room.status] || 'maintenance'),
+      statusLabel: task
+        ? (task.status === 'DUE_OUT' ? '在住 · 今日离店' : '在住')
+        : hotelRoomStatusText(room.status),
       guestName: task?.guestName || '',
       bookingStatusLabel: task ? hotelBookingStatusText(task.status) : '',
       stayWindow: task ? stayWindowText(task) : '',
       phoneHint: task ? maskPhone(task.guestPhone) : '',
       cardBadge: task ? activeCardBadge(task) : roomCardBadge(room),
       financeHints: task ? financeHints(task) : [],
+      serviceHint: task && stayover
+        ? `${housekeepingTypeText(stayover.taskType)} · ${housekeepingStatusText(stayover.status)}`
+        : '',
       emptyHint: task ? '' : emptyRoomHint(room, upcoming),
     })
   }
@@ -1018,8 +1070,12 @@ function closeRoomDrawer() {
 async function roomCheckout() {
   const task = selectedRoomTask.value
   if (!task) return
-  await checkOut(task)
-  closeRoomDrawer()
+  if (selectedRoomHasBalance.value) {
+    openFolio(task)
+    ElMessage.warning('账单未结清，请先在账单中完成收款或押金抵扣')
+    return
+  }
+  if (await checkOut(task)) closeRoomDrawer()
 }
 
 function roomExtend() {
@@ -1310,8 +1366,10 @@ async function checkOut(row) {
     await checkOutHotelBooking(row.id)
     ElMessage.success(`${row.guestName} 已退房`)
     await reload()
+    return true
   } catch (error) {
     notifyAdminRequestError(error, '办理退房失败')
+    return false
   }
 }
 
@@ -1410,6 +1468,7 @@ onMounted(async () => {
 .room-guest-block { display: flex; flex-direction: column; gap: 1px; margin-top: auto; min-width: 0; }
 .room-guest-name { overflow: hidden; color: #34445c; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .room-phone-hint { color: #9aa5b5; font-size: 10px; }
+.room-service-hint { color: #b07a1c; font-size: 10px; }
 .room-finance-hints { display: flex; flex-wrap: wrap; gap: 4px; min-height: 15px; }
 .room-finance-hint { padding: 1px 5px; border-radius: 4px; color: #5f6f86; background: #f5f7fa; font-size: 10px; line-height: 1.5; white-space: nowrap; }
 .room-status-dot { width: 9px; height: 9px; border-radius: 50%; background: #b9c2d0; box-shadow: 0 0 0 4px rgba(185, 194, 208, .15); }
@@ -1437,6 +1496,7 @@ onMounted(async () => {
 .room-finance-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .room-finance-summary span { padding: 3px 7px; border-radius: 5px; color: #5b6c83; background: #f3f6fa; font-size: 11px; }
 .room-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.room-balance-warning { margin-top: 10px; }
 .room-empty-note { display: flex; flex-direction: column; gap: 5px; padding: 14px; border-radius: 11px; color: #75849a; background: #f7f9fc; }
 .room-empty-note strong { color: #34445c; font-size: 14px; }
 .room-empty-note span { font-size: 12px; line-height: 1.6; }

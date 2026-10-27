@@ -1045,7 +1045,7 @@ export const HOTEL_BOOKING_STATUS_TEXT = {
   CONFIRMED: '已确认',
   ARRIVAL: '待入住',
   IN_HOUSE: '在住',
-  DUE_OUT: '待退房',
+  DUE_OUT: '在住 · 今日离店',
   CHECKED_OUT: '已退房',
   CANCELLED: '已取消',
   NO_SHOW: '未到店',
@@ -1073,6 +1073,24 @@ export const HOUSEKEEPING_STATUS_TEXT = {
 }
 export function housekeepingStatusText(status) {
   return HOUSEKEEPING_STATUS_TEXT[status] || unknownEnumText(status)
+}
+
+/** 清扫类型：在住日常清扫不改变房态，退房清扫完成后才恢复可售。 */
+export const HOUSEKEEPING_TYPE_TEXT = {
+  STAYOVER: '在住清扫',
+  DEPARTURE: '退房清扫',
+}
+export function housekeepingTypeText(type) {
+  return HOUSEKEEPING_TYPE_TEXT[type] || '退房清扫'
+}
+
+export const HOUSEKEEPING_SOURCE_TEXT = {
+  CUSTOMER: '住客申请',
+  FRONT_DESK: '前台',
+  CHECKOUT: '退房',
+}
+export function housekeepingSourceText(source) {
+  return HOUSEKEEPING_SOURCE_TEXT[source] || '退房'
 }
 
 export const HOTEL_FOLIO_STATUS_TEXT = {
