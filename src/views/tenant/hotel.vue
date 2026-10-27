@@ -32,7 +32,8 @@
           :key="metric.key"
           type="button"
           class="hero-stat"
-          :class="`tone-${metric.tone}`"
+          :class="[`tone-${metric.tone}`, { 'is-filter-active': isMetricActive(metric.key) }]"
+          :aria-pressed="isMetricActive(metric.key)"
           @click="focusMetric(metric.key)"
         >
           <span class="hero-stat-icon-wrap">
@@ -52,29 +53,26 @@
       <div class="section-head task-heading">
         <div>
           <h3>前台任务</h3>
-          <p class="section-subtitle">优先处理到店、在住和待退房客人</p>
+          <p class="section-subtitle">
+            {{ taskFilter === 'ALL' ? '优先处理到店、在住和待退房客人' : `当前筛选：${taskFilterLabel}` }}
+          </p>
         </div>
         <el-tag effect="plain">{{ taskSearchRows.length }} 条</el-tag>
       </div>
       <div class="task-toolbar">
-        <div class="task-filters">
-          <button
-            v-for="option in taskFilterOptions"
-            :key="option.value"
-            class="task-filter"
-            :class="{ active: taskFilter === option.value }"
-            @click="taskFilter = option.value"
-          >
-            <span>{{ option.label }}</span><b>{{ option.count }}</b>
-          </button>
+        <span class="task-filter-state">{{ taskFilter === 'ALL' ? '全部任务' : taskFilterLabel }}</span>
+        <div class="task-toolbar-right">
+          <el-button v-if="taskFilter !== 'ALL'" link type="primary" size="small" @click="taskFilter = 'ALL'">
+            清除筛选
+          </el-button>
+          <el-input
+            v-model="taskKeyword"
+            clearable
+            placeholder="预订号 / 住客 / 房号"
+            size="small"
+            style="width: 220px"
+          />
         </div>
-        <el-input
-          v-model="taskKeyword"
-          clearable
-          placeholder="预订号 / 住客 / 房号"
-          size="small"
-          style="width: 220px"
-        />
       </div>
       <el-table v-loading="loading" :data="pagedTaskRows" border stripe>
         <el-table-column prop="bookingNo" label="预订号" width="170" />
@@ -975,8 +973,14 @@ const metrics = computed(() => [
   { key: 'tasks', label: '待处理', value: tasks.value.length, hint: '前台任务', icon: Bell, tone: 'green' },
 ])
 
+const metricFilters = { arrival: 'ARRIVAL', in_house: 'IN_HOUSE', due_out: 'DUE_OUT', tasks: 'ALL' }
+
+function isMetricActive(key) {
+  return taskFilter.value === (metricFilters[key] || 'ALL')
+}
+
 function focusMetric(key) {
-  taskFilter.value = { arrival: 'ARRIVAL', in_house: 'IN_HOUSE', due_out: 'DUE_OUT', tasks: 'ALL' }[key] || 'ALL'
+  taskFilter.value = metricFilters[key] || 'ALL'
   document.querySelector('.frontdesk-queue')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -1001,6 +1005,7 @@ const taskFilterOptions = computed(() => [
   { value: 'IN_HOUSE', label: '在住', count: counts.value.IN_HOUSE || 0 },
   { value: 'DUE_OUT', label: '待退房', count: counts.value.DUE_OUT || 0 },
 ])
+const taskFilterLabel = computed(() => taskFilterOptions.value.find((option) => option.value === taskFilter.value)?.label || '全部')
 
 const filteredTasks = computed(() => {
   if (taskFilter.value === 'ALL') return tasks.value
@@ -1614,6 +1619,7 @@ onMounted(async () => {
 .hero-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); flex: 1 0 100%; gap: 8px; margin-top: 16px; }
 .hero-stat { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 9px 11px; border: 1px solid rgba(219, 229, 242, .9); border-radius: 11px; background: rgba(255,255,255,.72); color: #34445c; text-align: left; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
 .hero-stat:hover { border-color: #a9c9f3; box-shadow: 0 5px 14px rgba(42, 94, 170, .1); transform: translateY(-1px); }
+.hero-stat.is-filter-active { border-color: #8fb9ef; box-shadow: 0 0 0 2px rgba(79, 126, 207, .13); }
 .hero-stat-icon-wrap { position: relative; display: inline-flex; flex: 0 0 28px; }
 .hero-stat-icon { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: 8px; font-size: 15px; }
 .pending-red-dot { position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; border: 2px solid #fff; border-radius: 50%; background: #f53f3f; box-shadow: 0 0 0 1px rgba(245, 63, 63, .12); }
@@ -1651,12 +1657,9 @@ onMounted(async () => {
 .quick-arrow { margin-left: auto; color: #b2bccb; font-size: 19px; }
 .task-heading { align-items: flex-start; }
 .task-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -2px 0 12px; }
+.task-filter-state { color: #7d8ca3; font-size: 12px; }
+.task-toolbar-right { display: flex; align-items: center; gap: 6px; }
 .task-pager { display: flex; justify-content: flex-end; margin-top: 12px; }
-.task-filters { display: flex; flex-wrap: wrap; gap: 6px; }
-.task-filter { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid transparent; border-radius: 999px; color: #7d8ca3; background: #f5f7fa; font-size: 12px; cursor: pointer; }
-.task-filter b { min-width: 16px; color: #9aa7b8; font-size: 11px; text-align: center; }
-.task-filter.active { border-color: #cfe1ff; color: #2f6fce; background: #edf4ff; }
-.task-filter.active b { color: #2f6fce; }
 
 .hotel-page .admin-card.frontdesk-queue { order: 1; }
 .hotel-page .admin-card.room-board-card { order: 2; }
