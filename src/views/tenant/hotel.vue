@@ -156,14 +156,14 @@
             >
               办理入住
             </el-button>
-            <el-button
-              v-else-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && row.hasStay !== false && canCheckOut"
-              link
-              type="primary"
-              @click="checkOut(row)"
-            >
-              办理退房
-            </el-button>
+              <el-button
+                v-else-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && row.hasStay !== false && canCheckOut"
+                link
+                type="primary"
+                @click="handleCheckoutAction(row)"
+              >
+                {{ hasOutstandingBalance(row) ? '先结账后退房' : '办理退房' }}
+              </el-button>
             <el-button
               v-if="row.status === 'PENDING_PAYMENT' && row.orderId && canCollect"
               link
@@ -347,7 +347,7 @@
               type="success"
               @click="finishRoomCleaning"
             >完成住客清扫</el-button>
-            <el-button v-if="canCheckOut && selectedRoomTask.hasStay !== false" type="primary" @click="roomCheckout">办理退房</el-button>
+            <el-button v-if="canCheckOut && selectedRoomTask.hasStay !== false" type="primary" @click="roomCheckout">{{ selectedRoomHasBalance ? '先结账后退房' : '办理退房' }}</el-button>
             <el-button v-if="canCheckIn" @click="roomExtend">续住</el-button>
             <el-button @click="roomFolio">查看账单</el-button>
             <el-button v-if="canCheckIn && selectedRoomTask.hasStay !== false" @click="roomMove">换房</el-button>
@@ -600,11 +600,12 @@ const selectedRoom = ref(null)
 const selectedRoomTask = computed(() => tasks.value.find((task) => task.roomNo === selectedRoom.value?.roomNo
   && ['IN_HOUSE', 'DUE_OUT'].includes(task.status)) || null)
 const selectedRoomFinanceHints = computed(() => selectedRoomTask.value ? financeHints(selectedRoomTask.value) : [])
-const selectedRoomHasBalance = computed(() => {
-  const task = selectedRoomTask.value
+function hasOutstandingBalance(task) {
   return !!task && task.folioChargeMinor != null && task.folioPaidMinor != null
     && Number(task.folioChargeMinor) > Number(task.folioPaidMinor)
-})
+}
+
+const selectedRoomHasBalance = computed(() => hasOutstandingBalance(selectedRoomTask.value))
 const selectedRoomHousekeeping = computed(() => {
   if (!selectedRoom.value) return null
   const candidates = housekeeping.value.filter((task) => task.roomNo === selectedRoom.value.roomNo && task.status !== 'DONE')
@@ -1065,6 +1066,15 @@ function openRoom(room) {
 function closeRoomDrawer() {
   roomDrawerVisible.value = false
   selectedRoom.value = null
+}
+
+function handleCheckoutAction(row) {
+  if (hasOutstandingBalance(row)) {
+    openFolio(row)
+    ElMessage.warning('账单未结清，请先在账单中完成收款或押金抵扣')
+    return
+  }
+  checkOut(row)
 }
 
 async function roomCheckout() {
