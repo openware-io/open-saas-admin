@@ -346,50 +346,55 @@
       </el-table>
     </div>
 
-    <el-drawer v-model="roomDrawerVisible" :title="roomDrawerTitle" size="420px" destroy-on-close>
+    <el-drawer v-model="roomDrawerVisible" :title="roomDrawerTitle" size="480px" destroy-on-close>
       <div v-if="selectedRoom" class="room-detail">
         <div class="room-detail-hero" :class="`room-detail-${selectedRoom.tone}`">
-          <span class="room-detail-eyebrow">{{ selectedRoom.roomTypeName }}</span>
-          <strong>{{ selectedRoom.roomNo }}</strong>
-          <div class="room-detail-status-line">
-            <span class="room-detail-status">{{ selectedRoom.statusLabel }}</span>
+          <span class="room-detail-eyebrow">
+            {{ selectedRoom.roomTypeName }}<template v-if="selectedRoom.floor"> · {{ selectedRoom.floor }} 楼</template>
+          </span>
+          <div class="room-detail-title-row">
+            <strong>{{ selectedRoom.roomNo }}</strong>
+            <span class="room-status-pill" :class="`is-${selectedRoom.tone}`">{{ selectedRoom.statusLabel }}</span>
             <span v-if="selectedRoom.cardBadge" class="room-detail-badge">{{ selectedRoom.cardBadge }}</span>
           </div>
         </div>
-        <el-descriptions :column="2" border size="small" class="room-detail-facts">
-          <el-descriptions-item label="楼层">{{ selectedRoom.floor || '未分楼层' }}</el-descriptions-item>
-          <el-descriptions-item label="房型">{{ selectedRoom.roomTypeName }}</el-descriptions-item>
-          <el-descriptions-item label="入住 / 离店">
-            {{ selectedRoomTask ? `${selectedRoomTask.checkInDate} → ${selectedRoomTask.checkOutDate}` : '—' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="晚数 / 客房数">
-            {{ selectedRoomTask ? `${selectedRoomTask.nights || '—'} 晚 · ${selectedRoomTask.rooms || 1} 间` : '—' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="订单来源">
-            {{ selectedRoomTask?.source ? hotelBookingSourceText(selectedRoomTask.source) : '—' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="实际入住">
-            {{ selectedRoomTask?.checkInAt || '—' }}
-          </el-descriptions-item>
-        </el-descriptions>
 
-        <div v-if="selectedRoom.serviceHint" class="room-detail-service">
-          <el-icon><Bell /></el-icon>
-          <span>{{ selectedRoom.serviceHint }}</span>
-        </div>
+        <section v-if="selectedRoomTask" class="room-detail-section">
+          <div class="room-detail-section-head">
+            <h4>住宿信息</h4>
+            <span>{{ selectedRoomTask.bookingNo }}</span>
+          </div>
+          <div class="room-facts">
+            <div><span>房型</span><strong>{{ selectedRoom.roomTypeName }}</strong></div>
+            <div><span>楼层</span><strong>{{ selectedRoom.floor || '未分楼层' }}</strong></div>
+            <div><span>入住</span><strong>{{ selectedRoomTask.checkInDate || '—' }}</strong></div>
+            <div><span>离店</span><strong>{{ selectedRoomTask.checkOutDate || '—' }}</strong></div>
+            <div><span>住宿</span><strong>{{ selectedRoomTask.nights || '—' }} 晚 · {{ selectedRoomTask.rooms || 1 }} 间</strong></div>
+            <div><span>来源</span><strong>{{ selectedRoomTask.source ? hotelBookingSourceText(selectedRoomTask.source) : '—' }}</strong></div>
+            <div class="room-facts-wide"><span>实际入住</span><strong>{{ formatRoomDateTime(selectedRoomTask.checkInAt) }}</strong></div>
+          </div>
+          <div v-if="selectedRoom.serviceHint" class="room-detail-service">
+            <el-icon><Bell /></el-icon>
+            <span>{{ selectedRoom.serviceHint }}</span>
+          </div>
+        </section>
 
-        <div v-if="selectedRoomTask" class="room-detail-section">
-          <div class="section-head">
-            <div>
-              <h4>当前住客</h4>
-              <p class="section-subtitle">{{ selectedRoomTask.checkInDate }} → {{ selectedRoomTask.checkOutDate }}</p>
-            </div>
-            <el-tag :type="statusType(selectedRoomTask.status)">{{ hotelBookingStatusText(selectedRoomTask.status) }}</el-tag>
+        <section v-if="selectedRoomTask" class="room-detail-section">
+          <div class="room-detail-section-head">
+            <h4>住客信息</h4>
           </div>
           <div class="room-guest-card">
-            <strong>{{ selectedRoomTask.guestName }}</strong>
-            <span>{{ selectedRoomTask.bookingNo }}</span>
-            <span>{{ maskPhone(selectedRoomTask.guestPhone) || '未留手机号' }}</span>
+            <span class="room-guest-avatar room-guest-avatar-lg">{{ selectedRoom.guestInitial }}</span>
+            <div class="room-guest-card-copy">
+              <strong>{{ selectedRoomTask.guestName }}</strong>
+              <span>{{ maskPhone(selectedRoomTask.guestPhone) || '未留手机号' }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section v-if="selectedRoomTask" class="room-detail-section">
+          <div class="room-detail-section-head">
+            <h4>账务</h4>
           </div>
           <div v-if="selectedRoomFinanceHints.length" class="room-finance-summary">
             <span v-for="hint in selectedRoomFinanceHints" :key="hint">{{ hint }}</span>
@@ -402,38 +407,50 @@
             show-icon
             title="账单未结清，退房前请先完成收款或押金抵扣"
           />
-          <div class="room-detail-actions">
+        </section>
+
+        <section v-else class="room-detail-section">
+          <div class="room-empty-note">
+            <strong>{{ roomEmptyCopy.title }}</strong>
+            <span>{{ roomEmptyCopy.hint }}</span>
+          </div>
+        </section>
+
+        <div class="room-detail-actions">
+          <template v-if="selectedRoomTask">
             <el-button
               v-if="selectedRoomHousekeeping && selectedRoomHousekeeping.status === 'PENDING' && canManageRooms"
+              class="room-action-wide"
               type="warning"
               @click="startRoomCleaning"
             >开始住客清扫</el-button>
             <el-button
               v-if="selectedRoomHousekeeping && selectedRoomHousekeeping.status === 'IN_PROGRESS' && canManageRooms"
+              class="room-action-wide"
               type="success"
               @click="finishRoomCleaning"
             >完成住客清扫</el-button>
-            <el-button v-if="canCheckOut && selectedRoomTask.hasStay !== false" type="primary" @click="roomCheckout">{{ selectedRoomHasBalance ? '先结账后退房' : '办理退房' }}</el-button>
+            <el-button
+              v-if="canCheckOut && selectedRoomTask.hasStay !== false"
+              class="room-action-wide"
+              type="primary"
+              @click="roomCheckout"
+            >{{ selectedRoomHasBalance ? '先结账后退房' : '办理退房' }}</el-button>
             <el-button v-if="canCheckIn" @click="roomExtend">续住</el-button>
             <el-button @click="roomFolio">查看账单</el-button>
             <el-button v-if="canCheckIn && selectedRoomTask.hasStay !== false" @click="roomMove">换房</el-button>
-          </div>
-        </div>
-
-        <div v-else class="room-detail-section">
-          <div class="room-empty-note">
-            <strong>{{ roomEmptyCopy.title }}</strong>
-            <span>{{ roomEmptyCopy.hint }}</span>
-          </div>
-          <div class="room-detail-actions">
-            <el-button v-if="selectedRoom.status === 'ACTIVE' && canCreate" type="primary" @click="createFromRoom">新建预订</el-button>
+          </template>
+          <template v-else>
+            <el-button v-if="selectedRoom.status === 'ACTIVE' && canCreate" class="room-action-wide" type="primary" @click="createFromRoom">新建预订</el-button>
             <el-button
               v-if="selectedRoomHousekeeping && selectedRoomHousekeeping.status === 'PENDING' && canManageRooms"
+              class="room-action-wide"
               type="primary"
               @click="startRoomCleaning"
             >开始清扫</el-button>
             <el-button
               v-if="selectedRoomHousekeeping && selectedRoomHousekeeping.status === 'IN_PROGRESS' && canManageRooms"
+              class="room-action-wide"
               type="success"
               @click="finishRoomCleaning"
             >完成清扫</el-button>
@@ -445,7 +462,7 @@
               v-if="selectedRoom.status !== 'MAINTENANCE' && selectedRoom.status !== 'OCCUPIED' && canManageRooms"
               @click="setRoomMaintenance(true)"
             >设为维修</el-button>
-          </div>
+          </template>
         </div>
       </div>
     </el-drawer>
@@ -685,9 +702,12 @@ const roomEmptyCopy = computed(() => {
   if (status === 'MAINTENANCE') return { title: '客房维修中', hint: '处理完成后恢复。' }
   return { title: '客房状态', hint: '请按房态完成对应操作。' }
 })
-const roomDrawerTitle = computed(() => selectedRoom.value
-  ? `${selectedRoom.value.roomNo} · ${selectedRoom.value.statusLabel}`
-  : '客房详情')
+const roomDrawerTitle = computed(() => selectedRoom.value?.roomNo || '客房详情')
+
+function formatRoomDateTime(value) {
+  if (!value) return '—'
+  return String(value).replace('T', ' ').slice(0, 16)
+}
 const checkInVisible = ref(false)
 const checkInBooking = ref(null)
 const checkInRooms = ref([])
@@ -1613,27 +1633,39 @@ onMounted(async () => {
 .room-tile-dirty .room-status-dot { background: #e6a23c; box-shadow: 0 0 0 4px rgba(230, 162, 60, .14); }
 .room-tile-maintenance { border-left-color: #a984c9; background: linear-gradient(135deg, #fff 65%, #faf5ff); }
 .room-tile-maintenance .room-status-dot { background: #a984c9; box-shadow: 0 0 0 4px rgba(169, 132, 201, .14); }
-.room-detail { padding: 2px 2px 20px; }
-.room-detail-hero { display: flex; flex-direction: column; gap: 4px; padding: 18px; border-radius: 14px; border-left: 5px solid #b9c2d0; background: #f7f9fc; }
-.room-detail-hero strong { color: #1f2d43; font-size: 32px; letter-spacing: -.5px; }
+.room-detail { display: flex; flex-direction: column; min-height: calc(100vh - 96px); padding: 2px 2px 8px; }
+.room-detail-hero { display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; border-radius: 14px; border-left: 5px solid #b9c2d0; background: #f7f9fc; }
+.room-detail-hero strong { color: #1f2d43; font-size: 32px; letter-spacing: -.5px; line-height: 1.05; }
 .room-detail-eyebrow { color: #7d8ca3; font-size: 12px; }
+.room-detail-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .room-detail-status { color: #53647b; font-size: 13px; font-weight: 700; }
 .room-detail-status-line { display: flex; align-items: center; gap: 8px; }
 .room-detail-badge { padding: 2px 7px; border-radius: 999px; color: #a66d14; background: #fff4df; font-size: 11px; font-weight: 600; }
-.room-detail-service { display: flex; align-items: center; gap: 6px; margin-top: 12px; padding: 8px 10px; border-radius: 8px; color: #9a6a19; background: #fff8ea; font-size: 12px; }
+.room-detail-service { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 8px 10px; border-radius: 8px; color: #9a6a19; background: #fff8ea; font-size: 12px; }
 .room-detail-active { border-left-color: #35b87a; background: linear-gradient(135deg, #f5fcf8, #eefaf4); }
 .room-detail-occupied { border-left-color: #4b8bea; background: linear-gradient(135deg, #f5f9ff, #edf4ff); }
 .room-detail-dirty { border-left-color: #e6a23c; background: linear-gradient(135deg, #fffbf3, #fff7e8); }
 .room-detail-maintenance { border-left-color: #a984c9; background: linear-gradient(135deg, #fbf7ff, #f5effc); }
 .room-detail-facts { margin-top: 14px; }
-.room-detail-section { margin-top: 20px; }
-.room-detail-section h4 { margin: 0; font-size: 14px; color: #2b3a50; }
-.room-guest-card { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; padding: 13px 14px; border: 1px solid #e6edf7; border-radius: 11px; background: #fff; }
-.room-guest-card strong { color: #26364d; font-size: 16px; }
+.room-detail-section { margin-top: 22px; }
+.room-detail-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.room-detail-section-head h4 { margin: 0; font-size: 14px; color: #2b3a50; }
+.room-detail-section-head > span { color: #9aa5b5; font-size: 11px; }
+.room-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.room-facts > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 9px 10px; border-radius: 9px; background: #f7f9fc; }
+.room-facts-wide { grid-column: span 2; }
+.room-facts span { color: #8b98aa; font-size: 10px; }
+.room-facts strong { overflow: hidden; color: #34445c; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.room-guest-card { display: flex; align-items: center; gap: 10px; margin-top: 0; padding: 12px 13px; border: 1px solid #e6edf7; border-radius: 11px; background: #fff; }
+.room-guest-card-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.room-guest-card strong { color: #26364d; font-size: 15px; }
 .room-guest-card span { color: #8492a6; font-size: 12px; }
-.room-finance-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.room-guest-avatar-lg { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%; font-size: 14px; }
+.room-finance-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 0; }
 .room-finance-summary span { padding: 3px 7px; border-radius: 5px; color: #5b6c83; background: #f3f6fa; font-size: 11px; }
-.room-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.room-detail-actions { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding: 16px 0 4px; border-top: 1px solid #eef2f7; background: linear-gradient(180deg, rgba(255,255,255,.9), #fff 28%); }
+.room-detail-actions .el-button { margin-left: 0; }
+.room-detail-actions .room-action-wide { flex: 1 1 100%; }
 .room-balance-warning { margin-top: 10px; }
 .room-empty-note { display: flex; flex-direction: column; gap: 5px; padding: 14px; border-radius: 11px; color: #75849a; background: #f7f9fc; }
 .room-empty-note strong { color: #34445c; font-size: 14px; }
