@@ -90,6 +90,8 @@ export function resolveIcon(icon, code) {
     Tools,
     SetUp,
     TakeawayBox,
+    UserFilled,
+    TrendCharts,
   }
   return iconMap[icon] || pascalIconMap[icon] || Menu
 }

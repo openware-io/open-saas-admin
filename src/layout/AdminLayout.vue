@@ -324,12 +324,57 @@ const contextBlocked = computed(() =>
  * 的映射里，避免页面各自维护一份固定入口。
  */
 const HOTEL_STORE_MENUS = [
-  { id: 'hotel-frontdesk', code: 'hotel.frontdesk', name: '酒店前台', path: '/admin/tenant/hotel', icon: 'OfficeBuilding', scope: 'STORE', requiredPermission: 'hotel.booking.view' },
-  { id: 'hotel-master', code: 'hotel.master', name: '酒店资料', path: '/admin/tenant/hotel-master', icon: 'Setting', scope: 'STORE', requiredPermission: 'hotel.inventory.manage' },
-  { id: 'hotel-orders', code: 'hotel.orders', name: '订单管理', path: '/admin/orders', icon: 'Tickets', scope: 'STORE', requiredPermission: 'order.view' },
-  { id: 'hotel-members', code: 'hotel.members', name: '客户管理', path: '/business/members', icon: 'User', scope: 'STORE', requiredPermission: 'member.view' },
-  { id: 'hotel-inventory', code: 'hotel.inventory', name: '库存管理', path: '/admin/inventory', icon: 'Box', scope: 'STORE', requiredPermission: 'inventory.material.view' },
-  { id: 'hotel-reports', code: 'hotel.reports', name: '门店报表', path: '/admin/reports', icon: 'DataAnalysis', scope: 'STORE', requiredPermission: 'report.view' },
+  {
+    id: 'hotel-ops',
+    code: 'hotel.ops',
+    name: '酒店运营',
+    icon: 'Shop',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-frontdesk', code: 'hotel.frontdesk', name: '酒店前台', path: '/admin/tenant/hotel', icon: 'OfficeBuilding', requiredPermission: 'hotel.booking.view' },
+      { id: 'hotel-orders', code: 'hotel.orders', name: '订单管理', path: '/admin/orders', icon: 'Tickets', requiredPermission: 'order.view' },
+    ],
+  },
+  {
+    id: 'hotel-resource',
+    code: 'hotel.resource',
+    name: '酒店资源',
+    icon: 'Management',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-master', code: 'hotel.master', name: '酒店资料', path: '/admin/tenant/hotel-master', icon: 'Setting', requiredPermission: 'hotel.inventory.manage' },
+    ],
+  },
+  {
+    id: 'hotel-stock',
+    code: 'hotel.stock',
+    name: '酒店商品与库存',
+    icon: 'Goods',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-inventory', code: 'hotel.inventory', name: '库存管理', path: '/admin/inventory', icon: 'Box', requiredPermission: 'inventory.material.view' },
+    ],
+  },
+  {
+    id: 'hotel-crm',
+    code: 'hotel.crm',
+    name: '客户与资产',
+    icon: 'UserFilled',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-members', code: 'hotel.members', name: '客户管理', path: '/business/members', icon: 'User', requiredPermission: 'member.view' },
+    ],
+  },
+  {
+    id: 'hotel-report',
+    code: 'hotel.report',
+    name: '门店报表',
+    icon: 'TrendCharts',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-reports', code: 'hotel.reports', name: '门店报表', path: '/admin/reports', icon: 'DataAnalysis', requiredPermission: 'report.view' },
+    ],
+  },
 ]
 const visibleMenus = computed(() => {
   const hotelStore = authStore.scope === 'STORE' && contextStore.current?.businessType === 'HOTEL'
