@@ -105,7 +105,7 @@
           <h3>房型</h3>
           <el-button type="primary" size="small" @click="openRoomType()">新增房型</el-button>
         </div>
-        <el-table :data="roomTypes" stripe>
+        <el-table :data="pagedRoomTypes" stripe>
           <el-table-column prop="code" label="编码" width="130" />
           <el-table-column prop="name" label="名称" min-width="160" />
           <el-table-column prop="capacity" label="可住人数" width="100" />
@@ -115,23 +115,34 @@
             <template #default="{ row }"><el-button link type="primary" @click="openRoomType(row)">编辑</el-button></template>
           </el-table-column>
         </el-table>
+        <div class="table-pager">
+          <el-pagination
+            v-model:current-page="roomTypePage"
+            v-model:page-size="roomTypePageSize"
+            layout="total, prev, pager, next, sizes"
+            :total="roomTypes.length"
+            :page-sizes="[10, 20, 50]"
+          />
+        </div>
 
         <div class="section-head">
           <h3>客房</h3>
           <div class="inline-actions">
             <el-select v-model="selectedRoomTypeId" placeholder="选择房型" style="width:190px" @change="loadRooms">
+              <el-option label="全部房型" value="ALL" />
               <el-option v-for="type in roomTypes" :key="type.id" :label="type.name" :value="type.id" />
             </el-select>
-            <el-button type="primary" size="small" :disabled="!selectedRoomTypeId" @click="openRoom()">新增客房</el-button>
+            <el-button type="primary" size="small" :disabled="!roomTypes.length" @click="openRoom()">新增客房</el-button>
           </div>
         </div>
-        <el-table :data="rooms" stripe>
-          <el-table-column prop="roomNo" label="房号" width="130" />
-          <el-table-column prop="floor" label="楼层" width="100" />
-          <el-table-column label="房态" width="120">
+        <el-table :data="pagedRooms" stripe>
+          <el-table-column prop="roomNo" label="房号" width="100" />
+          <el-table-column prop="roomTypeName" label="房型" min-width="140" />
+          <el-table-column prop="floor" label="楼层" width="80" />
+          <el-table-column label="房态" width="110">
             <template #default="{ row }">{{ hotelRoomStatusText(row.status) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="170">
+          <el-table-column label="操作" width="150">
             <template #default="{ row }">
               <el-button link type="primary" @click="openRoom(row)">编辑</el-button>
               <el-button v-if="row.status === 'ACTIVE'" link type="warning" @click="toggleRoomStatus(row)">维修</el-button>
@@ -139,6 +150,15 @@
             </template>
           </el-table-column>
         </el-table>
+        <div class="table-pager">
+          <el-pagination
+            v-model:current-page="roomPage"
+            v-model:page-size="roomPageSize"
+            layout="total, prev, pager, next, sizes"
+            :total="rooms.length"
+            :page-sizes="[10, 20, 50]"
+          />
+        </div>
       </el-tab-pane>
 
       <el-tab-pane v-if="resourcesMode" label="房价计划" name="rates">
@@ -146,7 +166,7 @@
           <h3>房价计划</h3>
           <el-button type="primary" size="small" @click="openRatePlan()">新增房价计划</el-button>
         </div>
-        <el-table :data="ratePlans" stripe>
+        <el-table :data="pagedRatePlans" stripe>
           <el-table-column prop="code" label="编码" width="130" />
           <el-table-column prop="name" label="名称" min-width="170" />
           <el-table-column label="基础价" width="130">
@@ -159,6 +179,15 @@
             <template #default="{ row }"><el-button link type="primary" @click="openRatePlan(row)">编辑</el-button></template>
           </el-table-column>
         </el-table>
+        <div class="table-pager">
+          <el-pagination
+            v-model:current-page="ratePlanPage"
+            v-model:page-size="ratePlanPageSize"
+            layout="total, prev, pager, next, sizes"
+            :total="ratePlans.length"
+            :page-sizes="[10, 20, 50]"
+          />
+        </div>
       </el-tab-pane>
 
       <el-tab-pane v-if="resourcesMode" label="每日房价" name="daily-rates">
@@ -173,7 +202,7 @@
             end-placeholder="结束日期" style="width:260px" />
           <el-button type="primary" @click="loadDailyRates">查询</el-button>
         </div>
-        <el-table :data="dailyRateRows" stripe>
+        <el-table :data="pagedDailyRateRows" stripe>
           <el-table-column prop="stayDate" label="日期" width="140" />
           <el-table-column label="价格（分）" width="180">
             <template #default="{ row }"><el-input-number v-model="row.priceMinor" :min="0" :step="100" /></template>
@@ -183,6 +212,15 @@
             <template #default="{ row }"><el-button link type="primary" @click="saveDailyRate(row)">保存</el-button></template>
           </el-table-column>
         </el-table>
+        <div class="table-pager">
+          <el-pagination
+            v-model:current-page="dailyRatePage"
+            v-model:page-size="dailyRatePageSize"
+            layout="total, prev, pager, next, sizes"
+            :total="dailyRateRows.length"
+            :page-sizes="[10, 20, 50]"
+          />
+        </div>
       </el-tab-pane>
 
       <el-tab-pane v-if="resourcesMode" label="库存日历" name="inventory">
@@ -194,7 +232,7 @@
             end-placeholder="结束日期" style="width:260px" />
           <el-button type="primary" @click="loadInventory">查询</el-button>
         </div>
-        <el-table :data="inventoryRows" stripe>
+        <el-table :data="pagedInventoryRows" stripe>
           <el-table-column prop="stayDate" label="日期" width="140" />
           <el-table-column label="总库存" width="180">
             <template #default="{ row }"><el-input-number v-model="row.total" :min="row.sold + row.held" :step="1" /></template>
@@ -208,6 +246,15 @@
             <template #default="{ row }"><el-button link type="primary" @click="saveInventory(row)">保存</el-button></template>
           </el-table-column>
         </el-table>
+        <div class="table-pager">
+          <el-pagination
+            v-model:current-page="inventoryPage"
+            v-model:page-size="inventoryPageSize"
+            layout="total, prev, pager, next, sizes"
+            :total="inventoryRows.length"
+            :page-sizes="[10, 20, 50]"
+          />
+        </div>
       </el-tab-pane>
     </el-tabs>
 

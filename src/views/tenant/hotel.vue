@@ -11,10 +11,19 @@
         </div>
       </div>
       <div class="header-actions">
-        <el-button @click="router.push('/admin/tenant/hotel-master')">酒店资料</el-button>
         <el-button v-if="canCreate" type="primary" @click="openBooking">新建预订</el-button>
-        <el-button v-if="canManageRooms" :loading="auditLoading" @click="runAudit">夜审</el-button>
-        <el-button v-if="canCollect" :loading="refundSyncing" @click="syncRefunds">同步退款</el-button>
+        <el-dropdown trigger="click" @command="runQuick">
+          <el-button>
+            更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="master">酒店资料</el-dropdown-item>
+              <el-dropdown-item v-if="canManageRooms" command="audit" :disabled="auditLoading">夜审</el-dropdown-item>
+              <el-dropdown-item v-if="canCollect" command="refund" :disabled="refundSyncing">同步退款</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <el-button :loading="loading" @click="reload">刷新</el-button>
       </div>
     </div>
@@ -27,6 +36,136 @@
           <strong>{{ metric.value }}</strong>
           <small>{{ metric.hint }}</small>
         </div>
+      </div>
+    </div>
+
+    <div class="admin-card frontdesk-queue">
+      <div class="section-head task-heading">
+        <div>
+          <h3>前台任务</h3>
+          <p class="section-subtitle">优先处理到店、在住和待退房客人</p>
+        </div>
+        <el-tag effect="plain">{{ taskSearchRows.length }} 条</el-tag>
+      </div>
+      <div class="task-toolbar">
+        <div class="task-filters">
+          <button
+            v-for="option in taskFilterOptions"
+            :key="option.value"
+            class="task-filter"
+            :class="{ active: taskFilter === option.value }"
+            @click="taskFilter = option.value"
+          >
+            <span>{{ option.label }}</span><b>{{ option.count }}</b>
+          </button>
+        </div>
+        <el-input
+          v-model="taskKeyword"
+          clearable
+          placeholder="预订号 / 住客 / 房号"
+          size="small"
+          style="width: 220px"
+        />
+      </div>
+      <el-table v-loading="loading" :data="pagedTaskRows" border stripe>
+        <el-table-column prop="bookingNo" label="预订号" width="170" />
+        <el-table-column prop="guestName" label="住客" width="120" />
+        <el-table-column prop="roomType" label="房型" min-width="140" />
+        <el-table-column prop="roomNo" label="房号" width="90" align="center">
+          <template #default="{ row }">{{ row.roomNo || '待分配' }}</template>
+        </el-table-column>
+        <el-table-column label="入住 / 离店" min-width="180">
+          <template #default="{ row }">{{ row.checkInDate }} → {{ row.checkOutDate }}</template>
+        </el-table-column>
+        <el-table-column label="状态" width="110" align="center">
+          <template #default="{ row }">
+            <el-tag :type="statusType(row.status)">{{ hotelBookingStatusText(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="340" align="center">
+          <template #default="{ row }">
+            <el-button
+              v-if="(row.status === 'ARRIVAL' || row.status === 'CONFIRMED') && canCheckIn"
+              link
+              type="primary"
+              @click="openCheckIn(row)"
+            >
+              办理入住
+            </el-button>
+              <el-button
+                v-else-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && row.hasStay !== false && canCheckOut"
+                link
+                type="primary"
+                @click="handleCheckoutAction(row)"
+              >
+                {{ hasOutstandingBalance(row) ? '先结账后退房' : '办理退房' }}
+              </el-button>
+            <el-button
+              v-if="row.status === 'PENDING_PAYMENT' && row.orderId && canCollect"
+              link
+              type="success"
+              @click="payAndConfirm(row)"
+            >
+              收款确认
+            </el-button>
+            <el-button
+              v-if="row.status === 'PENDING_DEPOSIT' && row.orderId && canCollect"
+              link
+              type="success"
+              :loading="depositPaying"
+              @click="payDeposit(row)"
+            >
+              收定金确认
+            </el-button>
+            <el-button
+              v-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'"
+              link
+              @click="openExtend(row)"
+            >
+              续住
+            </el-button>
+            <el-button
+              v-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'"
+              link
+              @click="openFolio(row)"
+            >
+              账单
+            </el-button>
+            <el-button
+              v-if="row.status === 'IN_HOUSE' && row.hasStay !== false && canCheckIn"
+              link
+              @click="openMove(row)"
+            >
+              换房
+            </el-button>
+            <el-button
+              v-if="(row.status === 'CONFIRMED' || row.status === 'ARRIVAL') && canCreate"
+              link
+              type="danger"
+              @click="cancelBooking(row)"
+            >
+              取消
+            </el-button>
+            <el-button
+              v-if="(row.status === 'CONFIRMED' || row.status === 'ARRIVAL') && canCreate"
+              link
+              type="warning"
+              @click="markNoShow(row)"
+            >
+              未到店
+            </el-button>
+            <span v-if="!canCheckIn && !canCheckOut" class="muted">-</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="task-pager">
+        <el-pagination
+          v-model:current-page="taskPage"
+          v-model:page-size="taskPageSize"
+          layout="total, prev, pager, next, sizes"
+          :total="taskSearchRows.length"
+          :page-sizes="[10, 20, 50]"
+        />
       </div>
     </div>
 
@@ -152,136 +291,6 @@
     </div>
 
 
-    <section class="hotel-quick admin-card">
-      <div class="section-head">
-        <div>
-          <h3>快捷操作</h3>
-          <p class="section-subtitle">把高频动作放在手边，减少前台来回切页</p>
-        </div>
-      </div>
-      <div class="hotel-quick-grid">
-        <button v-for="action in quickActions" :key="action.key" class="hotel-quick-action" @click="runQuick(action.key)">
-          <span class="quick-icon" :class="`is-${action.tone}`"><el-icon><component :is="action.icon" /></el-icon></span>
-          <span class="quick-copy"><strong>{{ action.label }}</strong><small>{{ action.hint }}</small></span>
-          <span class="quick-arrow">›</span>
-        </button>
-      </div>
-    </section>
-
-    <div class="admin-card">
-      <div class="section-head task-heading">
-        <div>
-          <h3>前台任务</h3>
-          <p class="section-subtitle">优先处理到店、在住和待退房客人</p>
-        </div>
-        <el-tag effect="plain">{{ filteredTasks.length }} 条</el-tag>
-      </div>
-      <div class="task-toolbar">
-        <div class="task-filters">
-          <button
-            v-for="option in taskFilterOptions"
-            :key="option.value"
-            class="task-filter"
-            :class="{ active: taskFilter === option.value }"
-            @click="taskFilter = option.value"
-          >
-            <span>{{ option.label }}</span><b>{{ option.count }}</b>
-          </button>
-        </div>
-      </div>
-      <el-table v-loading="loading" :data="filteredTasks" border stripe>
-        <el-table-column prop="bookingNo" label="预订号" width="170" />
-        <el-table-column prop="guestName" label="住客" width="120" />
-        <el-table-column prop="roomType" label="房型" min-width="140" />
-        <el-table-column prop="roomNo" label="房号" width="90" align="center">
-          <template #default="{ row }">{{ row.roomNo || '待分配' }}</template>
-        </el-table-column>
-        <el-table-column label="入住 / 离店" min-width="180">
-          <template #default="{ row }">{{ row.checkInDate }} → {{ row.checkOutDate }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="110" align="center">
-          <template #default="{ row }">
-            <el-tag :type="statusType(row.status)">{{ hotelBookingStatusText(row.status) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="340" align="center">
-          <template #default="{ row }">
-            <el-button
-              v-if="(row.status === 'ARRIVAL' || row.status === 'CONFIRMED') && canCheckIn"
-              link
-              type="primary"
-              @click="openCheckIn(row)"
-            >
-              办理入住
-            </el-button>
-              <el-button
-                v-else-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && row.hasStay !== false && canCheckOut"
-                link
-                type="primary"
-                @click="handleCheckoutAction(row)"
-              >
-                {{ hasOutstandingBalance(row) ? '先结账后退房' : '办理退房' }}
-              </el-button>
-            <el-button
-              v-if="row.status === 'PENDING_PAYMENT' && row.orderId && canCollect"
-              link
-              type="success"
-              @click="payAndConfirm(row)"
-            >
-              收款确认
-            </el-button>
-            <el-button
-              v-if="row.status === 'PENDING_DEPOSIT' && row.orderId && canCollect"
-              link
-              type="success"
-              :loading="depositPaying"
-              @click="payDeposit(row)"
-            >
-              收定金确认
-            </el-button>
-            <el-button
-              v-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'"
-              link
-              @click="openExtend(row)"
-            >
-              续住
-            </el-button>
-            <el-button
-              v-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'"
-              link
-              @click="openFolio(row)"
-            >
-              账单
-            </el-button>
-            <el-button
-              v-if="row.status === 'IN_HOUSE' && row.hasStay !== false && canCheckIn"
-              link
-              @click="openMove(row)"
-            >
-              换房
-            </el-button>
-            <el-button
-              v-if="(row.status === 'CONFIRMED' || row.status === 'ARRIVAL') && canCreate"
-              link
-              type="danger"
-              @click="cancelBooking(row)"
-            >
-              取消
-            </el-button>
-            <el-button
-              v-if="(row.status === 'CONFIRMED' || row.status === 'ARRIVAL') && canCreate"
-              link
-              type="warning"
-              @click="markNoShow(row)"
-            >
-              未到店
-            </el-button>
-            <span v-if="!canCheckIn && !canCheckOut" class="muted">-</span>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
-
     <div class="admin-card">
       <div class="section-head">
         <h3>全部预订</h3>
@@ -292,7 +301,7 @@
           <el-tag effect="plain">{{ bookings.length }} 条</el-tag>
         </div>
       </div>
-      <el-table v-loading="bookingsLoading" :data="bookings" border stripe>
+      <el-table v-loading="bookingsLoading" :data="pagedBookings" border stripe>
         <el-table-column prop="bookingNo" label="预订号" width="170" />
         <el-table-column prop="guestName" label="住客" width="120" />
         <el-table-column prop="roomType" label="房型" min-width="140" />
@@ -309,6 +318,15 @@
           <template #default="{ row }">{{ formatMoney(row.amountMinor, row.currency) }}</template>
         </el-table-column>
       </el-table>
+      <div class="task-pager">
+        <el-pagination
+          v-model:current-page="bookingPage"
+          v-model:page-size="bookingPageSize"
+          layout="total, prev, pager, next, sizes"
+          :total="bookings.length"
+          :page-sizes="[10, 20, 50]"
+        />
+      </div>
     </div>
 
     <div class="admin-card">
@@ -316,7 +334,7 @@
         <h3>客房清扫</h3>
         <el-tag effect="plain">{{ housekeeping.length }} 条</el-tag>
       </div>
-      <el-table v-loading="housekeepingLoading" :data="housekeeping" border stripe>
+      <el-table v-loading="housekeepingLoading" :data="pagedHousekeeping" border stripe>
         <el-table-column prop="roomNo" label="房号" width="100" />
         <el-table-column label="类型" width="120">
           <template #default="{ row }">{{ housekeepingTypeText(row.taskType) }}</template>
@@ -344,6 +362,15 @@
           </template>
         </el-table-column>
       </el-table>
+      <div class="task-pager">
+        <el-pagination
+          v-model:current-page="housekeepingPage"
+          v-model:page-size="housekeepingPageSize"
+          layout="total, prev, pager, next, sizes"
+          :total="housekeeping.length"
+          :page-sizes="[10, 20, 50]"
+        />
+      </div>
     </div>
 
     <el-drawer v-model="roomDrawerVisible" :title="roomDrawerTitle" size="480px" destroy-on-close>
@@ -600,9 +627,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bell, Calendar, Document, House, Moon, Plus, Refresh, Tickets } from '@element-plus/icons-vue'
+import { ArrowDown, Bell, Calendar, Document, House, Moon, Plus, Refresh, Tickets } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   cancelHotelBooking,
@@ -955,6 +982,32 @@ const filteredTasks = computed(() => {
   if (taskFilter.value === 'ARRIVAL') return tasks.value.filter((task) => ['CONFIRMED', 'ARRIVAL'].includes(task.status))
   return tasks.value.filter((task) => task.status === taskFilter.value)
 })
+const taskKeyword = ref('')
+const taskPage = ref(1)
+const taskPageSize = ref(10)
+const bookingPage = ref(1)
+const bookingPageSize = ref(10)
+const housekeepingPage = ref(1)
+const housekeepingPageSize = ref(10)
+const taskSearchRows = computed(() => {
+  const keyword = taskKeyword.value.trim().toLowerCase()
+  if (!keyword) return filteredTasks.value
+  return filteredTasks.value.filter((task) => `${task.bookingNo || ''} ${task.guestName || ''} ${task.roomNo || ''} ${task.guestPhone || ''}`
+    .toLowerCase().includes(keyword))
+})
+const pagedTaskRows = computed(() => {
+  const start = (taskPage.value - 1) * taskPageSize.value
+  return taskSearchRows.value.slice(start, start + taskPageSize.value)
+})
+const pagedBookings = computed(() => {
+  const start = (bookingPage.value - 1) * bookingPageSize.value
+  return bookings.value.slice(start, start + bookingPageSize.value)
+})
+const pagedHousekeeping = computed(() => {
+  const start = (housekeepingPage.value - 1) * housekeepingPageSize.value
+  return housekeeping.value.slice(start, start + housekeepingPageSize.value)
+})
+watch([taskFilter, taskKeyword], () => { taskPage.value = 1 })
 
 const hotelName = computed(() => context.value?.storeName || '当前酒店')
 const todayLabel = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date())
@@ -1085,6 +1138,7 @@ async function submitBooking() {
 }
 
 async function loadHousekeeping() {
+  housekeepingPage.value = 1
   if (!context.value?.storeId || !canViewHotel.value) {
     housekeeping.value = []
     return
@@ -1457,6 +1511,7 @@ async function markNoShow(row) {
 }
 
 async function loadBookings() {
+  bookingPage.value = 1
   if (!context.value?.storeId || !canViewHotel.value) {
     bookings.value = []
     return
@@ -1556,7 +1611,8 @@ onMounted(async () => {
 .quick-copy small { margin-top: 2px; color: #93a0b1; font-size: 11px; }
 .quick-arrow { margin-left: auto; color: #b2bccb; font-size: 19px; }
 .task-heading { align-items: flex-start; }
-.task-toolbar { display: flex; align-items: center; justify-content: space-between; margin: -2px 0 12px; }
+.task-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -2px 0 12px; }
+.task-pager { display: flex; justify-content: flex-end; margin-top: 12px; }
 .task-filters { display: flex; flex-wrap: wrap; gap: 6px; }
 .task-filter { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid transparent; border-radius: 999px; color: #7d8ca3; background: #f5f7fa; font-size: 12px; cursor: pointer; }
 .task-filter b { min-width: 16px; color: #9aa7b8; font-size: 11px; text-align: center; }
