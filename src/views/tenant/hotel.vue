@@ -1658,7 +1658,7 @@ onMounted(async () => {
 .task-filter.active { border-color: #cfe1ff; color: #2f6fce; background: #edf4ff; }
 .task-filter.active b { color: #2f6fce; }
 
-.hotel-page .frontdesk-queue { order: 1; }
+.hotel-page .admin-card.frontdesk-queue { order: 1; }
 .hotel-page .admin-card.room-board-card { order: 2; }
 .hotel-page .admin-card { order: 3; }
 .hotel-notice { margin-bottom: 12px; }
