@@ -26,27 +26,6 @@
         </el-dropdown>
         <el-button :loading="loading" @click="reload">刷新</el-button>
       </div>
-      <div class="hero-stats metric-grid">
-        <button
-          v-for="metric in metrics"
-          :key="metric.key"
-          type="button"
-          class="hero-stat"
-          :class="[`tone-${metric.tone}`, { 'is-filter-active': isMetricActive(metric.key) }]"
-          :aria-pressed="isMetricActive(metric.key)"
-          @click="focusMetric(metric.key)"
-        >
-          <span class="hero-stat-icon-wrap">
-            <span class="hero-stat-icon"><el-icon><component :is="metric.icon" /></el-icon></span>
-            <i v-if="metric.key === 'tasks' && metric.value" class="pending-red-dot" aria-label="有待处理任务"></i>
-          </span>
-          <span class="hero-stat-copy">
-            <strong>{{ metric.value }}</strong>
-            <span>{{ metric.label }}</span>
-            <small>{{ metric.hint }}</small>
-          </span>
-        </button>
-      </div>
     </div>
 
     <div class="admin-card frontdesk-queue">
@@ -56,6 +35,27 @@
           <p class="section-subtitle">{{ taskFilterSubtitle }}</p>
         </div>
         <el-tag effect="plain">{{ taskSearchRows.length }} 条</el-tag>
+      </div>
+      <div class="task-metrics metric-grid">
+        <button
+          v-for="metric in metrics"
+          :key="metric.key"
+          type="button"
+          class="task-stat"
+          :class="[`tone-${metric.tone}`, { 'is-filter-active': isMetricActive(metric.key) }]"
+          :aria-pressed="isMetricActive(metric.key)"
+          @click="focusMetric(metric.key)"
+        >
+          <span class="task-stat-icon-wrap">
+            <span class="task-stat-icon"><el-icon><component :is="metric.icon" /></el-icon></span>
+            <i v-if="metric.key === 'tasks' && metric.value" class="pending-red-dot" aria-label="有待处理任务"></i>
+          </span>
+          <span class="task-stat-copy">
+            <strong>{{ metric.value }}</strong>
+            <span>{{ metric.label }}</span>
+            <small>{{ metric.hint }}</small>
+          </span>
+        </button>
       </div>
       <div class="task-toolbar">
         <span class="task-filter-state">{{ taskFilterSummary }}</span>
@@ -1626,21 +1626,21 @@ onMounted(async () => {
 .hero-meta { display: flex; gap: 16px; align-items: center; margin-top: 10px; color: #7d8ca3; font-size: 12px; }
 .hero-meta span { display: inline-flex; align-items: center; gap: 6px; }
 .hero-dot { width: 7px; height: 7px; border-radius: 50%; background: #35b87a; box-shadow: 0 0 0 4px rgba(53, 184, 122, .12); }
-.hero-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); flex: 1 0 100%; gap: 8px; margin-top: 16px; }
-.hero-stat { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 9px 11px; border: 1px solid rgba(219, 229, 242, .9); border-radius: 11px; background: rgba(255,255,255,.72); color: #34445c; text-align: left; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
-.hero-stat:hover { border-color: #a9c9f3; box-shadow: 0 5px 14px rgba(42, 94, 170, .1); transform: translateY(-1px); }
-.hero-stat.is-filter-active { border-color: #8fb9ef; box-shadow: 0 0 0 2px rgba(79, 126, 207, .13); }
-.hero-stat-icon-wrap { position: relative; display: inline-flex; flex: 0 0 28px; }
-.hero-stat-icon { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: 8px; font-size: 15px; }
+.task-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
+.task-stat { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 9px 11px; border: 1px solid rgba(219, 229, 242, .9); border-radius: 11px; background: rgba(255,255,255,.72); color: #34445c; text-align: left; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.task-stat:hover { border-color: #a9c9f3; box-shadow: 0 5px 14px rgba(42, 94, 170, .1); transform: translateY(-1px); }
+.task-stat.is-filter-active { border-color: #8fb9ef; box-shadow: 0 0 0 2px rgba(79, 126, 207, .13); }
+.task-stat-icon-wrap { position: relative; display: inline-flex; flex: 0 0 28px; }
+.task-stat-icon { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: 8px; font-size: 15px; }
 .pending-red-dot { position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; border: 2px solid #fff; border-radius: 50%; background: #f53f3f; box-shadow: 0 0 0 1px rgba(245, 63, 63, .12); }
-.hero-stat-copy { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
-.hero-stat-copy strong { font-size: 20px; letter-spacing: -.3px; }
-.hero-stat-copy span { color: #697a90; font-size: 11px; }
-.hero-stat-copy small { color: #9aa7b8; font-size: 10px; }
-.hero-stat.tone-amber .hero-stat-icon { color: #b87512; background: #fff4e2; }
-.hero-stat.tone-blue .hero-stat-icon { color: #2f6fce; background: #eaf2ff; }
-.hero-stat.tone-violet .hero-stat-icon { color: #7650a7; background: #f3edff; }
-.hero-stat.tone-green .hero-stat-icon { color: #21875b; background: #e9f8f0; }
+.task-stat-copy { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.task-stat-copy strong { font-size: 20px; letter-spacing: -.3px; }
+.task-stat-copy span { color: #697a90; font-size: 11px; }
+.task-stat-copy small { color: #9aa7b8; font-size: 10px; }
+.task-stat.tone-amber .task-stat-icon { color: #b87512; background: #fff4e2; }
+.task-stat.tone-blue .task-stat-icon { color: #2f6fce; background: #eaf2ff; }
+.task-stat.tone-violet .task-stat-icon { color: #7650a7; background: #f3edff; }
+.task-stat.tone-green .task-stat-icon { color: #21875b; background: #e9f8f0; }
 .hotel-metric { display: flex; align-items: center; gap: 13px; min-height: 92px; padding: 15px 17px; border: 1px solid #edf1f7; border-radius: 14px; background: #fff; box-shadow: 0 4px 14px rgba(33, 48, 74, .04); }
 .metric-icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 11px; font-size: 19px; }
 .metric-copy { display: flex; flex-direction: column; min-width: 0; }
@@ -1796,7 +1796,7 @@ onMounted(async () => {
 @media (max-width: 760px) {
   .room-board-head { flex-direction: column; gap: 10px; }
   .room-board-summary { justify-content: flex-start; }
-  .hero-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .task-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>
