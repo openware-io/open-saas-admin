@@ -35,7 +35,9 @@
           :class="`tone-${metric.tone}`"
           @click="focusMetric(metric.key)"
         >
-          <span class="hero-stat-icon"><el-icon><component :is="metric.icon" /></el-icon></span>
+          <el-badge :is-dot="metric.key === 'tasks'" :hidden="metric.key !== 'tasks' || !metric.value" type="danger" class="hero-stat-badge">
+            <span class="hero-stat-icon"><el-icon><component :is="metric.icon" /></el-icon></span>
+          </el-badge>
           <span class="hero-stat-copy">
             <strong>{{ metric.value }}</strong>
             <span>{{ metric.label }}</span>
@@ -1612,6 +1614,8 @@ onMounted(async () => {
 .hero-stat { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 9px 11px; border: 1px solid rgba(219, 229, 242, .9); border-radius: 11px; background: rgba(255,255,255,.72); color: #34445c; text-align: left; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
 .hero-stat:hover { border-color: #a9c9f3; box-shadow: 0 5px 14px rgba(42, 94, 170, .1); transform: translateY(-1px); }
 .hero-stat-icon { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: 8px; font-size: 15px; }
+.hero-stat-badge { flex: 0 0 28px; line-height: 1; }
+.hero-stat-badge :deep(.el-badge__content.is-dot) { width: 8px; height: 8px; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(245, 63, 63, .15); }
 .hero-stat-copy { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
 .hero-stat-copy strong { font-size: 20px; letter-spacing: -.3px; }
 .hero-stat-copy span { color: #697a90; font-size: 11px; }
