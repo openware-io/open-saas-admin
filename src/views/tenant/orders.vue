@@ -147,7 +147,7 @@
           <template v-else-if="room.boardStatus === 'cleaning'">
             <div class="cleaning-content">
               <el-icon><Service /></el-icon>
-              <strong>{{ ROOM_STATE_LABEL.cleaning }}</strong>
+              <strong>{{ ROOM_BOARD_STATE_TEXT.cleaning }}</strong>
               <span>清洁中的包厢不可开台、不可预约</span>
             </div>
             <div class="room-actions">
@@ -185,7 +185,7 @@
               <el-button v-if="room.order.status === 'WAITING_SETTLEMENT'" size="small" type="warning" @click.stop="settle(room.order)">结算</el-button>
               <el-button v-if="room.order.status === 'WAITING_PAYMENT'" size="small" type="success" @click.stop="openCollect(room.order)">收银</el-button>
               <!-- 结台后包厢进入清洁中，但客人可能还在买单：待结账卡片同时给出「清洁完成」，避免清洁状态吞掉收款入口 -->
-              <el-button v-if="room.cleaning" size="small" type="success" plain :loading="isSubmitting(room)" @click.stop="markRoomCleaned(room)">清洁完成</el-button>
+              <el-button v-if="room?.cleaning" size="small" type="success" plain :loading="isSubmitting(room)" @click.stop="markRoomCleaned(room)">清洁完成</el-button>
               <el-dropdown trigger="click" @command="(command) => handleRoomCommand(command, room.order)">
                 <el-button size="small" @click.stop>···</el-button>
                 <template #dropdown>
@@ -1047,11 +1047,11 @@ const roomAreaTabs = computed(() => roomAreas.value.map((area) => ({ value: area
 
 const roomStats = computed(() => [
   { key: 'all', label: '全部包厢', value: roomSummary.value.total, suffix: '间', icon: Grid, tone: 'total', filterValue: 'all' },
-  { key: 'idle', label: ROOM_STATE_LABEL.idle, value: roomSummary.value.idle, suffix: '间', icon: Check, tone: 'idle', filterValue: 'idle' },
-  { key: 'serving', label: ROOM_STATE_LABEL.serving, value: roomSummary.value.serving, suffix: '间', icon: Timer, tone: 'serving', filterValue: 'serving' },
-  { key: 'checkout', label: ROOM_STATE_LABEL.checkout, value: roomSummary.value.checkout, suffix: '间', icon: Money, tone: 'checkout', filterValue: 'checkout' },
-  { key: 'reserved', label: ROOM_STATE_LABEL.reserved, value: roomSummary.value.reserved, suffix: '间', icon: Calendar, tone: 'reserved', filterValue: 'reserved' },
-  { key: 'cleaning', label: ROOM_STATE_LABEL.cleaning, value: roomSummary.value.cleaning, suffix: '间', icon: Service, tone: 'cleaning', filterValue: 'cleaning' },
+  { key: 'idle', label: ROOM_BOARD_STATE_TEXT.idle, value: roomSummary.value.idle, suffix: '间', icon: Check, tone: 'idle', filterValue: 'idle' },
+  { key: 'serving', label: ROOM_BOARD_STATE_TEXT.serving, value: roomSummary.value.serving, suffix: '间', icon: Timer, tone: 'serving', filterValue: 'serving' },
+  { key: 'checkout', label: ROOM_BOARD_STATE_TEXT.checkout, value: roomSummary.value.checkout, suffix: '间', icon: Money, tone: 'checkout', filterValue: 'checkout' },
+  { key: 'reserved', label: ROOM_BOARD_STATE_TEXT.reserved, value: roomSummary.value.reserved, suffix: '间', icon: Calendar, tone: 'reserved', filterValue: 'reserved' },
+  { key: 'cleaning', label: ROOM_BOARD_STATE_TEXT.cleaning, value: roomSummary.value.cleaning, suffix: '间', icon: Service, tone: 'cleaning', filterValue: 'cleaning' },
   { key: 'amount', label: '在场订单金额', value: formatYuanCompact(roomSummary.value.currentAmount), icon: Tickets, tone: 'amount', clickable: false },
 ])
 
