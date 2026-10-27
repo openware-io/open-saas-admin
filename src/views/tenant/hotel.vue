@@ -90,7 +90,7 @@
         <el-table-column label="操作" width="340" align="center">
           <template #default="{ row }">
             <el-button
-              v-if="(row.status === 'ARRIVAL' || row.status === 'CONFIRMED') && canCheckIn"
+              v-if="row.status === 'CONFIRMED' && canCheckIn"
               link
               type="primary"
               @click="openCheckIn(row)"
@@ -98,7 +98,7 @@
               办理入住
             </el-button>
               <el-button
-                v-else-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && row.hasStay !== false && canCheckOut"
+                v-else-if="(row.status === 'CHECKED_IN' || row.status === 'DUE_OUT') && row.hasStay !== false && canCheckOut"
                 link
                 type="primary"
                 @click="handleCheckoutAction(row)"
@@ -106,7 +106,7 @@
                 {{ hasOutstandingBalance(row) ? '先结账后退房' : '办理退房' }}
               </el-button>
             <el-button
-              v-if="row.status === 'PENDING_PAYMENT' && row.orderId && canCollect"
+              v-if="row.status === 'PENDING_CONFIRM' && !row.depositOrderId && row.orderId && canCollect"
               link
               type="success"
               @click="payAndConfirm(row)"
@@ -114,7 +114,7 @@
               收款确认
             </el-button>
             <el-button
-              v-if="row.status === 'PENDING_DEPOSIT' && row.orderId && canCollect"
+              v-if="row.status === 'PENDING_CONFIRM' && row.depositOrderId && canCollect"
               link
               type="success"
               :loading="depositPaying"
@@ -123,28 +123,28 @@
               收定金确认
             </el-button>
             <el-button
-              v-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && row.hasStay !== false"
+              v-if="(row.status === 'CHECKED_IN' || row.status === 'DUE_OUT') && row.hasStay !== false"
               link
               @click="openExtend(row)"
             >
               续住
             </el-button>
             <el-button
-              v-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && row.hasStay !== false"
+              v-if="(row.status === 'CHECKED_IN' || row.status === 'DUE_OUT') && row.hasStay !== false"
               link
               @click="openFolio(row)"
             >
               账单
             </el-button>
             <el-button
-              v-if="row.status === 'IN_HOUSE' && row.hasStay !== false && canCheckIn"
+              v-if="row.status === 'CHECKED_IN' && row.hasStay !== false && canCheckIn"
               link
               @click="openMove(row)"
             >
               换房
             </el-button>
             <el-button
-              v-if="(row.status === 'CONFIRMED' || row.status === 'ARRIVAL') && canCreate"
+              v-if="row.status === 'CONFIRMED' && canCreate"
               link
               type="danger"
               @click="cancelBooking(row)"
@@ -152,7 +152,7 @@
               取消
             </el-button>
             <el-button
-              v-if="(row.status === 'CONFIRMED' || row.status === 'ARRIVAL') && canCreate"
+              v-if="row.status === 'CONFIRMED' && canCreate"
               link
               type="warning"
               @click="markNoShow(row)"
@@ -215,9 +215,10 @@
         </el-select>
         <el-select v-model="roomFilter.status" clearable placeholder="房态" size="small" style="width: 120px">
           <el-option label="空闲" value="active" />
-          <el-option label="在住" value="occupied" />
-          <el-option label="脏房" value="dirty" />
-          <el-option label="维修" value="maintenance" />
+          <el-option label="已入住" value="occupied" />
+          <el-option label="待清扫" value="dirty" />
+          <el-option label="已预留" value="reserved" />
+          <el-option label="维修中" value="maintenance" />
         </el-select>
         <el-date-picker
           v-model="roomFilter.date"
@@ -300,34 +301,43 @@
       </div>
       <div class="room-legend">
         <span><i class="legend-dot is-active"></i>空闲</span>
-        <span><i class="legend-dot is-occupied"></i>在住</span>
-        <span><i class="legend-dot is-dirty"></i>脏房</span>
-        <span><i class="legend-dot is-maintenance"></i>维修</span>
+        <span><i class="legend-dot is-occupied"></i>已入住</span>
+        <span><i class="legend-dot is-dirty"></i>待清扫</span>
+        <span><i class="legend-dot is-reserved"></i>已预留</span>
+        <span><i class="legend-dot is-maintenance"></i>维修中</span>
       </div>
     </div>
 
 
     <div class="admin-card">
       <div class="section-head">
-        <h3>全部预订</h3>
+        <h3>酒店订单</h3>
         <div class="inline-actions">
-          <el-select v-model="bookingStatusFilter" clearable placeholder="全部状态" style="width:150px" @change="loadBookings">
-            <el-option v-for="item in bookingStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
+          <el-select v-model="orderStatusFilter" clearable placeholder="全部预订状态" style="width:160px" @change="loadOrders">
+            <el-option v-for="item in orderStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
-          <el-tag effect="plain">{{ bookings.length }} 条</el-tag>
+          <el-tag effect="plain">{{ orders.length }} 条</el-tag>
         </div>
       </div>
-      <el-table v-loading="bookingsLoading" :data="pagedBookings" border stripe>
-        <el-table-column prop="bookingNo" label="预订号" width="170" />
-        <el-table-column prop="guestName" label="住客" width="120" />
-        <el-table-column prop="roomType" label="房型" min-width="140" />
-        <el-table-column prop="roomNo" label="房号" width="90" />
+      <el-table v-loading="ordersLoading" :data="pagedOrders" border stripe>
+        <el-table-column prop="orderNo" label="订单号" width="170">
+          <template #default="{ row }">{{ row.orderNo || '—' }}</template>
+        </el-table-column>
+        <el-table-column prop="bookingNo" label="预订号" width="160" />
+        <el-table-column prop="guestName" label="住客" width="110" />
+        <el-table-column prop="roomType" label="房型" min-width="120" />
+        <el-table-column prop="roomNo" label="房号" width="90" align="center">
+          <template #default="{ row }">{{ row.roomNo || '待分配' }}</template>
+        </el-table-column>
         <el-table-column label="入住 / 离店" min-width="180">
           <template #default="{ row }">{{ row.checkInDate }} → {{ row.checkOutDate }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="110">
+        <el-table-column label="状态" width="160">
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)">{{ hotelBookingStatusText(row.status) }}</el-tag>
+            <el-tag :type="statusType(row.bookingStatus)">{{ hotelBookingStatusText(row.bookingStatus) }}</el-tag>
+            <el-tag v-if="row.tradeStatus" class="trade-status-tag" effect="plain" type="info">
+              {{ orderTradeStatusText(row.tradeStatus) }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="金额" width="130" align="right">
@@ -336,10 +346,10 @@
       </el-table>
       <div class="task-pager">
         <el-pagination
-          v-model:current-page="bookingPage"
-          v-model:page-size="bookingPageSize"
+          v-model:current-page="orderPage"
+          v-model:page-size="orderPageSize"
           layout="total, prev, pager, next, sizes"
-          :total="bookings.length"
+          :total="orders.length"
           :page-sizes="[10, 20, 50]"
         />
       </div>
@@ -453,6 +463,12 @@
         </section>
 
         <section v-else class="room-detail-section">
+          <div class="room-facts">
+            <div><span>占用</span><strong>{{ occupancyText(selectedRoom) }}</strong></div>
+            <div><span>清扫</span><strong>{{ housekeepingText(selectedRoom) }}</strong></div>
+            <div><span>不可售</span><strong>{{ outOfOrderText(selectedRoom) || '无' }}</strong></div>
+            <div><span>保留</span><strong>{{ selectedRoom.holdReason ? hotelRoomHoldReasonText(selectedRoom.holdReason) : '无' }}</strong></div>
+          </div>
           <div class="room-empty-note">
             <strong>{{ roomEmptyCopy.title }}</strong>
             <span>{{ roomEmptyCopy.hint }}</span>
@@ -484,7 +500,7 @@
             <el-button v-if="canCheckIn && selectedRoomTask.hasStay !== false" @click="roomMove">换房</el-button>
           </template>
           <template v-else>
-            <el-button v-if="selectedRoom.status === 'ACTIVE' && canCreate" class="room-action-wide" type="primary" @click="createFromRoom">新建预订</el-button>
+            <el-button v-if="canCheckInRoom(selectedRoom) && canCreate" class="room-action-wide" type="primary" @click="createFromRoom">新建预订</el-button>
             <el-button
               v-if="selectedRoomHousekeeping && selectedRoomHousekeeping.status === 'PENDING' && canManageRooms"
               class="room-action-wide"
@@ -498,13 +514,21 @@
               @click="finishRoomCleaning"
             >完成清扫</el-button>
             <el-button
-              v-if="selectedRoom.status === 'MAINTENANCE' && canManageRooms"
+              v-if="selectedRoom.outOfOrderStatus !== 'NONE' && canManageRooms"
               @click="setRoomMaintenance(false)"
-            >恢复空闲</el-button>
+            >恢复可售</el-button>
             <el-button
-              v-if="selectedRoom.status !== 'MAINTENANCE' && selectedRoom.status !== 'OCCUPIED' && canManageRooms"
+              v-if="selectedRoom.outOfOrderStatus === 'NONE' && selectedRoom.occupancyStatus !== 'OCCUPIED' && canManageRooms"
               @click="setRoomMaintenance(true)"
             >设为维修</el-button>
+            <el-button
+              v-if="selectedRoom.holdReason && selectedRoom.holdId && canManageRooms"
+              @click="releaseRoomHold"
+            >取消预留</el-button>
+            <el-button
+              v-else-if="canCheckInRoom(selectedRoom) && canManageRooms"
+              @click="holdSelectedRoom"
+            >预留客房</el-button>
           </template>
         </div>
       </div>
@@ -648,6 +672,7 @@ import { useRouter } from 'vue-router'
 import { ArrowDown, Bell, Calendar, Document, House, Moon, Plus, Refresh, Tickets } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
+  addHotelRoomHold,
   cancelHotelBooking,
   checkInHotelBooking,
   checkOutHotelBooking,
@@ -660,20 +685,21 @@ import {
   extendHotelBooking,
   getHotelFolio,
   getHotelPolicy,
-  listHotelBookings,
+  getHotelRoomBoard,
   listHotelFrontDeskTasks,
+  listHotelOrders,
   listHotelRatePlans,
   listHotelRoomTypes,
-  listHotelRooms,
   listHotels,
   moveHotelRoom,
   noShowHotelBooking,
   listHousekeepingTasks,
   quoteHotelStay,
   refundHotelDeposit,
+  releaseHotelRoomHold,
   requestHotelOnlineRefund,
   runNightAudit,
-  setHotelRoomStatus,
+  setHotelRoomOutOfOrder,
   startHousekeepingTask,
   syncHotelRefunds,
 } from '@/api/hotel'
@@ -683,13 +709,23 @@ import {
   hotelBookingSourceText,
   hotelBookingStatusText,
   hotelFolioStatusText,
-  hotelRoomStatusText,
+  hotelRoomHoldReasonText,
   housekeepingSourceText,
   housekeepingStatusText,
   housekeepingTypeText,
+  orderTradeStatusText,
 } from '@/constants/terms'
 import { formatMoney } from '@/utils/format'
 import { hasPermission } from '@/utils/context'
+import {
+  canCheckInRoom,
+  housekeepingText,
+  occupancyText,
+  outOfOrderText,
+  roomBoardLabel,
+  roomBoardSummary,
+  roomBoardTone,
+} from '@/utils/hotel-room-state'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { useContextStore } from '@/stores/context'
 
@@ -705,15 +741,13 @@ const quoting = ref(false)
 const submitting = ref(false)
 const housekeeping = ref([])
 const housekeepingLoading = ref(false)
-const bookings = ref([])
-const bookingsLoading = ref(false)
-const bookingStatusFilter = ref('')
-const bookingStatusOptions = [
-  { value: 'PENDING_PAYMENT', label: '待支付' },
-  { value: 'PENDING_DEPOSIT', label: '待付定金' },
+const orders = ref([])
+const ordersLoading = ref(false)
+const orderStatusFilter = ref('')
+const orderStatusOptions = [
+  { value: 'PENDING_CONFIRM', label: '待确认' },
   { value: 'CONFIRMED', label: '已确认' },
-  { value: 'ARRIVAL', label: '待入住' },
-  { value: 'IN_HOUSE', label: '在住' },
+  { value: 'CHECKED_IN', label: '已入住' },
   { value: 'DUE_OUT', label: '待退房' },
   { value: 'CHECKED_OUT', label: '已退房' },
   { value: 'CANCELLED', label: '已取消' },
@@ -724,7 +758,7 @@ const roomStatesLoading = ref(false)
 const roomDrawerVisible = ref(false)
 const selectedRoom = ref(null)
 const selectedRoomTask = computed(() => tasks.value.find((task) => task.roomNo === selectedRoom.value?.roomNo
-  && ['IN_HOUSE', 'DUE_OUT'].includes(task.status)) || null)
+  && ['CHECKED_IN', 'DUE_OUT'].includes(task.status)) || null)
 const selectedRoomFinanceHints = computed(() => selectedRoomTask.value ? financeHints(selectedRoomTask.value) : [])
 function hasOutstandingBalance(task) {
   return !!task && task.folioChargeMinor != null && task.folioPaidMinor != null
@@ -739,11 +773,17 @@ const selectedRoomHousekeeping = computed(() => {
   return candidates.find((task) => (task.taskType || 'DEPARTURE') === expectedType) || null
 })
 const roomEmptyCopy = computed(() => {
-  const status = selectedRoom.value?.status
-  if (status === 'ACTIVE') return { title: '客房空闲', hint: '可以直接为到店客人创建预订或办理入住。' }
-  if (status === 'DIRTY') return { title: '等待清扫', hint: '完成客房清扫后即可恢复预订。' }
-  if (status === 'MAINTENANCE') return { title: '客房维修中', hint: '处理完成后恢复。' }
-  return { title: '客房状态', hint: '请按房态完成对应操作。' }
+  const room = selectedRoom.value
+  if (!room) return { title: '客房状态', hint: '请按房态完成对应操作。' }
+  const tone = roomBoardTone(room)
+  if (tone === 'maintenance') {
+    return { title: outOfOrderText(room) || '维修中', hint: '恢复可售后才能接受预订或入住。' }
+  }
+  if (tone === 'reserved') return { title: '已预留', hint: '保留期间不可售、不可入住，可取消预留后恢复。' }
+  if (tone === 'dirty') {
+    return { title: housekeepingText(room) || '待清扫', hint: '完成客房清扫后即可恢复预订与入住。' }
+  }
+  return { title: '客房空闲', hint: '可以直接为到店客人创建预订或办理入住。' }
 })
 const roomDrawerTitle = computed(() => selectedRoom.value?.roomNo || '客房详情')
 
@@ -794,16 +834,14 @@ const canCheckIn = computed(() => hasPermission(context.value?.permissions, 'hot
 const canCheckOut = computed(() => hasPermission(context.value?.permissions, 'hotel.checkout'))
 const canViewHotel = computed(() => hasPermission(context.value?.permissions, 'hotel.booking.view'))
 const canCreate = computed(() => hasPermission(context.value?.permissions, 'hotel.booking.create'))
-const canManageRooms = computed(() => hasPermission(context.value?.permissions, 'hotel.inventory.manage'))
+const canManageRooms = computed(() => hasPermission(context.value?.permissions, 'hotel.room.manage'))
 const canCollect = computed(() => hasPermission(context.value?.permissions, 'payment.collect'))
 
 const counts = computed(() => {
-  const result = { CONFIRMED: 0, ARRIVAL: 0, IN_HOUSE: 0, DUE_OUT: 0 }
+  const result = { CONFIRMED: 0, CHECKED_IN: 0, DUE_OUT: 0 }
   for (const task of tasks.value) result[task.status] = (result[task.status] || 0) + 1
   return result
 })
-
-const roomTone = { ACTIVE: 'active', OCCUPIED: 'occupied', DIRTY: 'dirty', MAINTENANCE: 'maintenance' }
 
 function shortDate(value) {
   const text = String(value || '').slice(0, 10)
@@ -826,7 +864,7 @@ function maskPhone(phone) {
 
 function activeCardBadge(task) {
   if (task.status === 'DUE_OUT') return '今日离店'
-  if (task.status === 'IN_HOUSE') return task.nights ? `${task.nights}晚` : '在住'
+  if (task.status === 'CHECKED_IN') return task.nights ? `${task.nights}晚` : '在住'
   return ''
 }
 
@@ -848,25 +886,21 @@ function financeHints(task) {
 
 function emptyRoomHint(room, upcoming) {
   if (upcoming) return `下一预订 ${shortDate(upcoming.checkInDate)} · ${upcoming.guestName}`
-  if (room.status === 'DIRTY') return '清扫完成可恢复预订'
-  if (room.status === 'MAINTENANCE') return '维修完成后恢复'
+  const tone = roomBoardTone(room)
+  if (tone === 'maintenance') return outOfOrderText(room) || '维修中'
+  if (tone === 'reserved') return '已预留'
+  if (tone === 'dirty') return housekeepingText(room) || '待清扫'
   return '今日可预订'
 }
 
 const roomSummary = computed(() => {
-  const count = { ACTIVE: 0, OCCUPIED: 0, DIRTY: 0, MAINTENANCE: 0 }
-  const activeRooms = new Set(tasks.value
-    .filter((task) => task.roomNo && ['IN_HOUSE', 'DUE_OUT'].includes(task.status))
-    .map((task) => task.roomNo))
-  for (const room of roomStates.value) {
-    const status = activeRooms.has(room.roomNo) ? 'OCCUPIED' : room.status
-    if (count[status] !== undefined) count[status] += 1
-  }
+  const counts = roomBoardSummary(roomStates.value)
   return [
-    { key: 'active', label: '空闲', count: count.ACTIVE },
-    { key: 'occupied', label: '在住', count: count.OCCUPIED },
-    { key: 'dirty', label: '脏房', count: count.DIRTY },
-    { key: 'maintenance', label: '维修', count: count.MAINTENANCE },
+    { key: 'active', label: '空闲', count: counts.active },
+    { key: 'occupied', label: '已入住', count: counts.occupied },
+    { key: 'dirty', label: '待清扫', count: counts.dirty },
+    { key: 'reserved', label: '已预留', count: counts.reserved },
+    { key: 'maintenance', label: '维修中', count: counts.maintenance },
   ]
 })
 
@@ -876,9 +910,9 @@ const roomBoard = computed(() => {
   const stayoverByRoom = new Map()
   for (const task of tasks.value) {
     if (!task.roomNo) continue
-    if (['IN_HOUSE', 'DUE_OUT'].includes(task.status)) {
+    if (['CHECKED_IN', 'DUE_OUT'].includes(task.status)) {
       activeByRoom.set(task.roomNo, task)
-    } else if (['CONFIRMED', 'ARRIVAL', 'PENDING_DEPOSIT'].includes(task.status)) {
+    } else if (['CONFIRMED', 'PENDING_CONFIRM'].includes(task.status)) {
       const current = upcomingByRoom.get(task.roomNo)
       if (!current || String(task.checkInDate || '') < String(current.checkInDate || '')) {
         upcomingByRoom.set(task.roomNo, task)
@@ -896,26 +930,29 @@ const roomBoard = computed(() => {
     const task = activeByRoom.get(room.roomNo)
     const upcoming = upcomingByRoom.get(room.roomNo)
     const stayover = stayoverByRoom.get(room.roomNo)
+    // 房态只从三组字段（占用/清扫/不可售）+ 保留派生，不读取任何单一 status。
+    const tone = roomBoardTone(room)
+    const guestName = room.guestName || task?.guestName || ''
+    const serviceHint = task && stayover
+      ? `${housekeepingTypeText(stayover.taskType)} · ${housekeepingStatusText(stayover.status)}`
+      : (room.holdReason ? '已预留' : '')
     floors.get(floorKey).push({
       ...room,
-      // 在住/待离店优先于物理房态：即使历史数据把客房标成 DIRTY，也不能把住客显示成“待清扫”。
-      tone: task ? 'occupied' : (roomTone[room.status] || 'maintenance'),
-      statusLabel: task
-        ? '在住'
-        : hotelRoomStatusText(room.status),
-      guestName: task?.guestName || '',
-      guestInitial: task?.guestName ? String(task.guestName).slice(0, 1) : '',
+      tone,
+      statusLabel: roomBoardLabel(room),
+      guestName,
+      guestInitial: guestName ? String(guestName).slice(0, 1) : '',
       bookingStatusLabel: '',
-      stayWindow: task ? stayWindowText(task) : '',
-      checkInDate: task?.checkInDate || upcoming?.checkInDate || '',
-      checkOutDate: task?.checkOutDate || upcoming?.checkOutDate || '',
+      stayWindow: room.checkInDate && room.checkOutDate
+        ? `${shortDate(room.checkInDate)} → ${shortDate(room.checkOutDate)}${task?.nights ? ` · ${task.nights}晚` : ''}`
+        : (task ? stayWindowText(task) : ''),
+      checkInDate: room.checkInDate || upcoming?.checkInDate || '',
+      checkOutDate: room.checkOutDate || upcoming?.checkOutDate || '',
       phoneHint: task ? maskPhone(task.guestPhone) : '',
       cardBadge: task ? activeCardBadge(task) : '',
       financeHints: task ? financeHints(task) : [],
-      serviceHint: task && stayover
-        ? `${housekeepingTypeText(stayover.taskType)} · ${housekeepingStatusText(stayover.status)}`
-        : '',
-      emptyHint: task ? '' : emptyRoomHint(room, upcoming),
+      serviceHint,
+      emptyHint: guestName ? '' : emptyRoomHint(room, upcoming),
     })
   }
   return [...floors.entries()]
@@ -965,13 +1002,13 @@ function filterByRoomSummary(status) {
 }
 
 const metrics = computed(() => [
-  { key: 'arrival', label: '待入住', value: (counts.value.CONFIRMED || 0) + (counts.value.ARRIVAL || 0), hint: '已确认 / 今日到店', icon: Calendar, tone: 'amber' },
-  { key: 'in_house', label: '在住', value: counts.value.IN_HOUSE || 0, hint: '当前在店', icon: House, tone: 'blue' },
+  { key: 'arrival', label: '待入住', value: counts.value.CONFIRMED || 0, hint: '已确认 / 今日到店', icon: Calendar, tone: 'amber' },
+  { key: 'in_house', label: '已入住', value: counts.value.CHECKED_IN || 0, hint: '当前在店', icon: House, tone: 'blue' },
   { key: 'due_out', label: '待退房', value: counts.value.DUE_OUT || 0, hint: '今日离店', icon: Tickets, tone: 'violet' },
   { key: 'tasks', label: '待处理', value: tasks.value.length, hint: '前台任务', icon: Bell, tone: 'green' },
 ])
 
-const metricFilters = { arrival: 'ARRIVAL', in_house: 'IN_HOUSE', due_out: 'DUE_OUT', tasks: 'ALL' }
+const metricFilters = { arrival: 'CONFIRMED', in_house: 'CHECKED_IN', due_out: 'DUE_OUT', tasks: 'ALL' }
 
 function isMetricActive(key) {
   return taskFilter.value === (metricFilters[key] || 'ALL')
@@ -984,7 +1021,7 @@ function focusMetric(key) {
 
 const quickActions = computed(() => [
   canCreate.value && { key: 'booking', label: '新建预订', hint: '为到店客人快速开单', icon: Plus, tone: 'amber' },
-  { key: 'master', label: '酒店资料', hint: '房型、房价与库存', icon: Document, tone: 'blue' },
+  { key: 'master', label: '酒店资料', hint: '房型、房价与房量', icon: Document, tone: 'blue' },
   canManageRooms.value && { key: 'audit', label: '夜审', hint: '结算今日营业数据', icon: Moon, tone: 'violet' },
   canCollect.value && { key: 'refund', label: '同步退款', hint: '同步线上退款状态', icon: Refresh, tone: 'green' },
 ].filter(Boolean))
@@ -999,8 +1036,8 @@ function runQuick(key) {
 const taskFilter = ref('ALL')
 const taskFilterOptions = computed(() => [
   { value: 'ALL', label: '全部', count: tasks.value.length },
-  { value: 'ARRIVAL', label: '待入住', count: (counts.value.CONFIRMED || 0) + (counts.value.ARRIVAL || 0) },
-  { value: 'IN_HOUSE', label: '在住', count: counts.value.IN_HOUSE || 0 },
+  { value: 'CONFIRMED', label: '待入住', count: counts.value.CONFIRMED || 0 },
+  { value: 'CHECKED_IN', label: '已入住', count: counts.value.CHECKED_IN || 0 },
   { value: 'DUE_OUT', label: '待退房', count: counts.value.DUE_OUT || 0 },
 ])
 const taskFilterLabel = computed(() => taskFilterOptions.value.find((option) => option.value === taskFilter.value)?.label || '全部')
@@ -1011,14 +1048,14 @@ const taskFilterSubtitle = computed(() => taskFilter.value === 'ALL'
 
 const filteredTasks = computed(() => {
   if (taskFilter.value === 'ALL') return tasks.value
-  if (taskFilter.value === 'ARRIVAL') return tasks.value.filter((task) => ['CONFIRMED', 'ARRIVAL'].includes(task.status))
+  if (taskFilter.value === 'CONFIRMED') return tasks.value.filter((task) => task.status === 'CONFIRMED')
   return tasks.value.filter((task) => task.status === taskFilter.value)
 })
 const taskKeyword = ref('')
 const taskPage = ref(1)
 const taskPageSize = ref(10)
-const bookingPage = ref(1)
-const bookingPageSize = ref(10)
+const orderPage = ref(1)
+const orderPageSize = ref(10)
 const housekeepingPage = ref(1)
 const housekeepingPageSize = ref(10)
 const taskSearchRows = computed(() => {
@@ -1031,9 +1068,9 @@ const pagedTaskRows = computed(() => {
   const start = (taskPage.value - 1) * taskPageSize.value
   return taskSearchRows.value.slice(start, start + taskPageSize.value)
 })
-const pagedBookings = computed(() => {
-  const start = (bookingPage.value - 1) * bookingPageSize.value
-  return bookings.value.slice(start, start + bookingPageSize.value)
+const pagedOrders = computed(() => {
+  const start = (orderPage.value - 1) * orderPageSize.value
+  return orders.value.slice(start, start + orderPageSize.value)
 })
 const pagedHousekeeping = computed(() => {
   const start = (housekeepingPage.value - 1) * housekeepingPageSize.value
@@ -1045,7 +1082,7 @@ const hotelName = computed(() => context.value?.storeName || '当前酒店')
 const todayLabel = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date())
 
 function statusType(status) {
-  return { CONFIRMED: 'primary', ARRIVAL: 'warning', IN_HOUSE: 'success', DUE_OUT: 'warning' }[status] || 'info'
+  return { CONFIRMED: 'primary', CHECKED_IN: 'success', DUE_OUT: 'warning' }[status] || 'info'
 }
 
 async function loadTasks() {
@@ -1186,7 +1223,7 @@ async function loadHousekeeping() {
 }
 
 async function reload() {
-  await Promise.all([loadTasks(), loadBookings(), loadHousekeeping(), loadRoomStates()])
+  await Promise.all([loadTasks(), loadOrders(), loadHousekeeping(), loadRoomStates()])
 }
 
 function openExtend(row) {
@@ -1345,15 +1382,57 @@ async function finishRoomCleaning() {
   closeRoomDrawer()
 }
 
+function todayString() {
+  return new Date().toISOString().slice(0, 10)
+}
+
 async function setRoomMaintenance(maintenance) {
   if (!selectedRoom.value) return
   try {
-    await setHotelRoomStatus(selectedRoom.value.id, maintenance ? 'MAINTENANCE' : 'ACTIVE')
-    ElMessage.success(maintenance ? '客房已设为维修' : '客房已恢复空闲')
-    await loadRoomStates()
+    if (maintenance) {
+      // 维修通过服务调整房量：设置时同步下调当日房量，恢复时加回。
+      await setHotelRoomOutOfOrder(selectedRoom.value.id, {
+        status: 'OUT_OF_ORDER',
+        from: todayString(),
+        to: todayString(),
+      })
+      ElMessage.success('客房已设为维修中，当日房量已同步下调')
+    } else {
+      await setHotelRoomOutOfOrder(selectedRoom.value.id, { status: 'NONE' })
+      ElMessage.success('客房已恢复可售，房量已同步恢复')
+    }
+    await reload()
     closeRoomDrawer()
   } catch (error) {
     notifyAdminRequestError(error, maintenance ? '设置维修失败' : '恢复客房失败')
+  }
+}
+
+async function holdSelectedRoom() {
+  if (!selectedRoom.value) return
+  try {
+    await addHotelRoomHold(selectedRoom.value.id, {
+      reason: 'RESERVED',
+      from: todayString(),
+      to: todayString(),
+    })
+    ElMessage.success('客房已预留，保留期间不可售、不可入住')
+    await reload()
+    closeRoomDrawer()
+  } catch (error) {
+    notifyAdminRequestError(error, '预留客房失败')
+  }
+}
+
+async function releaseRoomHold() {
+  if (!selectedRoom.value?.holdId) return
+  try {
+    await releaseHotelRoomHold(selectedRoom.value.id, selectedRoom.value.holdId)
+    ElMessage.success('客房预留已取消')
+    await reload()
+    closeRoomDrawer()
+  } catch (error) {
+    notifyAdminRequestError(error, '取消预留失败')
   }
 }
 
@@ -1471,14 +1550,10 @@ async function payDeposit(row) {
 async function openCheckIn(row) {
   checkInBooking.value = row
   checkInRoomId.value = null
-  checkInRooms.value = []
-  try {
-    const rooms = await listHotelRooms(row.roomTypeId)
-    checkInRooms.value = (rooms || []).filter((room) => room.status === 'ACTIVE')
-    checkInVisible.value = true
-  } catch (error) {
-    notifyAdminRequestError(error, '加载可用客房失败')
-  }
+  // 可入住客房由三组房态字段派生：脏房、维修房、预留房都不可选。
+  checkInRooms.value = roomStates.value.filter((room) =>
+    String(room.roomTypeId) === String(row.roomTypeId) && canCheckInRoom(room))
+  checkInVisible.value = true
 }
 
 async function submitCheckIn() {
@@ -1499,14 +1574,10 @@ async function submitCheckIn() {
 async function openMove(row) {
   moveBooking.value = row
   moveRoomId.value = null
-  moveRooms.value = []
-  try {
-    const rooms = await listHotelRooms(row.roomTypeId)
-    moveRooms.value = (rooms || []).filter((room) => room.status === 'ACTIVE')
-    moveVisible.value = true
-  } catch (error) {
-    notifyAdminRequestError(error, '加载可换客房失败')
-  }
+  // 换房目标同样按三组房态字段派生可入住客房。
+  moveRooms.value = roomStates.value.filter((room) =>
+    String(room.roomTypeId) === String(row.roomTypeId) && canCheckInRoom(room))
+  moveVisible.value = true
 }
 
 async function submitMove() {
@@ -1550,19 +1621,20 @@ async function markNoShow(row) {
   }
 }
 
-async function loadBookings() {
-  bookingPage.value = 1
+async function loadOrders() {
+  orderPage.value = 1
   if (!context.value?.storeId || !canViewHotel.value) {
-    bookings.value = []
+    orders.value = []
     return
   }
-  bookingsLoading.value = true
+  ordersLoading.value = true
   try {
-    bookings.value = (await listHotelBookings({ status: bookingStatusFilter.value || undefined })) || []
+    // 酒店订单读模型：订单号 + 预订号 + 住客 + 房型/房号 + 入离 + 状态 + 金额。
+    orders.value = (await listHotelOrders({ status: orderStatusFilter.value || undefined })) || []
   } catch (error) {
-    notifyAdminRequestError(error, '加载预订列表失败')
+    notifyAdminRequestError(error, '加载酒店订单失败')
   } finally {
-    bookingsLoading.value = false
+    ordersLoading.value = false
   }
 }
 
@@ -1573,15 +1645,12 @@ async function loadRoomStates() {
   }
   roomStatesLoading.value = true
   try {
-    const rooms = (await listHotelRooms()) || []
-    if (!roomTypes.value.length && rooms[0]?.hotelId) {
-      roomTypes.value = (await listHotelRoomTypes(rooms[0].hotelId)) || []
-    }
-    const typeNames = new Map(roomTypes.value.map((type) => [String(type.id), type.name]))
-    const taskTypeByRoom = new Map(tasks.value.filter((task) => task.roomNo && task.roomType).map((task) => [task.roomNo, task.roomType]))
-    roomStates.value = rooms.map((room) => ({
+    // 房态图只返回三组房态字段（占用/清扫/不可售）；展示态由前端派生。
+    const board = (await getHotelRoomBoard()) || []
+    roomStates.value = board.map((room) => ({
       ...room,
-      roomTypeName: typeNames.get(String(room.roomTypeId)) || taskTypeByRoom.get(room.roomNo) || `房型 ${room.roomTypeId}`,
+      id: room.roomId,
+      roomTypeName: room.roomTypeName || `房型 ${room.roomTypeId}`,
     }))
   } catch (error) {
     notifyAdminRequestError(error, '加载房态失败')
@@ -1702,6 +1771,7 @@ onMounted(async () => {
 .room-summary-item.is-active b { color: #1f9d61; }
 .room-summary-item.is-occupied b { color: #3478d4; }
 .room-summary-item.is-dirty b { color: #d68a19; }
+.room-summary-item.is-reserved b { color: #2f6fce; }
 .room-summary-item.is-maintenance b { color: #8b6bb1; }
 .room-board { min-height: 80px; max-height: 620px; overflow-y: auto; padding: 6px 4px 6px 0; }
 .room-board::-webkit-scrollbar { width: 6px; }
@@ -1722,7 +1792,9 @@ onMounted(async () => {
 .room-status-pill.is-active { color: #1d8a5b; background: #eaf8f1; }
 .room-status-pill.is-occupied { color: #2f6fce; background: #eaf2ff; }
 .room-status-pill.is-dirty { color: #b47716; background: #fff5e2; }
+.room-status-pill.is-reserved { color: #2f6fce; background: #eef3ff; }
 .room-status-pill.is-maintenance { color: #7650a7; background: #f3edff; }
+.trade-status-tag { margin-left: 6px; }
 .room-tile-body { display: flex; flex: 1; flex-direction: column; gap: 8px; min-width: 0; margin-top: 10px; }
 .room-card-note { display: flex; align-items: center; gap: 5px; min-height: 16px; }
 .room-card-note span { padding: 1px 6px; border-radius: 4px; color: #6c7c93; background: #f3f6fa; font-size: 10px; line-height: 1.5; }
@@ -1747,6 +1819,8 @@ onMounted(async () => {
 .room-tile-occupied .room-status-dot { background: #4b8bea; box-shadow: 0 0 0 4px rgba(75, 139, 234, .14); }
 .room-tile-dirty { border-left-color: #e6a23c; background: linear-gradient(135deg, #fff 65%, #fff9ee); }
 .room-tile-dirty .room-status-dot { background: #e6a23c; box-shadow: 0 0 0 4px rgba(230, 162, 60, .14); }
+.room-tile-reserved { border-left-color: #6b94e0; background: linear-gradient(135deg, #fff 65%, #f2f6ff); }
+.room-tile-reserved .room-status-dot { background: #6b94e0; box-shadow: 0 0 0 4px rgba(107, 148, 224, .14); }
 .room-tile-maintenance { border-left-color: #a984c9; background: linear-gradient(135deg, #fff 65%, #faf5ff); }
 .room-tile-maintenance .room-status-dot { background: #a984c9; box-shadow: 0 0 0 4px rgba(169, 132, 201, .14); }
 .room-detail { display: flex; flex-direction: column; min-height: calc(100vh - 96px); padding: 2px 2px 8px; }
@@ -1761,6 +1835,7 @@ onMounted(async () => {
 .room-detail-active { border-left-color: #35b87a; background: linear-gradient(135deg, #f5fcf8, #eefaf4); }
 .room-detail-occupied { border-left-color: #4b8bea; background: linear-gradient(135deg, #f5f9ff, #edf4ff); }
 .room-detail-dirty { border-left-color: #e6a23c; background: linear-gradient(135deg, #fffbf3, #fff7e8); }
+.room-detail-reserved { border-left-color: #6b94e0; background: linear-gradient(135deg, #f7faff, #eef4ff); }
 .room-detail-maintenance { border-left-color: #a984c9; background: linear-gradient(135deg, #fbf7ff, #f5effc); }
 .room-detail-facts { margin-top: 14px; }
 .room-detail-section { margin-top: 22px; }
@@ -1792,6 +1867,7 @@ onMounted(async () => {
 .legend-dot.is-active { background: #35b87a; }
 .legend-dot.is-occupied { background: #4b8bea; }
 .legend-dot.is-dirty { background: #e6a23c; }
+.legend-dot.is-reserved { background: #6b94e0; }
 .legend-dot.is-maintenance { background: #a984c9; }
 @media (max-width: 760px) {
   .room-board-head { flex-direction: column; gap: 10px; }

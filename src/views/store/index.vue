@@ -22,12 +22,12 @@
       <div class="metric-grid">
         <div class="metric-card">
           <span>待入住</span>
-          <strong>{{ counts.ARRIVAL }}</strong>
+          <strong>{{ counts.CONFIRMED }}</strong>
           <small>前台今日到店</small>
         </div>
         <div class="metric-card">
           <span>在住</span>
-          <strong>{{ counts.IN_HOUSE }}</strong>
+          <strong>{{ counts.CHECKED_IN }}</strong>
           <small>当前在店</small>
         </div>
         <div class="metric-card">
@@ -65,7 +65,7 @@
           <el-table-column label="操作" width="130" align="center">
             <template #default="{ row }">
               <el-button
-                v-if="row.status === 'ARRIVAL' && canCheckIn"
+                v-if="row.status === 'CONFIRMED' && canCheckIn"
                 link
                 type="primary"
                 @click="checkIn(row)"
@@ -73,7 +73,7 @@
                 办理入住
               </el-button>
               <el-button
-                v-else-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && canCheckOut"
+                v-else-if="(row.status === 'CHECKED_IN' || row.status === 'DUE_OUT') && canCheckOut"
                 link
                 type="primary"
                 @click="checkOut(row)"
@@ -131,7 +131,7 @@ const canCheckOut = computed(() => hasPermission(context.value?.permissions, 'ho
 const canViewHotel = computed(() => hasPermission(context.value?.permissions, 'hotel.booking.view'))
 
 const counts = computed(() => {
-  const result = { ARRIVAL: 0, IN_HOUSE: 0, DUE_OUT: 0 }
+  const result = { CONFIRMED: 0, CHECKED_IN: 0, DUE_OUT: 0 }
   for (const task of tasks.value) result[task.status] = (result[task.status] || 0) + 1
   return result
 })
@@ -144,14 +144,14 @@ const entries = computed(() => {
     { path: '/business/members', label: '客户管理', hint: '住客档案', permission: 'member.view' },
     { path: '/business/points', label: '积分管理', hint: '积分账户与调整', permission: 'points.view' },
     { path: '/business/wallet', label: '储值管理', hint: '储值余额与流水', permission: 'wallet.view' },
-    { path: '/admin/inventory', label: '库存管理', hint: '客耗与物料', permission: 'inventory.material.view' },
+    { path: '/admin/inventory', label: '库存管理', hint: '客耗与物料', permission: 'inventory.view' },
     { path: '/admin/reports', label: '门店报表', hint: '经营数据' },
   ]
   const ktvCandidates = [
     { path: '/business/reservations', label: '预约管理', hint: '到店与排期', permission: 'reservation.view' },
     { path: '/business/orders', label: '收银台', hint: '订单与收款', permission: 'order.view' },
     { path: '/admin/resources', label: '资源管理', hint: '房态与占用', permission: 'resource.manage' },
-    { path: '/admin/inventory', label: '库存', hint: '物料与盘点', permission: 'inventory.material.view' },
+    { path: '/admin/inventory', label: '库存', hint: '物料与盘点', permission: 'inventory.view' },
     { path: '/admin/reports', label: '门店报表', hint: '经营数据', permission: 'tenant.overview.view' },
   ]
   const candidates = context.value?.businessType === 'HOTEL' ? hotelCandidates : ktvCandidates
@@ -159,7 +159,7 @@ const entries = computed(() => {
 })
 
 function statusType(status) {
-  return { ARRIVAL: 'warning', IN_HOUSE: 'success', DUE_OUT: 'warning' }[status] || 'info'
+  return { CONFIRMED: 'warning', CHECKED_IN: 'success', DUE_OUT: 'warning' }[status] || 'info'
 }
 
 async function loadTasks() {

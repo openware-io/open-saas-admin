@@ -42,6 +42,8 @@ export const TERMS = {
 
 /** 界面禁用词：新文案不得出现，由 terms.test.js 扫描 views/ 守住。 */
 export const FORBIDDEN_TERMS = ['房间', '包间', '商家', '待收', '房台']
+/** 扫描用表达式：放行新状态词「待收款」，仍拦截裸「待收」。 */
+export const FORBIDDEN_TERM_PATTERNS = ['房间', '包间', '商家', '待收(?!款)', '房台']
 
 // —— 2. 金额字段与单位 —————————————————————————————————————————————
 /**
@@ -523,18 +525,21 @@ export function shiftStatusType(status) {
   return SHIFT_STATUS_TYPE[status] || 'info'
 }
 
-/** 订单状态（ord_order.status，取值见 V1__ord_order_baseline.sql:8）。 */
+/**
+ * 订单**交易状态**（{@code ord_order.trade_status}，V24 目标契约 §2：
+ * DRAFT / PENDING_PAYMENT / PAID / COMPLETED / CANCELLED / VOIDED）。
+ *
+ * 订单主表只表达交易事实：KTV 开台中/挂单/结台看会话状态（ktvOrderStatus.js 的 sessionStatus），
+ * {@code ord_order.status} 是收口前兼容列，报表/列表都不再用它做展示口径。
+ * CANCELLED=用户取消、VOIDED=审批作废（报表独立统计，不混算）。
+ */
 export const ORDER_STATUS_TEXT = {
-  DRAFT: '进行中',
-  SERVING: '服务中',
-  WAITING_SETTLEMENT: '待结算',
-  WAITING_PAYMENT: '待支付',
-  WAITING_ARRIVAL: '待到店',
+  DRAFT: '开台中',
+  PENDING_PAYMENT: '待收款',
+  PAID: '已收款',
   COMPLETED: '已完成',
-  PARTIAL_REFUNDED: '部分退款',
-  REFUNDED: '已退款',
-  VOIDED: '已作废',
   CANCELLED: '已取消',
+  VOIDED: '已作废',
 }
 export function orderStatusText(status) {
   return ORDER_STATUS_TEXT[status] || unknownEnumText(status)
@@ -1040,11 +1045,9 @@ export function orderVoidApprovalStatusText(status) {
 
 // —— 酒店业务（2.4.0-hotel 原型）——
 export const HOTEL_BOOKING_STATUS_TEXT = {
-  PENDING_PAYMENT: '待支付',
-  PENDING_DEPOSIT: '待付定金',
+  PENDING_CONFIRM: '待确认',
   CONFIRMED: '已确认',
-  ARRIVAL: '待入住',
-  IN_HOUSE: '在住',
+  CHECKED_IN: '已入住',
   DUE_OUT: '在住 · 今日离店',
   CHECKED_OUT: '已退房',
   CANCELLED: '已取消',
@@ -1118,4 +1121,30 @@ export const HOTEL_PAYMENT_MODE_TEXT = {
 }
 export function hotelPaymentModeText(mode) {
   return HOTEL_PAYMENT_MODE_TEXT[mode] || unknownEnumText(mode)
+}
+
+/** 客房保留/不可售原因（htl_room_hold.reason）。 */
+export const HOTEL_ROOM_HOLD_REASON_TEXT = {
+  RESERVED: '预留',
+  GROUP_BLOCK: '团队保留',
+  HOUSE_USE: '自用房',
+  LOCKED: '锁定',
+  MAINTENANCE: '维修',
+  OUT_OF_SERVICE: '停售',
+}
+export function hotelRoomHoldReasonText(reason) {
+  return HOTEL_ROOM_HOLD_REASON_TEXT[reason] || unknownEnumText(reason)
+}
+
+/** 交易状态（ord_order.trade_status）；酒店订单页同时展示订单与预订两套状态。 */
+export const ORDER_TRADE_STATUS_TEXT = {
+  DRAFT: '草稿',
+  PENDING_PAYMENT: '待支付',
+  PAID: '已支付',
+  COMPLETED: '已完成',
+  CANCELLED: '已取消',
+  VOIDED: '已作废',
+}
+export function orderTradeStatusText(status) {
+  return ORDER_TRADE_STATUS_TEXT[status] || unknownEnumText(status)
 }

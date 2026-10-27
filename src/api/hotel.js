@@ -67,6 +67,11 @@ export function listHotelRooms(roomTypeId) {
   return request.get('/api/v1/admin/hotel/rooms', { params: { roomTypeId } })
 }
 
+/** 房态图：返回三组房态字段（占用/清扫/不可售）与当前在住客人。 */
+export function getHotelRoomBoard() {
+  return request.get('/api/v1/admin/hotel/rooms/board')
+}
+
 export function createHotelRoom(data) {
   return request.post('/api/v1/admin/hotel/rooms', data)
 }
@@ -75,8 +80,26 @@ export function updateHotelRoom(id, data) {
   return request.put(`/api/v1/admin/hotel/rooms/${id}`, data)
 }
 
-export function setHotelRoomStatus(id, status) {
-  return request.put(`/api/v1/admin/hotel/rooms/${id}/status`, { status })
+/** 清扫状态：CLEAN/DIRTY/CLEANING/INSPECTED。 */
+export function setHotelRoomHousekeeping(id, status) {
+  return request.put(`/api/v1/admin/hotel/rooms/${id}/housekeeping`, { status })
+}
+
+/** 维修/停售/恢复：会同步调整房型房量。 */
+export function setHotelRoomOutOfOrder(id, data) {
+  return request.put(`/api/v1/admin/hotel/rooms/${id}/out-of-order`, data)
+}
+
+export function listHotelRoomHolds(id) {
+  return request.get(`/api/v1/admin/hotel/rooms/${id}/holds`)
+}
+
+export function addHotelRoomHold(id, data) {
+  return request.post(`/api/v1/admin/hotel/rooms/${id}/holds`, data)
+}
+
+export function releaseHotelRoomHold(id, holdId) {
+  return request.post(`/api/v1/admin/hotel/rooms/${id}/holds/${holdId}/release`)
 }
 
 export function listHotelRatePlans(hotelId) {
@@ -99,12 +122,18 @@ export function setHotelDailyRate(data) {
   return request.put('/api/v1/admin/hotel/daily-rates', data)
 }
 
-export function listHotelInventory(params) {
-  return request.get('/api/v1/admin/hotel/inventory', { params })
+/** 酒店订单读模型：订单号/预订号/住客/房型/房号/入离/状态/金额。 */
+export function listHotelOrders(params) {
+  return request.get('/api/v1/admin/hotel/orders', { params })
 }
 
-export function setHotelInventory(data) {
-  return request.put('/api/v1/admin/hotel/inventory', data)
+/** 房量日历（房量不是库存）。 */
+export function listHotelAvailability(params) {
+  return request.get('/api/v1/admin/hotel/availability', { params })
+}
+
+export function setHotelAvailability(data) {
+  return request.put('/api/v1/admin/hotel/availability', data)
 }
 
 export function quoteHotelStay(data) {

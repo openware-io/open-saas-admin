@@ -13,7 +13,7 @@
       <div class="filter-bar">
         <!-- 下单时间（created_at）闭区间：结束端由后端收口到当天 23:59:59.999 -->
         <DateRangeFilter v-model="query.range" />
-        <el-select v-model="query.status" placeholder="订单状态" clearable style="width: 150px" @change="search">
+        <el-select v-model="query.status" placeholder="交易状态" clearable style="width: 150px" @change="search">
           <el-option v-for="option in ORDER_STATUS_OPTIONS" :key="option.value" :label="option.label" :value="option.value" />
         </el-select>
         <el-input
@@ -38,8 +38,8 @@
       <div class="order-summary">
         <span>共 <b>{{ summary.total }}</b> 单</span>
         <span>在场 <b>{{ summary.active }}</b></span>
-        <span>待结算 <b>{{ summary.waitingSettlement }}</b></span>
-        <span>待支付 <b>{{ summary.waitingPayment }}</b></span>
+        <span>待收款 <b>{{ summary.waitingPayment }}</b></span>
+        <span>已收款 <b>{{ summary.paid }}</b></span>
         <span>已完成 <b>{{ summary.completed }}</b></span>
         <span>已作废 <b>{{ summary.voided }}</b></span>
         <!-- 金额合计只在命中行币种一致时给出；混币种不做跨币种相加（16_CURRENCY_CONVENTIONS §3） -->
@@ -60,9 +60,15 @@
         <el-table-column label="人数" width="80" align="center">
           <template #default="{ row }">{{ row.partySize != null ? row.partySize + ' 人' : '—' }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="110" align="center">
+        <el-table-column label="状态" width="170" align="center">
           <template #default="{ row }">
-            <el-tag :type="orderStatusTagType(row.status)" size="small">{{ orderStatusText(row.status) }}</el-tag>
+            <div class="status-tags">
+              <!-- KTV 业务状态看 sessionStatus（待开台/开台中/挂单中/已结台），交易状态看 tradeStatus -->
+              <el-tag v-if="row.sessionStatus" :type="sessionStatusTagType(row.sessionStatus)" size="small">
+                {{ ktvSessionStatusText(row.sessionStatus) }}
+              </el-tag>
+              <el-tag :type="orderStatusTagType(row)" size="small">{{ tradeStatusText(orderTradeStatus(row)) }}</el-tag>
+            </div>
           </template>
         </el-table-column>
         <!-- 客户自助加项待确认：该单有几条未确认（不计入应收），点开直达集中处理 -->
@@ -118,7 +124,7 @@
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row)">详情</el-button>
             <el-button v-if="canCancelOrder(row)" link type="danger" @click="cancel(row)">取消订单</el-button>
-            <el-button v-if="row.status === 'VOIDED'" link type="warning" @click="openRecovery(row)">库存处理</el-button>
+            <el-button v-if="['CANCELLED', 'VOIDED'].includes(orderTradeStatus(row))" link type="warning" @click="openRecovery(row)">库存处理</el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -145,7 +151,7 @@
             <h3>{{ detailOrder?.orderNo || '订单详情' }}</h3>
             <p>{{ roomText(detailOrder) }}</p>
           </div>
-          <el-tag v-if="detailOrder" :type="orderStatusTagType(detailOrder.status)">{{ orderStatusText(detailOrder.status) }}</el-tag>
+          <el-tag v-if="detailOrder" :type="orderStatusTagType(detailOrder)">{{ orderDisplayStatusText(detailOrder) }}</el-tag>
         </div>
       </template>
       <div v-if="detailOrder" class="order-detail">
@@ -154,7 +160,10 @@
           <el-descriptions-item label="包厢">{{ roomText(detailOrder) }}</el-descriptions-item>
           <el-descriptions-item label="人数">{{ detailOrder.partySize != null ? detailOrder.partySize + ' 人' : '—' }}</el-descriptions-item>
           <el-descriptions-item label="客户ID">{{ detailOrder.customerId != null ? detailOrder.customerId : '—' }}</el-descriptions-item>
-          <el-descriptions-item label="会话状态">{{ sessionStatusText(detailOrder.sessionStatus) }}</el-descriptions-item>
+          <el-descriptions-item label="交易状态">{{ tradeStatusText(detailOrder.tradeStatus) }}</el-descriptions-item>
+          <el-descriptions-item label="会话状态">{{ ktvSessionStatusText(detailOrder.sessionStatus) }}</el-descriptions-item>
+          <el-descriptions-item label="结算状态">{{ settlementStatusText(detailOrder.settlementStatus) }}</el-descriptions-item>
+          <el-descriptions-item label="退款状态">{{ orderRefundStatusText(detailOrder.refundStatus) }}</el-descriptions-item>
           <el-descriptions-item label="本次开台">{{ sessionSpanText(detailOrder) }}</el-descriptions-item>
           <el-descriptions-item label="下单时间">{{ formatTime(detailOrder.createdAt) }}</el-descriptions-item>
           <el-descriptions-item label="结束时间">{{ endTimeText(detailOrder) }}</el-descriptions-item>
@@ -312,7 +321,16 @@ import {
 import { getWalletTokenConfig } from '@/api/admin'
 import { currencyText, formatMoney, formatTime, promotionTypeText } from '@/utils/format'
 import { durationTextFromSeconds, roomFeeSourceText } from '@/utils/billExplain'
-import { WALLET_BRAND_NAME_DEFAULT, orderStatusText, refundStatusText, resolveWalletBrandName, sessionStatusText } from '@/constants/terms'
+import { WALLET_BRAND_NAME_DEFAULT, refundStatusText, resolveWalletBrandName } from '@/constants/terms'
+import {
+  ktvSessionStatusText,
+  orderDisplayStatusText,
+  orderRefundStatusText,
+  orderStatusTagType,
+  orderTradeStatus,
+  settlementStatusText,
+  tradeStatusText,
+} from '@/constants/ktvOrderStatus'
 import { methodLabel } from '@/constants/payment-methods'
 import {
   collectionLegs,
@@ -371,8 +389,9 @@ const detailCollectionsLoading = ref(false)
 
 const currentStoreId = computed(() => contextStore.storeId)
 
-/** 门店维度按会话门店过滤（与收银台同口径：storeId 为空的订单按当前门店展示）。 */
+/** 门店维度按会话门店过滤（与收银台同口径：storeId 为空的订单按当前门店展示）；订单页只显示 KTV 单。 */
 const scopedRows = computed(() => rows.value
+  .filter((order) => !order.businessType || order.businessType === 'KTV')
   .filter((order) => order.storeId == null || String(order.storeId) === String(currentStoreId.value)))
 
 const filteredRows = computed(() => sortOrdersByCreatedAtDesc(
@@ -410,12 +429,10 @@ function money(minor) {
   return formatMoney(minor, detailBill.value?.currencyCode || detailOrder.value?.currencyCode)
 }
 
-/** 状态标签色：与收银台/账单同一套语义（在场=warning/primary，完成=success，作废=info）。 */
-function orderStatusTagType(status) {
-  if (status === 'COMPLETED') return 'success'
-  if (status === 'VOIDED' || status === 'CANCELLED') return 'info'
-  if (status === 'WAITING_SETTLEMENT' || status === 'WAITING_PAYMENT') return 'warning'
-  if (status === 'SERVING') return 'primary'
+/** 会话状态标签色：开台中/挂单中=primary，待开台=info，已结台=success，已取消=info。 */
+function sessionStatusTagType(status) {
+  if (status === 'OPEN' || status === 'PAUSED') return 'primary'
+  if (status === 'CLOSED') return 'success'
   return 'info'
 }
 
@@ -673,6 +690,7 @@ watch(pageRows, (rows) => {
 }
 .order-summary b { color: var(--el-text-color-primary); }
 .order-summary__warn { color: var(--el-color-warning); }
+.status-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
 .drawer-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .drawer-title h3 { margin: 0; font-size: 16px; }
 .drawer-title p { margin: 4px 0 0; color: var(--el-text-color-secondary); font-size: 12px; }

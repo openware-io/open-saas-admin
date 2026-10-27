@@ -4,36 +4,30 @@
  * 单独放在 utils 而不是页面里，是为了让「状态词表/取消口径/金额汇总」可以直接单测，
  * 也避免页面里再写一份与收银台（`views/tenant/orders.vue`）不一致的判断。
  *
+ * **状态口径（领域重构后）**：订单主表只表达交易状态 `tradeStatus`，KTV 业务状态在
+ * `sessionStatus`（`ord_ktv_session.status`）。本文件不再读取 `ord_order.status`（收口前的兼容列），
+ * 判定一律委托 `constants/ktvOrderStatus.js`（与收银台/看板共用同一份口径）。
+ *
  * 数据来源：`GET /api/v1/business/orders`（可选 `from`/`to` 闭区间，见 `utils/dateRange`），
  * 返回的是**当前租户**的订单数组；门店维度由调用方按会话门店过滤（与收银台同口径）。
  * 金额一律是**最小货币单位 + 单据币种快照**（`currencyCode`），不做任何跨币种相加。
  */
 
-/** 订单状态筛选项（值 = `ord_order.status`，文案 = constants/terms 的状态词表）。 */
-export const ORDER_STATUS_OPTIONS = Object.freeze([
-  { value: 'DRAFT', label: '进行中' },
-  { value: 'SERVING', label: '服务中' },
-  { value: 'WAITING_SETTLEMENT', label: '待结算' },
-  { value: 'WAITING_PAYMENT', label: '待支付' },
-  { value: 'COMPLETED', label: '已完成' },
-  { value: 'VOIDED', label: '已作废' },
-])
+import {
+  TRADE_STATUS_OPTIONS,
+  isActiveOrder,
+  canCancelOrder,
+  orderTradeStatus,
+} from '@/constants/ktvOrderStatus'
 
-/** 在场（未结束）状态：与收银台看板的 ACTIVE_ORDER_STATUSES 同一口径。 */
-export const ACTIVE_ORDER_STATUSES = Object.freeze(['DRAFT', 'SERVING', 'WAITING_SETTLEMENT', 'WAITING_PAYMENT'])
+/** 订单交易状态筛选项（value = `ord_order.trade_status`，文案与 KTV 状态词表同源）。 */
+export const ORDER_STATUS_OPTIONS = TRADE_STATUS_OPTIONS
 
-/** 终态：不再能取消（与后端 OrderCancellationApplicationService 的终态集合同口径）。 */
-export const TERMINAL_ORDER_STATUSES = Object.freeze(['COMPLETED', 'VOIDED', 'CANCELLED', 'REFUNDED', 'PARTIAL_REFUNDED'])
-
-/** 是否在场（占用包厢、仍在计时/待收款）。 */
-export function isActiveOrder(order) {
-  return ACTIVE_ORDER_STATUSES.includes(order && order.status)
-}
+/** 是否在场（会话占用包厢：待开台/开台中/挂单中）。 */
+export { isActiveOrder }
 
 /** 是否可取消：非终态才给入口（后端仍会兜底：已收款 409 先退款、已完成/已作废 409）。 */
-export function canCancelOrder(order) {
-  return !TERMINAL_ORDER_STATUSES.includes(order && order.status)
-}
+export { canCancelOrder }
 
 /** 关键字匹配：订单号 / 包厢名 / 包厢编号 / 客户 ID（空关键字恒命中）。 */
 export function matchesOrderKeyword(order, keyword) {
@@ -46,13 +40,13 @@ export function matchesOrderKeyword(order, keyword) {
 }
 
 /**
- * 客户端筛选（状态 + 关键字）。时间区间不在这里做：它由服务端按 `created_at` 过滤，
+ * 客户端筛选（交易状态 + 关键字）。时间区间不在这里做：它由服务端按 `created_at` 过滤，
  * 避免前后端两套时间口径（见 `utils/dateRange` 的说明）。
  */
 export function filterOrders(rows, { status, keyword } = {}) {
   const list = Array.isArray(rows) ? rows : []
   return list.filter((order) => {
-    if (status && order && order.status !== status) return false
+    if (status && orderTradeStatus(order) !== status) return false
     return matchesOrderKeyword(order, keyword)
   })
 }
@@ -69,7 +63,10 @@ export function sortOrdersByCreatedAtDesc(rows) {
 }
 
 /**
- * 汇总：各状态计数 + 在场订单数 + 应收/已收合计。
+ * 汇总：各交易状态计数 + 在场订单数 + 应收/已收合计。
+ *
+ * 键名沿用页面既有字段（active / waitingPayment / completed / voided）；`waitingSettlement` 保留为 0
+ * 以兼容旧模板，新的「待收款」统一看 `waitingPayment`（tradeStatus=PENDING_PAYMENT，含原待结算+待支付）。
  *
  * 金额合计**只在全部命中行币种一致时**给出 `currencyCode`，混币种返回 `null`
  * （规范 16 §3：禁止跨币种相加；调用方拿不到币种时按「多币种」展示，不求和）。
@@ -83,6 +80,7 @@ export function orderSummary(rows) {
     voided: 0,
     waitingSettlement: 0,
     waitingPayment: 0,
+    paid: 0,
     payableAmount: 0,
     paidAmount: 0,
     currencyCode: null,
@@ -92,10 +90,11 @@ export function orderSummary(rows) {
   list.forEach((order) => {
     if (!order) return
     if (isActiveOrder(order)) summary.active += 1
-    if (order.status === 'COMPLETED') summary.completed += 1
-    if (order.status === 'VOIDED' || order.status === 'CANCELLED') summary.voided += 1
-    if (order.status === 'WAITING_SETTLEMENT') summary.waitingSettlement += 1
-    if (order.status === 'WAITING_PAYMENT') summary.waitingPayment += 1
+    const trade = orderTradeStatus(order)
+    if (trade === 'COMPLETED') summary.completed += 1
+    if (trade === 'CANCELLED') summary.voided += 1
+    if (trade === 'PENDING_PAYMENT') summary.waitingPayment += 1
+    if (trade === 'PAID') summary.paid += 1
     // 消费金额一律取服务端**实时合计**（开台中＝明细 − 房费快照 + 实时房费）：与订单管理列表、
     // 收银台卡片、账单同一口径；旧后端没有 liveTotalAmount 时才退回库内合计。
     summary.payableAmount += orderLiveAmountOf(order)

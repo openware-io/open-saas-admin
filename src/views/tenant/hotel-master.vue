@@ -2,8 +2,8 @@
   <div class="admin-page hotel-master-page">
     <div class="page-header">
       <div>
-        <h2>{{ resourcesMode ? '房型、房价与库存' : '酒店设置' }}</h2>
-        <p class="subtle">{{ resourcesMode ? '维护房型、客房、房价计划、每日房价与库存日历。' : '维护酒店基础资料、封面、支付方式与押金规则。' }}</p>
+        <h2>{{ resourcesMode ? '房型、房价与房量' : '酒店设置' }}</h2>
+        <p class="subtle">{{ resourcesMode ? '维护房型、客房、房价计划、每日房价与房量日历。' : '维护酒店基础资料、封面、支付方式与押金规则。' }}</p>
       </div>
       <div class="header-actions">
         <el-button @click="router.push('/admin/tenant/hotel')">返回酒店前台</el-button>
@@ -60,7 +60,7 @@
               <el-option label="到店付" value="PAY_AT_HOTEL" />
               <el-option label="定金" value="DEPOSIT" />
             </el-select>
-            <span class="form-hint">到店付会在下单后直接确认并占用库存；定金模式等待前台收定金确认。</span>
+            <span class="form-hint">到店付会在下单后直接确认并占用房量；定金模式等待前台收定金确认。</span>
           </el-form-item>
           <el-form-item label="定金比例（bps）">
             <el-input-number v-model="policyForm.depositRatioBps" :min="0" :max="10000" :step="500" />
@@ -137,16 +137,31 @@
         </div>
         <el-table :data="pagedRooms" stripe>
           <el-table-column prop="roomNo" label="房号" width="100" />
-          <el-table-column prop="roomTypeName" label="房型" min-width="140" />
-          <el-table-column prop="floor" label="楼层" width="80" />
-          <el-table-column label="房态" width="110">
-            <template #default="{ row }">{{ hotelRoomStatusText(row.status) }}</template>
+          <el-table-column prop="roomTypeName" label="房型" min-width="130" />
+          <el-table-column prop="floor" label="楼层" width="70" />
+          <el-table-column label="房态" width="100">
+            <template #default="{ row }"><el-tag effect="plain">{{ roomBoardLabel(row) }}</el-tag></template>
+          </el-table-column>
+          <el-table-column label="占用" width="80">
+            <template #default="{ row }">{{ occupancyText(row) }}</template>
+          </el-table-column>
+          <el-table-column label="清扫" width="90">
+            <template #default="{ row }">{{ housekeepingText(row) }}</template>
+          </el-table-column>
+          <el-table-column label="不可售" width="90">
+            <template #default="{ row }">{{ outOfOrderText(row) || '—' }}</template>
           </el-table-column>
           <el-table-column label="操作" width="150">
             <template #default="{ row }">
               <el-button link type="primary" @click="openRoom(row)">编辑</el-button>
-              <el-button v-if="row.status === 'ACTIVE'" link type="warning" @click="toggleRoomStatus(row)">维修</el-button>
-              <el-button v-else-if="row.status === 'MAINTENANCE'" link type="success" @click="toggleRoomStatus(row)">恢复</el-button>
+              <el-button
+                v-if="row.outOfOrderStatus === 'NONE'"
+                link
+                type="warning"
+                :disabled="row.occupancyStatus === 'OCCUPIED'"
+                @click="toggleRoomStatus(row)"
+              >维修</el-button>
+              <el-button v-else link type="success" @click="toggleRoomStatus(row)">恢复</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -223,18 +238,18 @@
         </div>
       </el-tab-pane>
 
-      <el-tab-pane v-if="resourcesMode" label="库存日历" name="inventory">
+      <el-tab-pane v-if="resourcesMode" label="房量日历" name="availability">
         <div class="filter-row">
-          <el-select v-model="inventoryRoomTypeId" placeholder="房型" style="width:180px">
+          <el-select v-model="availabilityRoomTypeId" placeholder="房型" style="width:180px">
             <el-option v-for="type in roomTypes" :key="type.id" :label="type.name" :value="type.id" />
           </el-select>
-          <el-date-picker v-model="inventoryRange" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期"
+          <el-date-picker v-model="availabilityRange" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期"
             end-placeholder="结束日期" style="width:260px" />
-          <el-button type="primary" @click="loadInventory">查询</el-button>
+          <el-button type="primary" @click="loadAvailability">查询</el-button>
         </div>
-        <el-table :data="pagedInventoryRows" stripe>
+        <el-table :data="pagedAvailabilityRows" stripe>
           <el-table-column prop="stayDate" label="日期" width="140" />
-          <el-table-column label="总库存" width="180">
+          <el-table-column label="总房量" width="180">
             <template #default="{ row }"><el-input-number v-model="row.total" :min="row.sold + row.held" :step="1" /></template>
           </el-table-column>
           <el-table-column prop="sold" label="已售" width="90" />
@@ -243,15 +258,15 @@
             <template #default="{ row }">{{ Math.max(0, row.total - row.sold - row.held) }}</template>
           </el-table-column>
           <el-table-column label="操作" width="100">
-            <template #default="{ row }"><el-button link type="primary" @click="saveInventory(row)">保存</el-button></template>
+            <template #default="{ row }"><el-button link type="primary" @click="saveAvailability(row)">保存</el-button></template>
           </el-table-column>
         </el-table>
         <div class="table-pager">
           <el-pagination
-            v-model:current-page="inventoryPage"
-            v-model:page-size="inventoryPageSize"
+            v-model:current-page="availabilityPage"
+            v-model:page-size="availabilityPageSize"
             layout="total, prev, pager, next, sizes"
-            :total="inventoryRows.length"
+            :total="availabilityRows.length"
             :page-sizes="[10, 20, 50]"
           />
         </div>
@@ -317,7 +332,7 @@ import {
   createHotelRoom,
   createHotelRoomType,
   listHotelDailyRates,
-  listHotelInventory,
+  listHotelAvailability,
   listHotelRatePlans,
   listHotelRoomTypes,
   getHotelPolicy,
@@ -325,8 +340,8 @@ import {
   listHotels,
   updateHotelPolicy,
   setHotelDailyRate,
-  setHotelInventory,
-  setHotelRoomStatus,
+  setHotelAvailability,
+  setHotelRoomOutOfOrder,
   updateHotelRatePlan,
   updateHotelRoom,
   updateHotelRoomType,
@@ -334,7 +349,7 @@ import {
 import { updateHotel } from '@/api/hotel-master'
 import { formatMoney } from '@/utils/format'
 import { currencyLabel, currencyOptions } from '@/constants/currency'
-import { hotelRoomStatusText } from '@/constants/terms'
+import { housekeepingText, occupancyText, outOfOrderText, roomBoardLabel } from '@/utils/hotel-room-state'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 
 const router = useRouter()
@@ -356,12 +371,12 @@ const rooms = ref([])
 const ratePlans = ref([])
 const selectedRoomTypeId = ref('ALL')
 const dailyRateRows = ref([])
-const inventoryRows = ref([])
+const availabilityRows = ref([])
 const rateRoomTypeId = ref(null)
 const ratePlanId = ref(null)
 const rateRange = ref([])
-const inventoryRoomTypeId = ref(null)
-const inventoryRange = ref([])
+const availabilityRoomTypeId = ref(null)
+const availabilityRange = ref([])
 
 const hotelForm = reactive({
   name: '', address: '', coverImageUrl: '', timezone: 'Asia/Shanghai',
@@ -382,8 +397,8 @@ const ratePlanPage = ref(1)
 const ratePlanPageSize = ref(10)
 const dailyRatePage = ref(1)
 const dailyRatePageSize = ref(10)
-const inventoryPage = ref(1)
-const inventoryPageSize = ref(10)
+const availabilityPage = ref(1)
+const availabilityPageSize = ref(10)
 
 const hotel = computed(() => hotels.value.find((item) => item.id === hotelId.value))
 const selectedRatePlan = computed(() => ratePlans.value.find((item) => item.id === ratePlanId.value))
@@ -397,7 +412,7 @@ const pagedRoomTypes = computed(() => pageRows(roomTypes.value, roomTypePage.val
 const pagedRooms = computed(() => pageRows(rooms.value, roomPage.value, roomPageSize.value))
 const pagedRatePlans = computed(() => pageRows(ratePlans.value, ratePlanPage.value, ratePlanPageSize.value))
 const pagedDailyRateRows = computed(() => pageRows(dailyRateRows.value, dailyRatePage.value, dailyRatePageSize.value))
-const pagedInventoryRows = computed(() => pageRows(inventoryRows.value, inventoryPage.value, inventoryPageSize.value))
+const pagedAvailabilityRows = computed(() => pageRows(availabilityRows.value, availabilityPage.value, availabilityPageSize.value))
 
 function localDate(value) {
   const date = new Date(value)
@@ -434,13 +449,13 @@ async function loadAll() {
   roomTypePage.value = 1
   ratePlanPage.value = 1
   rateRoomTypeId.value ||= roomTypes.value[0]?.id || null
-  inventoryRoomTypeId.value ||= roomTypes.value[0]?.id || null
+  availabilityRoomTypeId.value ||= roomTypes.value[0]?.id || null
   ratePlanId.value ||= ratePlans.value[0]?.id || null
   rateRange.value ||= defaultRange()
-  inventoryRange.value ||= defaultRange()
+  availabilityRange.value ||= defaultRange()
   await loadRooms()
   if (activeTab.value === 'daily-rates') await loadDailyRates()
-  if (activeTab.value === 'inventory') await loadInventory()
+  if (activeTab.value === 'availability') await loadAvailability()
 }
 
 async function savePolicy() {
@@ -517,12 +532,17 @@ function openRatePlan(row) {
   ratePlanVisible.value = true
 }
 async function toggleRoomStatus(row) {
-  const next = row.status === 'ACTIVE' ? 'MAINTENANCE' : 'ACTIVE'
+  const today = localDate(new Date())
   try {
-    await setHotelRoomStatus(row.id, next)
-    ElMessage.success(next === 'MAINTENANCE' ? '客房已置为维修中' : '客房已恢复可用')
+    if (row.outOfOrderStatus === 'NONE') {
+      await setHotelRoomOutOfOrder(row.id, { status: 'OUT_OF_ORDER', from: today, to: today })
+      ElMessage.success('客房已置为维修中，当日房量已同步下调')
+    } else {
+      await setHotelRoomOutOfOrder(row.id, { status: 'NONE' })
+      ElMessage.success('客房已恢复可售，房量已同步恢复')
+    }
     await loadRooms()
-  } catch (error) { notifyAdminRequestError(error, '更新客房状态失败') }
+  } catch (error) { notifyAdminRequestError(error, '更新客房房态失败') }
 }
 
 async function saveRatePlan() {
@@ -555,25 +575,25 @@ async function saveDailyRate(row) {
     ElMessage.success(`${row.stayDate} 房价已保存`)
   } catch (error) { notifyAdminRequestError(error, '保存每日房价失败') }
 }
-async function loadInventory() {
-  if (!inventoryRoomTypeId.value || !inventoryRange.value?.length) return
-  inventoryPage.value = 1
+async function loadAvailability() {
+  if (!availabilityRoomTypeId.value || !availabilityRange.value?.length) return
+  availabilityPage.value = 1
   try {
-    const records = (await listHotelInventory({
-      roomTypeId: inventoryRoomTypeId.value, from: inventoryRange.value[0], to: inventoryRange.value[1],
+    const records = (await listHotelAvailability({
+      roomTypeId: availabilityRoomTypeId.value, from: availabilityRange.value[0], to: availabilityRange.value[1],
     })) || []
-    inventoryRows.value = datesBetween(inventoryRange.value[0], inventoryRange.value[1]).map((stayDate) => {
+    availabilityRows.value = datesBetween(availabilityRange.value[0], availabilityRange.value[1]).map((stayDate) => {
       const record = records.find((item) => item.stayDate === stayDate)
       return { stayDate, total: record?.total ?? 0, sold: record?.sold ?? 0, held: record?.held ?? 0 }
     })
-  } catch (error) { notifyAdminRequestError(error, '加载库存失败') }
+  } catch (error) { notifyAdminRequestError(error, '加载房量失败') }
 }
-async function saveInventory(row) {
+async function saveAvailability(row) {
   try {
-    await setHotelInventory({ roomTypeId: inventoryRoomTypeId.value, stayDate: row.stayDate, total: row.total })
-    ElMessage.success(`${row.stayDate} 库存已保存`)
-    await loadInventory()
-  } catch (error) { notifyAdminRequestError(error, '保存库存失败') }
+    await setHotelAvailability({ roomTypeId: availabilityRoomTypeId.value, stayDate: row.stayDate, total: row.total })
+    ElMessage.success(`${row.stayDate} 房量已保存`)
+    await loadAvailability()
+  } catch (error) { notifyAdminRequestError(error, '保存房量失败') }
 }
 
 watch(() => route.name, () => {
