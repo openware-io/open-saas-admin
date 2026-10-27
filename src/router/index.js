@@ -215,7 +215,13 @@ const routes = [
         path: 'admin/tenant/hotel-master',
         name: 'HotelMasterData',
         component: () => import('@/views/tenant/hotel-master.vue'),
-        meta: { title: '酒店资料', icon: 'OfficeBuilding', scope: 'STORE', hidden: true },
+        meta: { title: '酒店设置', icon: 'Setting', scope: 'STORE', hidden: true },
+      },
+      {
+        path: 'admin/tenant/hotel-resources',
+        name: 'HotelResources',
+        component: () => import('@/views/tenant/hotel-master.vue'),
+        meta: { title: '房型、房价与库存', icon: 'Calendar', scope: 'STORE', hidden: true },
       },
       // 审计日志：菜单与 audit.view 权限由后端下发（不新增后端菜单/权限），
       // 因此这里刻意不绑定 meta.scope —— 平台/租户两种视角都能直达本页，

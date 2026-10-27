@@ -342,7 +342,7 @@ const HOTEL_STORE_MENUS = [
     icon: 'Management',
     scope: 'STORE',
     children: [
-      { id: 'hotel-master', code: 'hotel.master', name: '酒店资料', path: '/admin/tenant/hotel-master', icon: 'Setting', requiredPermission: 'hotel.inventory.manage' },
+      { id: 'hotel-resources', code: 'hotel.resources', name: '房型、房价与库存', path: '/admin/tenant/hotel-resources', icon: 'Calendar', requiredPermission: 'hotel.inventory.manage' },
     ],
   },
   {
@@ -373,6 +373,16 @@ const HOTEL_STORE_MENUS = [
     scope: 'STORE',
     children: [
       { id: 'hotel-reports', code: 'hotel.reports', name: '经营报表', path: '/admin/reports', icon: 'DataAnalysis', requiredPermission: 'report.view' },
+    ],
+  },
+  {
+    id: 'hotel-settings',
+    code: 'hotel.settings',
+    name: '酒店设置',
+    icon: 'SetUp',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-master', code: 'hotel.master', name: '酒店资料与规则', path: '/admin/tenant/hotel-master', icon: 'Setting', requiredPermission: 'hotel.inventory.manage' },
     ],
   },
 ]

@@ -2,17 +2,17 @@
   <div class="admin-page hotel-master-page">
     <div class="page-header">
       <div>
-        <h2>酒店资料与库存</h2>
-        <p class="subtle">维护酒店、房型、客房、房价计划和按日期的房价/库存。</p>
+        <h2>{{ resourcesMode ? '房型、房价与库存' : '酒店设置' }}</h2>
+        <p class="subtle">{{ resourcesMode ? '维护房型、客房、房价计划、每日房价与库存日历。' : '维护酒店基础资料、封面、支付方式与押金规则。' }}</p>
       </div>
       <div class="header-actions">
         <el-button @click="router.push('/admin/tenant/hotel')">返回酒店前台</el-button>
-        <el-button type="primary" :loading="savingHotel" @click="saveHotel">保存酒店资料</el-button>
+        <el-button v-if="!resourcesMode" type="primary" :loading="savingHotel" @click="saveHotel">保存酒店设置</el-button>
       </div>
     </div>
 
     <el-tabs v-model="activeTab" class="master-tabs">
-      <el-tab-pane label="酒店资料" name="hotel">
+      <el-tab-pane v-if="!resourcesMode" label="酒店资料" name="hotel">
         <el-form :model="hotelForm" label-width="110px" class="master-form">
           <el-form-item label="酒店">
             <el-select v-model="hotelId" style="width:100%" @change="loadAll">
@@ -43,7 +43,7 @@
         </el-form>
       </el-tab-pane>
 
-      <el-tab-pane label="支付与押金" name="policy">
+      <el-tab-pane v-if="!resourcesMode" label="支付与押金" name="policy">
         <el-form :model="policyForm" label-width="150px" class="master-form">
           <el-form-item label="接入模式">
             <el-select v-model="policyForm.accessMode" style="width:260px">
@@ -100,7 +100,7 @@
         </el-form>
       </el-tab-pane>
 
-      <el-tab-pane label="房型与客房" name="rooms">
+      <el-tab-pane v-if="resourcesMode" label="房型与客房" name="rooms">
         <div class="section-head">
           <h3>房型</h3>
           <el-button type="primary" size="small" @click="openRoomType()">新增房型</el-button>
@@ -141,7 +141,7 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="房价计划" name="rates">
+      <el-tab-pane v-if="resourcesMode" label="房价计划" name="rates">
         <div class="section-head">
           <h3>房价计划</h3>
           <el-button type="primary" size="small" @click="openRatePlan()">新增房价计划</el-button>
@@ -161,7 +161,7 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="每日房价" name="daily-rates">
+      <el-tab-pane v-if="resourcesMode" label="每日房价" name="daily-rates">
         <div class="filter-row">
           <el-select v-model="rateRoomTypeId" placeholder="房型" style="width:180px">
             <el-option v-for="type in roomTypes" :key="type.id" :label="type.name" :value="type.id" />
@@ -185,7 +185,7 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="库存日历" name="inventory">
+      <el-tab-pane v-if="resourcesMode" label="库存日历" name="inventory">
         <div class="filter-row">
           <el-select v-model="inventoryRoomTypeId" placeholder="房型" style="width:180px">
             <el-option v-for="type in roomTypes" :key="type.id" :label="type.name" :value="type.id" />
@@ -261,8 +261,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import ImageUrlEditor from '@/components/ImageUrlEditor.vue'
 import {
@@ -291,9 +291,11 @@ import { hotelRoomStatusText } from '@/constants/terms'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 
 const router = useRouter()
+const route = useRoute()
+const resourcesMode = computed(() => route.name === 'HotelResources')
 const hotels = ref([])
 const hotelId = ref(null)
-const activeTab = ref('hotel')
+const activeTab = ref(resourcesMode.value ? 'rooms' : 'hotel')
 const savingHotel = ref(false)
 const savingMaster = ref(false)
 const policyForm = reactive({
@@ -488,6 +490,11 @@ async function saveInventory(row) {
     await loadInventory()
   } catch (error) { notifyAdminRequestError(error, '保存库存失败') }
 }
+
+watch(() => route.name, () => {
+  activeTab.value = resourcesMode.value ? 'rooms' : 'hotel'
+  if (hotelId.value) loadAll()
+})
 
 onMounted(async () => {
   try {
