@@ -26,16 +26,22 @@
         </el-dropdown>
         <el-button :loading="loading" @click="reload">刷新</el-button>
       </div>
-    </div>
-
-    <div class="metric-grid hotel-metrics">
-      <div v-for="metric in metrics" :key="metric.label" class="metric-card hotel-metric" :class="`tone-${metric.tone}`">
-        <div class="metric-icon"><el-icon><component :is="metric.icon" /></el-icon></div>
-        <div class="metric-copy">
-          <span>{{ metric.label }}</span>
-          <strong>{{ metric.value }}</strong>
-          <small>{{ metric.hint }}</small>
-        </div>
+      <div class="hero-stats">
+        <button
+          v-for="metric in metrics"
+          :key="metric.key"
+          type="button"
+          class="hero-stat"
+          :class="`tone-${metric.tone}`"
+          @click="focusMetric(metric.key)"
+        >
+          <span class="hero-stat-icon"><el-icon><component :is="metric.icon" /></el-icon></span>
+          <span class="hero-stat-copy">
+            <strong>{{ metric.value }}</strong>
+            <span>{{ metric.label }}</span>
+            <small>{{ metric.hint }}</small>
+          </span>
+        </button>
       </div>
     </div>
 
@@ -190,10 +196,21 @@
         </div>
       </div>
 
+      <div class="room-floor-tabs">
+        <button
+          v-for="floor in roomBoard"
+          :key="floor.key"
+          type="button"
+          class="room-floor-tab"
+          :class="{ active: activeRoomFloor === floor.key }"
+          @click="roomFilter.floor = floor.key"
+        >
+          {{ floor.label }}<b>{{ floor.rooms.length }}</b>
+        </button>
+        <span class="room-floor-tip">每次只看一层，避免楼层过多把页面拉长</span>
+      </div>
+
       <div class="room-board-filters">
-        <el-select v-model="roomFilter.floor" clearable placeholder="楼层" size="small" style="width: 110px">
-          <el-option v-for="item in roomFloorOptions" :key="item" :label="item" :value="item" />
-        </el-select>
         <el-select v-model="roomFilter.roomType" clearable placeholder="房型" size="small" style="width: 150px">
           <el-option v-for="item in roomTypeOptions" :key="item" :label="item" :value="item" />
         </el-select>
@@ -226,7 +243,7 @@
         <div v-if="!filteredRoomBoard.length && !roomStatesLoading" class="room-board-empty">
           {{ roomStates.length ? '没有符合筛选条件的客房' : '当前门店还没有客房，请先在酒店资料中添加房型与客房。' }}
         </div>
-        <section v-for="floor in filteredRoomBoard" :key="floor.key" class="room-floor">
+        <section v-for="floor in visibleRoomBoard" :key="floor.key" class="room-floor">
           <header class="room-floor-head">
             <h4>{{ floor.label }}</h4>
             <span>{{ floor.rooms.length }} 间</span>
@@ -912,8 +929,8 @@ const roomBoard = computed(() => {
 })
 
 const roomFilter = reactive({ floor: '', roomType: '', status: '', date: '', keyword: '' })
-const roomFloorOptions = computed(() => [...new Set(roomStates.value.map((room) => room.floor || '未分楼层'))]
-  .sort((a, b) => String(a).localeCompare(String(b), 'zh-CN', { numeric: true })))
+const activeRoomFloor = computed(() => roomFilter.floor || roomBoard.value[0]?.key || '')
+const visibleRoomBoard = computed(() => filteredRoomBoard.value.filter((floor) => floor.key === activeRoomFloor.value))
 const roomTypeOptions = computed(() => [...new Set(roomStates.value.map((room) => room.roomTypeName).filter(Boolean))]
   .sort((a, b) => String(a).localeCompare(String(b), 'zh-CN')))
 const filteredRoomBoard = computed(() => {
@@ -949,11 +966,16 @@ function filterByRoomSummary(status) {
 }
 
 const metrics = computed(() => [
-  { label: '待入住', value: (counts.value.CONFIRMED || 0) + (counts.value.ARRIVAL || 0), hint: '已确认 / 今日到店', icon: Calendar, tone: 'amber' },
-  { label: '在住', value: counts.value.IN_HOUSE || 0, hint: '当前在店', icon: House, tone: 'blue' },
-  { label: '待退房', value: counts.value.DUE_OUT || 0, hint: '今日离店', icon: Tickets, tone: 'violet' },
-  { label: '待处理', value: tasks.value.length, hint: '前台任务', icon: Bell, tone: 'green' },
+  { key: 'arrival', label: '待入住', value: (counts.value.CONFIRMED || 0) + (counts.value.ARRIVAL || 0), hint: '已确认 / 今日到店', icon: Calendar, tone: 'amber' },
+  { key: 'in_house', label: '在住', value: counts.value.IN_HOUSE || 0, hint: '当前在店', icon: House, tone: 'blue' },
+  { key: 'due_out', label: '待退房', value: counts.value.DUE_OUT || 0, hint: '今日离店', icon: Tickets, tone: 'violet' },
+  { key: 'tasks', label: '待处理', value: tasks.value.length, hint: '前台任务', icon: Bell, tone: 'green' },
 ])
+
+function focusMetric(key) {
+  taskFilter.value = { arrival: 'ARRIVAL', in_house: 'IN_HOUSE', due_out: 'DUE_OUT', tasks: 'ALL' }[key] || 'ALL'
+  document.querySelector('.frontdesk-queue')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 const quickActions = computed(() => [
   canCreate.value && { key: 'booking', label: '新建预订', hint: '为到店客人快速开单', icon: Plus, tone: 'amber' },
@@ -1571,6 +1593,7 @@ onMounted(async () => {
 <style scoped>
 .hotel-page { display: flex; flex-direction: column; padding-bottom: 32px; }
 .hotel-hero {
+  flex-wrap: wrap;
   align-items: flex-start;
   padding: 22px 24px;
   border: 1px solid #e5ecf7;
@@ -1585,7 +1608,18 @@ onMounted(async () => {
 .hero-meta { display: flex; gap: 16px; align-items: center; margin-top: 10px; color: #7d8ca3; font-size: 12px; }
 .hero-meta span { display: inline-flex; align-items: center; gap: 6px; }
 .hero-dot { width: 7px; height: 7px; border-radius: 50%; background: #35b87a; box-shadow: 0 0 0 4px rgba(53, 184, 122, .12); }
-.hotel-metrics { margin-top: 16px; }
+.hero-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); flex: 1 0 100%; gap: 8px; margin-top: 16px; }
+.hero-stat { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 9px 11px; border: 1px solid rgba(219, 229, 242, .9); border-radius: 11px; background: rgba(255,255,255,.72); color: #34445c; text-align: left; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.hero-stat:hover { border-color: #a9c9f3; box-shadow: 0 5px 14px rgba(42, 94, 170, .1); transform: translateY(-1px); }
+.hero-stat-icon { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: 8px; font-size: 15px; }
+.hero-stat-copy { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.hero-stat-copy strong { font-size: 20px; letter-spacing: -.3px; }
+.hero-stat-copy span { color: #697a90; font-size: 11px; }
+.hero-stat-copy small { color: #9aa7b8; font-size: 10px; }
+.hero-stat.tone-amber .hero-stat-icon { color: #b87512; background: #fff4e2; }
+.hero-stat.tone-blue .hero-stat-icon { color: #2f6fce; background: #eaf2ff; }
+.hero-stat.tone-violet .hero-stat-icon { color: #7650a7; background: #f3edff; }
+.hero-stat.tone-green .hero-stat-icon { color: #21875b; background: #e9f8f0; }
 .hotel-metric { display: flex; align-items: center; gap: 13px; min-height: 92px; padding: 15px 17px; border: 1px solid #edf1f7; border-radius: 14px; background: #fff; box-shadow: 0 4px 14px rgba(33, 48, 74, .04); }
 .metric-icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 11px; font-size: 19px; }
 .metric-copy { display: flex; flex-direction: column; min-width: 0; }
@@ -1634,7 +1668,13 @@ onMounted(async () => {
 .room-board-head { align-items: flex-start; }
 .room-board-subtitle { margin: 4px 0 0; color: var(--el-text-color-secondary); font-size: 12px; }
 .room-board-summary { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.room-board-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; padding: 10px 12px; border-radius: 10px; background: #f7f9fc; }
+.room-floor-tabs { display: flex; align-items: center; gap: 6px; overflow-x: auto; margin: 12px 0 0; padding-bottom: 2px; }
+.room-floor-tab { flex: none; padding: 6px 11px; border: 1px solid transparent; border-radius: 8px; color: #6f7e93; background: #f5f7fa; font: inherit; font-size: 12px; cursor: pointer; }
+.room-floor-tab b { margin-left: 5px; color: #9aa7b8; font-size: 10px; font-weight: 600; }
+.room-floor-tab.active { border-color: #c9ddf8; color: #2f6fce; background: #edf4ff; }
+.room-floor-tab.active b { color: #2f6fce; }
+.room-floor-tip { margin-left: auto; color: #9aa7b8; font-size: 10px; white-space: nowrap; }
+.room-board-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0 14px; padding: 10px 12px; border-radius: 10px; background: #f7f9fc; }
 .room-filter-hint { color: #8a96a8; font-size: 11px; }
 .room-summary-item { min-width: 62px; padding: 8px 10px; border: 1px solid transparent; border-radius: 10px; background: #f5f7fa; color: #53647b; font: inherit; text-align: center; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
 .room-summary-item:hover { border-color: #d7e3f5; transform: translateY(-1px); }
@@ -1736,6 +1776,7 @@ onMounted(async () => {
 @media (max-width: 760px) {
   .room-board-head { flex-direction: column; gap: 10px; }
   .room-board-summary { justify-content: flex-start; }
+  .hero-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>
