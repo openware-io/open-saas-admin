@@ -12,15 +12,14 @@ import {
   orderSettlementStatus,
   orderTradeStatus,
   settlementStatusText,
-  tradeStatusFromLegacy,
   tradeStatusText,
 } from './ktvOrderStatus'
 
 /**
  * KTV 订单状态口径（目标契约 ORDER_ROOM_INVENTORY_TARGET §2/§4）：
- *  - 订单只表达 tradeStatus（DRAFT/PENDING_PAYMENT/PAID/COMPLETED/CANCELLED）；
+ *  - 订单只表达 tradeStatus（DRAFT/PENDING_PAYMENT/PAID/COMPLETED/CANCELLED/VOIDED）；
  *  - KTV 业务状态在 sessionStatus（RESERVED/OPEN/PAUSED/CLOSED/CANCELLED）；
- *  - settlementStatus 由后端派生；前端不做状态推断，缺字段只按兼容列兜底。
+ *  - settlementStatus 由后端派生；前端不做旧状态兜底推导（兼容列已删除）。
  */
 describe('KTV 状态词表', () => {
   it('交易/会话/结算状态都有中文文案，未知枚举不把英文透出', () => {
@@ -38,15 +37,11 @@ describe('KTV 状态词表', () => {
     expect(tradeStatusText('')).toBe('—')
   })
 
-  it('旧 ord_order.status 只在缺新字段时兜底推导交易状态', () => {
-    expect(tradeStatusFromLegacy('SERVING')).toBe('DRAFT')
-    expect(tradeStatusFromLegacy('WAITING_SETTLEMENT')).toBe('PENDING_PAYMENT')
-    expect(tradeStatusFromLegacy('WAITING_PAYMENT')).toBe('PENDING_PAYMENT')
-    expect(tradeStatusFromLegacy('VOIDED')).toBe('VOIDED')
-    expect(tradeStatusFromLegacy('CANCELLED')).toBe('CANCELLED')
-    expect(tradeStatusFromLegacy('COMPLETED')).toBe('COMPLETED')
+  it('订单只认 tradeStatus：缺失时为空串，不从旧 status 兜底', () => {
     expect(orderTradeStatus({ tradeStatus: 'PAID', status: 'VOIDED' })).toBe('PAID')
-    expect(orderTradeStatus({ status: 'SERVING' })).toBe('DRAFT')
+    expect(orderTradeStatus({ status: 'SERVING' })).toBe('')
+    expect(orderTradeStatus({})).toBe('')
+    expect(orderTradeStatus(null)).toBe('')
   })
 
   it('结算状态缺字段时按交易/退款状态兜底', () => {

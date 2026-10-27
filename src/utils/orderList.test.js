@@ -31,9 +31,10 @@ describe('订单管理筛选与匹配', () => {
     expect(filterOrders(rows, { status: '' })).toHaveLength(4)
   })
 
-  it('兼容旧后端：缺 tradeStatus 时按兼容列 status 推导', () => {
-    expect(filterOrders([{ id: 9, status: 'WAITING_PAYMENT' }], { status: 'PENDING_PAYMENT' }).map((row) => row.id))
-      .toEqual([9])
+  it('只按 tradeStatus 筛选：旧 status 不参与（兼容列已删除）', () => {
+    expect(filterOrders([{ id: 9, status: 'WAITING_PAYMENT' }], { status: 'PENDING_PAYMENT' })).toEqual([])
+    expect(filterOrders([{ id: 9, tradeStatus: 'PENDING_PAYMENT' }], { status: 'PENDING_PAYMENT' })
+      .map((row) => row.id)).toEqual([9])
   })
 
   it('关键字匹配订单号 / 包厢名 / 包厢编号 / 客户ID / 订单ID', () => {
@@ -123,9 +124,8 @@ describe('在场与可取消判定', () => {
     for (const status of ['DRAFT', 'PENDING_PAYMENT', 'PAID']) {
       expect(`${status}:${canCancelOrder({ tradeStatus: status })}`).toBe(`${status}:true`)
     }
-    // 旧后端：兼容列兜底（VOIDED 是审批作废，与取消分开）
-    expect(canCancelOrder({ status: 'VOIDED' })).toBe(false)
-    expect(canCancelOrder({ status: 'CANCELLED' })).toBe(false)
+    // 旧 status 不再参与判定（缺 tradeStatus 时视为未终结，页面另有 isLoading 态兜底）
+    expect(canCancelOrder({ status: 'VOIDED' })).toBe(true)
   })
 })
 

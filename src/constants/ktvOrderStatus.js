@@ -6,14 +6,13 @@
  * 自己的词表与动作口径，混进通用 terms 会和酒店/支付的状态词互相干扰。
  *
  * 数据来源：`GET /api/v1/business/orders`（OrderView），KTV 订单现在同时返回：
- *   - `tradeStatus`：DRAFT / PENDING_PAYMENT / PAID / COMPLETED / CANCELLED
+ *   - `tradeStatus`：DRAFT / PENDING_PAYMENT / PAID / COMPLETED / CANCELLED / VOIDED
  *   - `refundStatus`：NONE / PARTIAL / FULL
  *   - `sessionStatus`：RESERVED / OPEN / PAUSED / CLOSED / CANCELLED
- *   - `settlementStatus`：UNSETTLED / PENDING_PAYMENT / PAID / COMPLETED / CANCELLED /
+ *   - `settlementStatus`：UNSETTLED / PENDING_PAYMENT / PAID / COMPLETED / CANCELLED / VOIDED /
  *                        REFUNDED / PARTIALLY_REFUNDED
  *
- * `order.status` 只是收口前的兼容列（后端最终迁移会删掉），本文件只在**旧后端/历史缓存**缺新字段时
- * 由它兜底推导，页面不得直接用它做业务判断。
+ * 旧 `ord_order.status` 兼容列已随收口迁移删除，本文件只读新字段，不做任何旧状态兜底推导。
  */
 
 /** 交易状态（订单主表）。CANCELLED=用户取消；VOIDED=审批作废/冲正（报表独立统计，不与取消混算）。 */
@@ -86,32 +85,9 @@ export function orderRefundStatusText(status) {
   return REFUND_STATUS_TEXT[status] || unknownEnumText(status)
 }
 
-/** 旧 `ord_order.status` → 交易状态（只用于旧后端/历史行兜底，不参与新写入）。 */
-export function tradeStatusFromLegacy(legacyStatus) {
-  switch (legacyStatus) {
-    case 'COMPLETED':
-    case 'REFUNDED':
-    case 'PARTIAL_REFUNDED':
-      return 'COMPLETED'
-    case 'CANCELLED':
-      return 'CANCELLED'
-    case 'VOIDED':
-      return 'VOIDED'
-    case 'WAITING_SETTLEMENT':
-    case 'WAITING_PAYMENT':
-      return 'PENDING_PAYMENT'
-    case 'PAID':
-      return 'PAID'
-    default:
-      // DRAFT / SERVING / WAITING_ARRIVAL / 空 = 已建单未结算
-      return 'DRAFT'
-  }
-}
-
-/** 订单交易状态（优先服务端新字段，缺字段时按兼容列推导）。 */
+/** 订单交易状态（订单主表唯一状态来源；缺字段时返回空串，不猜状态）。 */
 export function orderTradeStatus(order) {
-  if (!order) return ''
-  return order.tradeStatus || tradeStatusFromLegacy(order.status)
+  return (order && order.tradeStatus) || ''
 }
 
 /** 订单会话状态（无会话返回空串：非 KTV 单/未选包厢）。 */
