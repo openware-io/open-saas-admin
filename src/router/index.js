@@ -258,12 +258,13 @@ router.beforeEach(async (to, from, next) => {
     return next(authStore.workspaces.includes('STORE') ? '/store' : '/admin/tenant/overview')
   }
   // 租户经营页只对租户总部账号开放；店长仍可进入共享的业务运营页
-  //（预约/收银/订单/资源/库存/报表/酒店前台），但不能进入租户默认配置、
-  // 角色权限、门店管理和 KTV 配置。
+  //（预约/收银/订单/资源/库存/报表/酒店前台/KTV 配置），但不能进入租户默认配置、
+  // 角色权限和门店管理。
   const storeOperations = (path) =>
     (path.startsWith('/business/') && !path.startsWith('/business/tenant')) ||
     ['/admin/orders', '/admin/resources', '/admin/products', '/admin/inventory',
-      '/admin/reports', '/admin/tenant/hotel', '/admin/tenant/hotel-master'].some((prefix) => path === prefix || path.startsWith(prefix + '/'))
+      '/admin/reports', '/admin/tenant/hotel', '/admin/tenant/hotel-master',
+      '/admin/ktv/config'].some((prefix) => path === prefix || path.startsWith(prefix + '/'))
   if (to.meta.scope === 'TENANT' && !authStore.workspaces.includes('HEADQUARTERS')) {
     if (!(authStore.workspaces.includes('STORE') && storeOperations(to.path))) {
       return next(authStore.workspaces.includes('STORE') ? '/store' : '/select')
