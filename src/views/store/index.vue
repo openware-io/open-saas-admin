@@ -142,6 +142,8 @@ const entries = computed(() => {
     { path: '/admin/tenant/hotel', label: '酒店前台', hint: '预订与入住', permission: 'hotel.booking.view' },
     { path: '/admin/orders', label: '订单管理', hint: '住客订单', permission: 'order.view' },
     { path: '/business/members', label: '客户管理', hint: '住客档案', permission: 'member.view' },
+    { path: '/business/points', label: '积分管理', hint: '积分账户与调整', permission: 'points.view' },
+    { path: '/business/wallet', label: '储值管理', hint: '储值余额与流水', permission: 'wallet.view' },
     { path: '/admin/inventory', label: '库存管理', hint: '客耗与物料', permission: 'inventory.material.view' },
     { path: '/admin/reports', label: '门店报表', hint: '经营数据' },
   ]
