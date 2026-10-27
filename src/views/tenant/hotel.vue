@@ -96,25 +96,40 @@
               @keydown.enter="openRoom(room)"
             >
               <div class="room-tile-top">
-                <strong>{{ room.roomNo }}</strong>
-                <span class="room-tile-badges">
-                  <span v-if="room.cardBadge" class="room-card-badge">{{ room.cardBadge }}</span>
-                  <span class="room-status-dot" :aria-label="room.statusLabel"></span>
-                </span>
+                <div class="room-ident">
+                  <strong>{{ room.roomNo }}</strong>
+                  <span class="room-type">{{ room.roomTypeName }}<template v-if="room.floor"> · {{ room.floor }} 楼</template></span>
+                </div>
+                <span class="room-status-pill" :class="`is-${room.tone}`">{{ room.statusLabel }}</span>
               </div>
-              <span class="room-type">{{ room.roomTypeName }}<template v-if="room.floor"> · {{ room.floor }}</template></span>
-              <div class="room-status-row">
-                <span class="room-status-label">{{ room.statusLabel }}</span>
-                <span v-if="room.stayWindow" class="room-stay-window">{{ room.stayWindow }}</span>
-              </div>
-              <div v-if="room.guestName" class="room-guest-block">
-                <span class="room-guest-name">{{ room.guestName }}</span>
-                <span v-if="room.phoneHint" class="room-phone-hint">{{ room.phoneHint }}</span>
-              </div>
-              <span v-else class="room-guest room-guest-empty">{{ room.emptyHint }}</span>
-              <span v-if="room.serviceHint" class="room-service-hint">{{ room.serviceHint }}</span>
-              <div v-if="room.financeHints.length" class="room-finance-hints">
-                <span v-for="hint in room.financeHints" :key="hint" class="room-finance-hint">{{ hint }}</span>
+
+              <div class="room-tile-body">
+                <template v-if="room.guestName">
+                  <div class="room-card-note">
+                    <span v-if="room.cardBadge">{{ room.cardBadge }}</span>
+                    <span v-if="room.bookingStatusLabel">{{ room.bookingStatusLabel }}</span>
+                  </div>
+                  <div class="room-guest-line">
+                    <span class="room-guest-avatar">{{ room.guestInitial }}</span>
+                    <span class="room-guest-copy">
+                      <strong>{{ room.guestName }}</strong>
+                      <small v-if="room.phoneHint">{{ room.phoneHint }}</small>
+                    </span>
+                  </div>
+                  <div v-if="room.stayWindow" class="room-stay-line">
+                    <el-icon><Calendar /></el-icon>
+                    <span>{{ room.stayWindow }}</span>
+                  </div>
+                  <div v-if="room.financeHints.length" class="room-finance-hints">
+                    <span v-for="hint in room.financeHints" :key="hint" class="room-finance-hint">{{ hint }}</span>
+                  </div>
+                  <span v-if="room.serviceHint" class="room-service-hint">{{ room.serviceHint }}</span>
+                </template>
+                <div v-else class="room-vacant">
+                  <el-icon class="room-vacant-icon"><House /></el-icon>
+                  <span>{{ room.emptyHint }}</span>
+                  <small v-if="room.serviceHint">{{ room.serviceHint }}</small>
+                </div>
               </div>
             </article>
           </div>
@@ -736,12 +751,6 @@ function activeCardBadge(task) {
   return ''
 }
 
-function roomCardBadge(room) {
-  if (room.status === 'DIRTY') return '待清扫'
-  if (room.status === 'MAINTENANCE') return '维修'
-  return '可售'
-}
-
 function financeHints(task) {
   const hints = []
   if (task.folioChargeMinor != null && task.folioPaidMinor != null) {
@@ -760,8 +769,8 @@ function financeHints(task) {
 
 function emptyRoomHint(room, upcoming) {
   if (upcoming) return `下一预订 ${shortDate(upcoming.checkInDate)} · ${upcoming.guestName}`
-  if (room.status === 'DIRTY') return '等待清扫'
-  if (room.status === 'MAINTENANCE') return '维修中不可售'
+  if (room.status === 'DIRTY') return '完成清扫后恢复可售'
+  if (room.status === 'MAINTENANCE') return '维修完成后恢复可售'
   return '当前可售'
 }
 
@@ -813,15 +822,16 @@ const roomBoard = computed(() => {
       // 在住/待离店优先于物理房态：即使历史数据把客房标成 DIRTY，也不能把住客显示成“待清扫”。
       tone: task ? 'occupied' : (roomTone[room.status] || 'maintenance'),
       statusLabel: task
-        ? (task.status === 'DUE_OUT' ? '在住 · 今日离店' : '在住')
+        ? '在住'
         : hotelRoomStatusText(room.status),
       guestName: task?.guestName || '',
-      bookingStatusLabel: task ? hotelBookingStatusText(task.status) : '',
+      guestInitial: task?.guestName ? String(task.guestName).slice(0, 1) : '',
+      bookingStatusLabel: '',
       stayWindow: task ? stayWindowText(task) : '',
       checkInDate: task?.checkInDate || upcoming?.checkInDate || '',
       checkOutDate: task?.checkOutDate || upcoming?.checkOutDate || '',
       phoneHint: task ? maskPhone(task.guestPhone) : '',
-      cardBadge: task ? activeCardBadge(task) : roomCardBadge(room),
+      cardBadge: task ? activeCardBadge(task) : '',
       financeHints: task ? financeHints(task) : [],
       serviceHint: task && stayover
         ? `${housekeepingTypeText(stayover.taskType)} · ${housekeepingStatusText(stayover.status)}`
@@ -1539,49 +1549,36 @@ onMounted(async () => {
 .room-floor-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 9px; }
 .room-floor-head h4 { margin: 0; font-size: 14px; color: #303f59; }
 .room-floor-head span { color: var(--el-text-color-secondary); font-size: 12px; }
-.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
-.room-tile { position: relative; display: flex; flex-direction: column; gap: 4px; min-height: 150px; padding: 13px 14px; border: 1px solid #e7ebf2; border-left: 4px solid #b9c2d0; border-radius: 12px; background: #fff; box-shadow: 0 3px 10px rgba(33, 48, 74, .04); }
-.room-tile-top { display: flex; align-items: center; justify-content: space-between; }
-.room-tile-top strong { color: #25344b; font-size: 19px; letter-spacing: .3px; }
-.room-tile-badges { display: inline-flex; align-items: center; gap: 7px; }
-.room-card-badge { padding: 2px 6px; border-radius: 5px; color: #66758b; background: #f1f4f9; font-size: 10px; line-height: 1.4; white-space: nowrap; }
-.room-status-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.room-stay-window { overflow: hidden; color: #8a96a8; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.room-guest-block { display: flex; flex-direction: column; gap: 1px; margin-top: auto; min-width: 0; }
-.room-guest-name { overflow: hidden; color: #34445c; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.room-phone-hint { color: #9aa5b5; font-size: 10px; }
-.room-service-hint { color: #b07a1c; font-size: 10px; }
-.room-finance-hints { display: flex; flex-wrap: wrap; gap: 4px; min-height: 15px; }
+.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 12px; }
+.room-tile { position: relative; display: flex; flex-direction: column; min-height: 178px; padding: 14px 15px; border: 1px solid #e7ecf4; border-left: 4px solid #b9c2d0; border-radius: 14px; background: #fff; box-shadow: 0 3px 10px rgba(33, 48, 74, .035); cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.room-tile:hover, .room-tile:focus-visible { z-index: 1; border-color: #a9c9f3; box-shadow: 0 10px 24px rgba(42, 94, 170, .13); transform: translateY(-2px); outline: none; }
+.room-tile-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.room-ident { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.room-ident strong { color: #1f2d43; font-size: 22px; line-height: 1.05; letter-spacing: .2px; }
+.room-type { overflow: hidden; color: #8b98aa; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.room-status-pill { flex: none; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; line-height: 1.5; white-space: nowrap; }
+.room-status-pill.is-active { color: #1d8a5b; background: #eaf8f1; }
+.room-status-pill.is-occupied { color: #2f6fce; background: #eaf2ff; }
+.room-status-pill.is-dirty { color: #b47716; background: #fff5e2; }
+.room-status-pill.is-maintenance { color: #7650a7; background: #f3edff; }
+.room-tile-body { display: flex; flex: 1; flex-direction: column; gap: 8px; min-width: 0; margin-top: 10px; }
+.room-card-note { display: flex; align-items: center; gap: 5px; min-height: 16px; }
+.room-card-note span { padding: 1px 6px; border-radius: 4px; color: #6c7c93; background: #f3f6fa; font-size: 10px; line-height: 1.5; }
+.room-card-note span:first-child { color: #b47716; background: #fff6e5; }
+.room-guest-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.room-guest-avatar { display: grid; width: 27px; height: 27px; flex: 0 0 27px; place-items: center; border-radius: 50%; color: #3e6fc4; background: #e9f1ff; font-size: 12px; font-weight: 700; }
+.room-guest-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.room-guest-copy strong { overflow: hidden; color: #2e3d53; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.room-guest-copy small { color: #9aa5b5; font-size: 10px; }
+.room-stay-line { display: flex; align-items: center; gap: 4px; overflow: hidden; color: #7b8a9e; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.room-stay-line .el-icon { flex: none; font-size: 12px; }
+.room-vacant { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 78px; color: #a0abba; text-align: center; }
+.room-vacant-icon { color: #c2ccda; font-size: 22px; }
+.room-vacant span { font-size: 12px; }
+.room-vacant small { font-size: 10px; }
+.room-finance-hints { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; min-height: 15px; }
 .room-finance-hint { padding: 1px 5px; border-radius: 4px; color: #5f6f86; background: #f5f7fa; font-size: 10px; line-height: 1.5; white-space: nowrap; }
-.room-status-dot { width: 9px; height: 9px; border-radius: 50%; background: #b9c2d0; box-shadow: 0 0 0 4px rgba(185, 194, 208, .15); }
-.room-type { color: #7c8799; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.room-status-label { color: #66758b; font-size: 12px; font-weight: 600; }
-.room-guest { margin-top: auto; color: #34445c; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.room-guest-empty { color: #aab3c1; }
-.room-tile { cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
-.room-tile:hover, .room-tile:focus-visible { z-index: 1; border-color: #9fc4f8; box-shadow: 0 9px 22px rgba(42, 94, 170, .14); transform: translateY(-2px); outline: none; }
-.room-detail { padding: 2px 2px 20px; }
-.room-detail-hero { display: flex; flex-direction: column; gap: 4px; padding: 18px; border-radius: 14px; border-left: 5px solid #b9c2d0; background: #f7f9fc; }
-.room-detail-hero strong { color: #1f2d43; font-size: 32px; letter-spacing: -.5px; }
-.room-detail-eyebrow { color: #7d8ca3; font-size: 12px; }
-.room-detail-status { color: #53647b; font-size: 13px; font-weight: 700; }
-.room-detail-active { border-left-color: #35b87a; background: linear-gradient(135deg, #f5fcf8, #eefaf4); }
-.room-detail-occupied { border-left-color: #4b8bea; background: linear-gradient(135deg, #f5f9ff, #edf4ff); }
-.room-detail-dirty { border-left-color: #e6a23c; background: linear-gradient(135deg, #fffbf3, #fff7e8); }
-.room-detail-maintenance { border-left-color: #a984c9; background: linear-gradient(135deg, #fbf7ff, #f5effc); }
-.room-detail-facts { margin-top: 14px; }
-.room-detail-section { margin-top: 20px; }
-.room-detail-section h4 { margin: 0; font-size: 14px; color: #2b3a50; }
-.room-guest-card { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; padding: 13px 14px; border: 1px solid #e6edf7; border-radius: 11px; background: #fff; }
-.room-guest-card strong { color: #26364d; font-size: 16px; }
-.room-guest-card span { color: #8492a6; font-size: 12px; }
-.room-finance-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.room-finance-summary span { padding: 3px 7px; border-radius: 5px; color: #5b6c83; background: #f3f6fa; font-size: 11px; }
-.room-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.room-balance-warning { margin-top: 10px; }
-.room-empty-note { display: flex; flex-direction: column; gap: 5px; padding: 14px; border-radius: 11px; color: #75849a; background: #f7f9fc; }
-.room-empty-note strong { color: #34445c; font-size: 14px; }
-.room-empty-note span { font-size: 12px; line-height: 1.6; }
+.room-service-hint { color: #b07a1c; font-size: 10px; }
 .room-tile-active { border-left-color: #35b87a; background: linear-gradient(135deg, #fff 65%, #f1fbf6); }
 .room-tile-active .room-status-dot { background: #35b87a; box-shadow: 0 0 0 4px rgba(53, 184, 122, .14); }
 .room-tile-occupied { border-left-color: #4b8bea; background: linear-gradient(135deg, #fff 65%, #f2f7ff); }
