@@ -123,14 +123,14 @@
               收定金确认
             </el-button>
             <el-button
-              v-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'"
+              v-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && row.hasStay !== false"
               link
               @click="openExtend(row)"
             >
               续住
             </el-button>
             <el-button
-              v-if="row.status === 'IN_HOUSE' || row.status === 'DUE_OUT'"
+              v-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && row.hasStay !== false"
               link
               @click="openFolio(row)"
             >
@@ -1211,15 +1211,23 @@ async function submitExtend() {
   }
 }
 
+function isFolioMissing(error) {
+  return error?.response?.data?.code === 'FOLIO_NOT_FOUND'
+}
+
 async function openFolio(row) {
   folioBooking.value = row
   folio.value = null
   depositAmount.value = Math.max(1, row.amountMinor || 1)
   depositNote.value = '押金'
-  folioVisible.value = true
   try {
     folio.value = await getHotelFolio(row.id)
+    folioVisible.value = true
   } catch (error) {
+    if (isFolioMissing(error)) {
+      ElMessage.warning('该预订尚未生成账单，通常是还没有办理入住')
+      return
+    }
     notifyAdminRequestError(error, '加载账单失败')
   }
 }
