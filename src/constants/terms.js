@@ -1054,6 +1054,18 @@ export function hotelBookingStatusText(status) {
   return HOTEL_BOOKING_STATUS_TEXT[status] || unknownEnumText(status)
 }
 
+/** 酒店订单来源：房态卡只展示来源，不在模板里自建英文枚举映射。 */
+export const HOTEL_BOOKING_SOURCE_TEXT = {
+  WEB: '官网/线上',
+  ADMIN: '前台',
+  PHONE: '电话',
+  WALK_IN: '散客',
+  OTA: 'OTA',
+}
+export function hotelBookingSourceText(source) {
+  return HOTEL_BOOKING_SOURCE_TEXT[source] || '前台'
+}
+
 export const HOUSEKEEPING_STATUS_TEXT = {
   PENDING: '待清扫',
   IN_PROGRESS: '清扫中',

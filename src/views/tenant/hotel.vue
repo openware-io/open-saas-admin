@@ -62,12 +62,24 @@
             >
               <div class="room-tile-top">
                 <strong>{{ room.roomNo }}</strong>
-                <span class="room-status-dot" :aria-label="room.statusLabel"></span>
+                <span class="room-tile-badges">
+                  <span v-if="room.cardBadge" class="room-card-badge">{{ room.cardBadge }}</span>
+                  <span class="room-status-dot" :aria-label="room.statusLabel"></span>
+                </span>
               </div>
-              <span class="room-type">{{ room.roomTypeName }}</span>
-              <span class="room-status-label">{{ room.statusLabel }}</span>
-              <span v-if="room.guestName" class="room-guest">{{ room.guestName }}<template v-if="room.bookingStatusLabel"> · {{ room.bookingStatusLabel }}</template></span>
-              <span v-else class="room-guest room-guest-empty">暂无在住</span>
+              <span class="room-type">{{ room.roomTypeName }}<template v-if="room.floor"> · {{ room.floor }}</template></span>
+              <div class="room-status-row">
+                <span class="room-status-label">{{ room.statusLabel }}</span>
+                <span v-if="room.stayWindow" class="room-stay-window">{{ room.stayWindow }}</span>
+              </div>
+              <div v-if="room.guestName" class="room-guest-block">
+                <span class="room-guest-name">{{ room.guestName }}</span>
+                <span v-if="room.phoneHint" class="room-phone-hint">{{ room.phoneHint }}</span>
+              </div>
+              <span v-else class="room-guest room-guest-empty">{{ room.emptyHint }}</span>
+              <div v-if="room.financeHints.length" class="room-finance-hints">
+                <span v-for="hint in room.financeHints" :key="hint" class="room-finance-hint">{{ hint }}</span>
+              </div>
             </article>
           </div>
         </section>
@@ -279,6 +291,18 @@
         <el-descriptions :column="2" border size="small" class="room-detail-facts">
           <el-descriptions-item label="楼层">{{ selectedRoom.floor || '未分楼层' }}</el-descriptions-item>
           <el-descriptions-item label="房型">{{ selectedRoom.roomTypeName }}</el-descriptions-item>
+          <el-descriptions-item label="入住 / 离店">
+            {{ selectedRoomTask ? `${selectedRoomTask.checkInDate} → ${selectedRoomTask.checkOutDate}` : '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="晚数 / 客房数">
+            {{ selectedRoomTask ? `${selectedRoomTask.nights || '—'} 晚 · ${selectedRoomTask.rooms || 1} 间` : '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="订单来源">
+            {{ selectedRoomTask?.source ? hotelBookingSourceText(selectedRoomTask.source) : '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="实际入住">
+            {{ selectedRoomTask?.checkInAt || '—' }}
+          </el-descriptions-item>
         </el-descriptions>
 
         <div v-if="selectedRoomTask" class="room-detail-section">
@@ -292,7 +316,10 @@
           <div class="room-guest-card">
             <strong>{{ selectedRoomTask.guestName }}</strong>
             <span>{{ selectedRoomTask.bookingNo }}</span>
-            <span>{{ selectedRoomTask.guestPhone || '未留手机号' }}</span>
+            <span>{{ maskPhone(selectedRoomTask.guestPhone) || '未留手机号' }}</span>
+          </div>
+          <div v-if="selectedRoomFinanceHints.length" class="room-finance-summary">
+            <span v-for="hint in selectedRoomFinanceHints" :key="hint">{{ hint }}</span>
           </div>
           <div class="room-detail-actions">
             <el-button v-if="canCheckOut && selectedRoomTask.hasStay !== false" type="primary" @click="roomCheckout">办理退房</el-button>
@@ -502,6 +529,7 @@ import {
 import { listMembers } from '@/api/member'
 import {
   businessTypeText,
+  hotelBookingSourceText,
   hotelBookingStatusText,
   hotelFolioStatusText,
   hotelRoomStatusText,
@@ -544,6 +572,7 @@ const roomDrawerVisible = ref(false)
 const selectedRoom = ref(null)
 const selectedRoomTask = computed(() => tasks.value.find((task) => task.roomNo === selectedRoom.value?.roomNo
   && ['IN_HOUSE', 'DUE_OUT'].includes(task.status)) || null)
+const selectedRoomFinanceHints = computed(() => selectedRoomTask.value ? financeHints(selectedRoomTask.value) : [])
 const selectedRoomHousekeeping = computed(() => housekeeping.value.find((task) => task.roomNo === selectedRoom.value?.roomNo
   && task.status !== 'DONE') || null)
 const roomEmptyCopy = computed(() => {
@@ -609,6 +638,61 @@ const counts = computed(() => {
 })
 
 const roomTone = { ACTIVE: 'active', OCCUPIED: 'occupied', DIRTY: 'dirty', MAINTENANCE: 'maintenance' }
+
+function shortDate(value) {
+  const text = String(value || '').slice(0, 10)
+  const parts = text.split('-')
+  return parts.length === 3 ? `${parts[1]}/${parts[2]}` : text
+}
+
+function stayWindowText(task) {
+  const start = shortDate(task.checkInDate)
+  const end = shortDate(task.checkOutDate)
+  if (!start && !end) return ''
+  const nights = task.nights ? ` · ${task.nights}晚` : ''
+  return `${start} → ${end}${nights}`
+}
+
+function maskPhone(phone) {
+  const digits = String(phone || '').replace(/\D/g, '')
+  return digits.length >= 4 ? `尾号 ${digits.slice(-4)}` : ''
+}
+
+function activeCardBadge(task) {
+  if (task.status === 'DUE_OUT') return '今日离店'
+  if (task.status === 'IN_HOUSE') return task.nights ? `${task.nights}晚` : '在住'
+  return ''
+}
+
+function roomCardBadge(room) {
+  if (room.status === 'DIRTY') return '待清扫'
+  if (room.status === 'MAINTENANCE') return '维修'
+  return '可售'
+}
+
+function financeHints(task) {
+  const hints = []
+  if (task.folioChargeMinor != null && task.folioPaidMinor != null) {
+    const balance = Number(task.folioChargeMinor) - Number(task.folioPaidMinor)
+    hints.push(balance > 0
+      ? `待结 ${formatMoney(balance, task.currency)}`
+      : '账已结清')
+  } else if (task.amountMinor != null) {
+    hints.push(`房费 ${formatMoney(task.amountMinor, task.currency)}`)
+  }
+  if (task.depositAmountMinor) hints.push(`押金 ${formatMoney(task.depositAmountMinor, task.currency)}`)
+  if (task.rooms && task.rooms > 1) hints.push(`${task.rooms}间`)
+  if (task.source) hints.push(hotelBookingSourceText(task.source))
+  return hints
+}
+
+function emptyRoomHint(room, upcoming) {
+  if (upcoming) return `下一预订 ${shortDate(upcoming.checkInDate)} · ${upcoming.guestName}`
+  if (room.status === 'DIRTY') return '等待清扫'
+  if (room.status === 'MAINTENANCE') return '维修中不可售'
+  return '当前可售'
+}
+
 const roomSummary = computed(() => {
   const count = { ACTIVE: 0, OCCUPIED: 0, DIRTY: 0, MAINTENANCE: 0 }
   for (const room of roomStates.value) {
@@ -624,21 +708,35 @@ const roomSummary = computed(() => {
 
 const roomBoard = computed(() => {
   const activeByRoom = new Map()
+  const upcomingByRoom = new Map()
   for (const task of tasks.value) {
-    if (!task.roomNo || !['IN_HOUSE', 'DUE_OUT'].includes(task.status)) continue
-    activeByRoom.set(task.roomNo, task)
+    if (!task.roomNo) continue
+    if (['IN_HOUSE', 'DUE_OUT'].includes(task.status)) {
+      activeByRoom.set(task.roomNo, task)
+    } else if (['CONFIRMED', 'ARRIVAL', 'PENDING_DEPOSIT'].includes(task.status)) {
+      const current = upcomingByRoom.get(task.roomNo)
+      if (!current || String(task.checkInDate || '') < String(current.checkInDate || '')) {
+        upcomingByRoom.set(task.roomNo, task)
+      }
+    }
   }
   const floors = new Map()
   for (const room of roomStates.value) {
     const floorKey = room.floor || '未分楼层'
     if (!floors.has(floorKey)) floors.set(floorKey, [])
     const task = activeByRoom.get(room.roomNo)
+    const upcoming = upcomingByRoom.get(room.roomNo)
     floors.get(floorKey).push({
       ...room,
       tone: roomTone[room.status] || 'maintenance',
       statusLabel: hotelRoomStatusText(room.status),
       guestName: task?.guestName || '',
       bookingStatusLabel: task ? hotelBookingStatusText(task.status) : '',
+      stayWindow: task ? stayWindowText(task) : '',
+      phoneHint: task ? maskPhone(task.guestPhone) : '',
+      cardBadge: task ? activeCardBadge(task) : roomCardBadge(room),
+      financeHints: task ? financeHints(task) : [],
+      emptyHint: task ? '' : emptyRoomHint(room, upcoming),
     })
   }
   return [...floors.entries()]
@@ -1301,10 +1399,19 @@ onMounted(async () => {
 .room-floor-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 9px; }
 .room-floor-head h4 { margin: 0; font-size: 14px; color: #303f59; }
 .room-floor-head span { color: var(--el-text-color-secondary); font-size: 12px; }
-.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 10px; }
-.room-tile { position: relative; display: flex; flex-direction: column; gap: 4px; min-height: 112px; padding: 13px 14px; border: 1px solid #e7ebf2; border-left: 4px solid #b9c2d0; border-radius: 12px; background: #fff; box-shadow: 0 3px 10px rgba(33, 48, 74, .04); }
+.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.room-tile { position: relative; display: flex; flex-direction: column; gap: 4px; min-height: 150px; padding: 13px 14px; border: 1px solid #e7ebf2; border-left: 4px solid #b9c2d0; border-radius: 12px; background: #fff; box-shadow: 0 3px 10px rgba(33, 48, 74, .04); }
 .room-tile-top { display: flex; align-items: center; justify-content: space-between; }
 .room-tile-top strong { color: #25344b; font-size: 19px; letter-spacing: .3px; }
+.room-tile-badges { display: inline-flex; align-items: center; gap: 7px; }
+.room-card-badge { padding: 2px 6px; border-radius: 5px; color: #66758b; background: #f1f4f9; font-size: 10px; line-height: 1.4; white-space: nowrap; }
+.room-status-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.room-stay-window { overflow: hidden; color: #8a96a8; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.room-guest-block { display: flex; flex-direction: column; gap: 1px; margin-top: auto; min-width: 0; }
+.room-guest-name { overflow: hidden; color: #34445c; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.room-phone-hint { color: #9aa5b5; font-size: 10px; }
+.room-finance-hints { display: flex; flex-wrap: wrap; gap: 4px; min-height: 15px; }
+.room-finance-hint { padding: 1px 5px; border-radius: 4px; color: #5f6f86; background: #f5f7fa; font-size: 10px; line-height: 1.5; white-space: nowrap; }
 .room-status-dot { width: 9px; height: 9px; border-radius: 50%; background: #b9c2d0; box-shadow: 0 0 0 4px rgba(185, 194, 208, .15); }
 .room-type { color: #7c8799; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .room-status-label { color: #66758b; font-size: 12px; font-weight: 600; }
@@ -1327,6 +1434,8 @@ onMounted(async () => {
 .room-guest-card { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; padding: 13px 14px; border: 1px solid #e6edf7; border-radius: 11px; background: #fff; }
 .room-guest-card strong { color: #26364d; font-size: 16px; }
 .room-guest-card span { color: #8492a6; font-size: 12px; }
+.room-finance-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.room-finance-summary span { padding: 3px 7px; border-radius: 5px; color: #5b6c83; background: #f3f6fa; font-size: 11px; }
 .room-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .room-empty-note { display: flex; flex-direction: column; gap: 5px; padding: 14px; border-radius: 11px; color: #75849a; background: #f7f9fc; }
 .room-empty-note strong { color: #34445c; font-size: 14px; }
