@@ -55,6 +55,10 @@
               :key="room.id"
               class="room-tile"
               :class="`room-tile-${room.tone}`"
+              tabindex="0"
+              role="button"
+              @click="openRoom(room)"
+              @keydown.enter="openRoom(room)"
             >
               <div class="room-tile-top">
                 <strong>{{ room.roomNo }}</strong>
@@ -264,6 +268,69 @@
         </el-table-column>
       </el-table>
     </div>
+
+    <el-drawer v-model="roomDrawerVisible" :title="roomDrawerTitle" size="420px" destroy-on-close>
+      <div v-if="selectedRoom" class="room-detail">
+        <div class="room-detail-hero" :class="`room-detail-${selectedRoom.tone}`">
+          <span class="room-detail-eyebrow">{{ selectedRoom.roomTypeName }}</span>
+          <strong>{{ selectedRoom.roomNo }}</strong>
+          <span class="room-detail-status">{{ selectedRoom.statusLabel }}</span>
+        </div>
+        <el-descriptions :column="2" border size="small" class="room-detail-facts">
+          <el-descriptions-item label="楼层">{{ selectedRoom.floor || '未分楼层' }}</el-descriptions-item>
+          <el-descriptions-item label="房型">{{ selectedRoom.roomTypeName }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div v-if="selectedRoomTask" class="room-detail-section">
+          <div class="section-head">
+            <div>
+              <h4>当前住客</h4>
+              <p class="section-subtitle">{{ selectedRoomTask.checkInDate }} → {{ selectedRoomTask.checkOutDate }}</p>
+            </div>
+            <el-tag :type="statusType(selectedRoomTask.status)">{{ hotelBookingStatusText(selectedRoomTask.status) }}</el-tag>
+          </div>
+          <div class="room-guest-card">
+            <strong>{{ selectedRoomTask.guestName }}</strong>
+            <span>{{ selectedRoomTask.bookingNo }}</span>
+            <span>{{ selectedRoomTask.guestPhone || '未留手机号' }}</span>
+          </div>
+          <div class="room-detail-actions">
+            <el-button v-if="canCheckOut && selectedRoomTask.hasStay !== false" type="primary" @click="roomCheckout">办理退房</el-button>
+            <el-button v-if="canCheckIn" @click="roomExtend">续住</el-button>
+            <el-button @click="roomFolio">查看账单</el-button>
+            <el-button v-if="canCheckIn && selectedRoomTask.hasStay !== false" @click="roomMove">换房</el-button>
+          </div>
+        </div>
+
+        <div v-else class="room-detail-section">
+          <div class="room-empty-note">
+            <strong>{{ roomEmptyCopy.title }}</strong>
+            <span>{{ roomEmptyCopy.hint }}</span>
+          </div>
+          <div class="room-detail-actions">
+            <el-button v-if="selectedRoom.status === 'ACTIVE' && canCreate" type="primary" @click="createFromRoom">新建预订</el-button>
+            <el-button
+              v-if="selectedRoomHousekeeping && selectedRoomHousekeeping.status === 'PENDING' && canManageRooms"
+              type="primary"
+              @click="startRoomCleaning"
+            >开始清扫</el-button>
+            <el-button
+              v-if="selectedRoomHousekeeping && selectedRoomHousekeeping.status === 'IN_PROGRESS' && canManageRooms"
+              type="success"
+              @click="finishRoomCleaning"
+            >完成清扫</el-button>
+            <el-button
+              v-if="selectedRoom.status === 'MAINTENANCE' && canManageRooms"
+              @click="setRoomMaintenance(false)"
+            >恢复可用</el-button>
+            <el-button
+              v-if="selectedRoom.status !== 'MAINTENANCE' && selectedRoom.status !== 'OCCUPIED' && canManageRooms"
+              @click="setRoomMaintenance(true)"
+            >设为维修</el-button>
+          </div>
+        </div>
+      </div>
+    </el-drawer>
 
     <el-dialog v-model="extendVisible" title="续住" width="420px">
       <el-form label-width="100px">
@@ -479,6 +546,13 @@ const selectedRoomTask = computed(() => tasks.value.find((task) => task.roomNo =
   && ['IN_HOUSE', 'DUE_OUT'].includes(task.status)) || null)
 const selectedRoomHousekeeping = computed(() => housekeeping.value.find((task) => task.roomNo === selectedRoom.value?.roomNo
   && task.status !== 'DONE') || null)
+const roomEmptyCopy = computed(() => {
+  const status = selectedRoom.value?.status
+  if (status === 'ACTIVE') return { title: '客房空闲', hint: '可以直接为到店客人创建预订或办理入住。' }
+  if (status === 'DIRTY') return { title: '等待清扫', hint: '完成客房清扫后即可恢复可售。' }
+  if (status === 'MAINTENANCE') return { title: '客房维修中', hint: '处理完成后恢复可用。' }
+  return { title: '客房状态', hint: '请按房态完成对应操作。' }
+})
 const roomDrawerTitle = computed(() => selectedRoom.value
   ? `${selectedRoom.value.roomNo} · ${selectedRoom.value.statusLabel}`
   : '客房详情')
