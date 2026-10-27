@@ -26,7 +26,7 @@
         </el-dropdown>
         <el-button :loading="loading" @click="reload">刷新</el-button>
       </div>
-      <div class="hero-stats">
+      <div class="hero-stats metric-grid">
         <button
           v-for="metric in metrics"
           :key="metric.key"
