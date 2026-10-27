@@ -428,6 +428,7 @@ import {
   refundHotelDeposit,
   requestHotelOnlineRefund,
   runNightAudit,
+  setHotelRoomStatus,
   startHousekeepingTask,
   syncHotelRefunds,
 } from '@/api/hotel'
@@ -472,6 +473,15 @@ const bookingStatusOptions = [
 ]
 const roomStates = ref([])
 const roomStatesLoading = ref(false)
+const roomDrawerVisible = ref(false)
+const selectedRoom = ref(null)
+const selectedRoomTask = computed(() => tasks.value.find((task) => task.roomNo === selectedRoom.value?.roomNo
+  && ['IN_HOUSE', 'DUE_OUT'].includes(task.status)) || null)
+const selectedRoomHousekeeping = computed(() => housekeeping.value.find((task) => task.roomNo === selectedRoom.value?.roomNo
+  && task.status !== 'DONE') || null)
+const roomDrawerTitle = computed(() => selectedRoom.value
+  ? `${selectedRoom.value.roomNo} · ${selectedRoom.value.statusLabel}`
+  : '客房详情')
 const checkInVisible = ref(false)
 const checkInBooking = ref(null)
 const checkInRooms = ref([])
@@ -823,6 +833,74 @@ async function refundDeposit() {
   }
 }
 
+function openRoom(room) {
+  selectedRoom.value = room
+  roomDrawerVisible.value = true
+}
+
+function closeRoomDrawer() {
+  roomDrawerVisible.value = false
+  selectedRoom.value = null
+}
+
+async function roomCheckout() {
+  const task = selectedRoomTask.value
+  if (!task) return
+  await checkOut(task)
+  closeRoomDrawer()
+}
+
+function roomExtend() {
+  if (!selectedRoomTask.value) return
+  openExtend(selectedRoomTask.value)
+  closeRoomDrawer()
+}
+
+function roomFolio() {
+  if (!selectedRoomTask.value) return
+  openFolio(selectedRoomTask.value)
+  closeRoomDrawer()
+}
+
+function roomMove() {
+  if (!selectedRoomTask.value) return
+  openMove(selectedRoomTask.value)
+  closeRoomDrawer()
+}
+
+function createFromRoom() {
+  closeRoomDrawer()
+  openBooking()
+}
+
+async function startRoomCleaning() {
+  const task = selectedRoomHousekeeping.value
+  if (!task) return
+  await startCleaning(task)
+  await loadRoomStates()
+  closeRoomDrawer()
+}
+
+async function finishRoomCleaning() {
+  const task = selectedRoomHousekeeping.value
+  if (!task) return
+  await finishCleaning(task)
+  await loadRoomStates()
+  closeRoomDrawer()
+}
+
+async function setRoomMaintenance(maintenance) {
+  if (!selectedRoom.value) return
+  try {
+    await setHotelRoomStatus(selectedRoom.value.id, maintenance ? 'MAINTENANCE' : 'ACTIVE')
+    ElMessage.success(maintenance ? '客房已设为维修' : '客房已恢复可用')
+    await loadRoomStates()
+    closeRoomDrawer()
+  } catch (error) {
+    notifyAdminRequestError(error, maintenance ? '设置维修失败' : '恢复客房失败')
+  }
+}
+
 async function startCleaning(row) {
   try {
     await startHousekeepingTask(row.id)
@@ -1158,6 +1236,27 @@ onMounted(async () => {
 .room-status-label { color: #66758b; font-size: 12px; font-weight: 600; }
 .room-guest { margin-top: auto; color: #34445c; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .room-guest-empty { color: #aab3c1; }
+.room-tile { cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.room-tile:hover, .room-tile:focus-visible { z-index: 1; border-color: #9fc4f8; box-shadow: 0 9px 22px rgba(42, 94, 170, .14); transform: translateY(-2px); outline: none; }
+.room-detail { padding: 2px 2px 20px; }
+.room-detail-hero { display: flex; flex-direction: column; gap: 4px; padding: 18px; border-radius: 14px; border-left: 5px solid #b9c2d0; background: #f7f9fc; }
+.room-detail-hero strong { color: #1f2d43; font-size: 32px; letter-spacing: -.5px; }
+.room-detail-eyebrow { color: #7d8ca3; font-size: 12px; }
+.room-detail-status { color: #53647b; font-size: 13px; font-weight: 700; }
+.room-detail-active { border-left-color: #35b87a; background: linear-gradient(135deg, #f5fcf8, #eefaf4); }
+.room-detail-occupied { border-left-color: #4b8bea; background: linear-gradient(135deg, #f5f9ff, #edf4ff); }
+.room-detail-dirty { border-left-color: #e6a23c; background: linear-gradient(135deg, #fffbf3, #fff7e8); }
+.room-detail-maintenance { border-left-color: #a984c9; background: linear-gradient(135deg, #fbf7ff, #f5effc); }
+.room-detail-facts { margin-top: 14px; }
+.room-detail-section { margin-top: 20px; }
+.room-detail-section h4 { margin: 0; font-size: 14px; color: #2b3a50; }
+.room-guest-card { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; padding: 13px 14px; border: 1px solid #e6edf7; border-radius: 11px; background: #fff; }
+.room-guest-card strong { color: #26364d; font-size: 16px; }
+.room-guest-card span { color: #8492a6; font-size: 12px; }
+.room-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.room-empty-note { display: flex; flex-direction: column; gap: 5px; padding: 14px; border-radius: 11px; color: #75849a; background: #f7f9fc; }
+.room-empty-note strong { color: #34445c; font-size: 14px; }
+.room-empty-note span { font-size: 12px; line-height: 1.6; }
 .room-tile-active { border-left-color: #35b87a; background: linear-gradient(135deg, #fff 65%, #f1fbf6); }
 .room-tile-active .room-status-dot { background: #35b87a; box-shadow: 0 0 0 4px rgba(53, 184, 122, .14); }
 .room-tile-occupied { border-left-color: #4b8bea; background: linear-gradient(135deg, #fff 65%, #f2f7ff); }

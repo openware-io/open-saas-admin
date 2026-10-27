@@ -64,5 +64,32 @@ const codeIconMap = {
 
 export function resolveIcon(icon, code) {
   if (code && codeIconMap[code]) return codeIconMap[code]
-  return iconMap[icon] || Menu
+  // 前端自有菜单（如酒店店长菜单）使用 Element Plus 组件名（OfficeBuilding/Setting），
+  // 也必须落到对应图标；否则会统一回落到 Menu，出现“所有菜单都是同一个图标”。
+  const pascalIconMap = {
+    OfficeBuilding,
+    Setting,
+    Tickets,
+    User,
+    Box,
+    DataAnalysis,
+    Management,
+    Grid,
+    Shop,
+    Calendar,
+    Clock,
+    Wallet,
+    Coin,
+    CreditCard,
+    Star,
+    PriceTag,
+    Service,
+    Goods,
+    Collection,
+    Mic,
+    Tools,
+    SetUp,
+    TakeawayBox,
+  }
+  return iconMap[icon] || pascalIconMap[icon] || Menu
 }
