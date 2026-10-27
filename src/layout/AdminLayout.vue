@@ -364,7 +364,7 @@ const HOTEL_STORE_MENUS = [
     children: [
       { id: 'hotel-members', code: 'hotel.members', name: '客户管理', path: '/business/members', icon: 'User', requiredPermission: 'member.view' },
       { id: 'hotel-points', code: 'hotel.points', name: '积分管理', path: '/business/points', icon: 'Star', requiredPermission: 'points.view' },
-      { id: 'hotel-wallet', code: 'hotel.wallet', name: '储值管理', path: '/business/wallet', icon: 'Coin', requiredPermission: 'wallet.view' },
+      { id: 'hotel-wallet', code: 'hotel.wallet', name: '储值管理', path: '/business/wallet', icon: 'Wallet', requiredPermission: 'wallet.view' },
     ],
   },
   {
