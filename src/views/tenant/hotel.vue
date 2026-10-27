@@ -53,14 +53,12 @@
       <div class="section-head task-heading">
         <div>
           <h3>前台任务</h3>
-          <p class="section-subtitle">
-            {{ taskFilter === 'ALL' ? '优先处理到店、在住和待退房客人' : `当前筛选：${taskFilterLabel}` }}
-          </p>
+          <p class="section-subtitle">{{ taskFilterSubtitle }}</p>
         </div>
         <el-tag effect="plain">{{ taskSearchRows.length }} 条</el-tag>
       </div>
       <div class="task-toolbar">
-        <span class="task-filter-state">{{ taskFilter === 'ALL' ? '全部任务' : taskFilterLabel }}</span>
+        <span class="task-filter-state">{{ taskFilterSummary }}</span>
         <div class="task-toolbar-right">
           <el-button v-if="taskFilter !== 'ALL'" link type="primary" size="small" @click="taskFilter = 'ALL'">
             清除筛选
@@ -1006,6 +1004,10 @@ const taskFilterOptions = computed(() => [
   { value: 'DUE_OUT', label: '待退房', count: counts.value.DUE_OUT || 0 },
 ])
 const taskFilterLabel = computed(() => taskFilterOptions.value.find((option) => option.value === taskFilter.value)?.label || '全部')
+const taskFilterSummary = computed(() => taskFilter.value === 'ALL' ? '全部任务' : taskFilterLabel.value)
+const taskFilterSubtitle = computed(() => taskFilter.value === 'ALL'
+  ? '优先处理到店、在住和待退房客人'
+  : `当前筛选：${taskFilterLabel.value}`)
 
 const filteredTasks = computed(() => {
   if (taskFilter.value === 'ALL') return tasks.value
