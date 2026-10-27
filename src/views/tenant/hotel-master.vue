@@ -354,7 +354,7 @@ const policySaving = ref(false)
 const roomTypes = ref([])
 const rooms = ref([])
 const ratePlans = ref([])
-const selectedRoomTypeId = ref(null)
+const selectedRoomTypeId = ref('ALL')
 const dailyRateRows = ref([])
 const inventoryRows = ref([])
 const rateRoomTypeId = ref(null)
@@ -374,9 +374,30 @@ const roomForm = reactive({ id: null, roomTypeId: null, roomNo: '', floor: '' })
 const ratePlanVisible = ref(false)
 const currencyChoices = currencyOptions()
 const ratePlanForm = reactive({ id: null, hotelId: null, code: '', name: '', basePriceMinor: 0, currency: currencyChoices[0].code })
+const roomTypePage = ref(1)
+const roomTypePageSize = ref(10)
+const roomPage = ref(1)
+const roomPageSize = ref(10)
+const ratePlanPage = ref(1)
+const ratePlanPageSize = ref(10)
+const dailyRatePage = ref(1)
+const dailyRatePageSize = ref(10)
+const inventoryPage = ref(1)
+const inventoryPageSize = ref(10)
 
 const hotel = computed(() => hotels.value.find((item) => item.id === hotelId.value))
 const selectedRatePlan = computed(() => ratePlans.value.find((item) => item.id === ratePlanId.value))
+const roomTypeNameById = computed(() => new Map(roomTypes.value.map((type) => [type.id, type.name])))
+function typeName(id) { return roomTypeNameById.value.get(id) || '' }
+function pageRows(rows, page, pageSize) {
+  const start = (page - 1) * pageSize
+  return rows.slice(start, start + pageSize)
+}
+const pagedRoomTypes = computed(() => pageRows(roomTypes.value, roomTypePage.value, roomTypePageSize.value))
+const pagedRooms = computed(() => pageRows(rooms.value, roomPage.value, roomPageSize.value))
+const pagedRatePlans = computed(() => pageRows(ratePlans.value, ratePlanPage.value, ratePlanPageSize.value))
+const pagedDailyRateRows = computed(() => pageRows(dailyRateRows.value, dailyRatePage.value, dailyRatePageSize.value))
+const pagedInventoryRows = computed(() => pageRows(inventoryRows.value, inventoryPage.value, inventoryPageSize.value))
 
 function localDate(value) {
   const date = new Date(value)
@@ -410,7 +431,8 @@ async function loadAll() {
   ;[roomTypes.value, ratePlans.value] = await Promise.all([listHotelRoomTypes(hotelId.value), listHotelRatePlans(hotelId.value)])
   const policy = await getHotelPolicy(hotelId.value)
   if (policy) Object.assign(policyForm, policy)
-  if (!selectedRoomTypeId.value && roomTypes.value.length) selectedRoomTypeId.value = roomTypes.value[0].id
+  roomTypePage.value = 1
+  ratePlanPage.value = 1
   rateRoomTypeId.value ||= roomTypes.value[0]?.id || null
   inventoryRoomTypeId.value ||= roomTypes.value[0]?.id || null
   ratePlanId.value ||= ratePlans.value[0]?.id || null
@@ -444,7 +466,19 @@ async function saveHotel() {
 }
 
 async function loadRooms() {
-  rooms.value = selectedRoomTypeId.value ? (await listHotelRooms(selectedRoomTypeId.value)) || [] : []
+  roomPage.value = 1
+  const types = selectedRoomTypeId.value && selectedRoomTypeId.value !== 'ALL'
+    ? roomTypes.value.filter((type) => type.id === selectedRoomTypeId.value)
+    : roomTypes.value
+  if (!types.length) {
+    rooms.value = []
+    return
+  }
+  const lists = await Promise.all(types.map((type) => listHotelRooms(type.id)))
+  rooms.value = lists.flatMap((list, index) => (list || []).map((room) => ({
+    ...room,
+    roomTypeName: typeName(room.roomTypeId) || types[index]?.name || '未分房型',
+  })))
 }
 function openRoomType(row) {
   Object.assign(roomTypeForm, row ? { ...row } : { id: null, hotelId: hotelId.value, code: '', name: '', capacity: 2, bedType: '', areaSqm: 0 })
@@ -462,7 +496,8 @@ async function saveRoomType() {
   } catch (error) { notifyAdminRequestError(error, '保存房型失败') } finally { savingMaster.value = false }
 }
 function openRoom(row) {
-  Object.assign(roomForm, row ? { ...row } : { id: null, roomTypeId: selectedRoomTypeId.value, roomNo: '', floor: '' })
+  const fallbackTypeId = selectedRoomTypeId.value === 'ALL' ? roomTypes.value[0]?.id : selectedRoomTypeId.value
+  Object.assign(roomForm, row ? { ...row } : { id: null, roomTypeId: fallbackTypeId, roomNo: '', floor: '' })
   roomVisible.value = true
 }
 async function saveRoom() {
@@ -502,6 +537,7 @@ async function saveRatePlan() {
 }
 async function loadDailyRates() {
   if (!rateRoomTypeId.value || !ratePlanId.value || !rateRange.value?.length) return
+  dailyRatePage.value = 1
   try {
     const records = (await listHotelDailyRates({
       roomTypeId: rateRoomTypeId.value, ratePlanId: ratePlanId.value, from: rateRange.value[0], to: rateRange.value[1],
@@ -520,6 +556,7 @@ async function saveDailyRate(row) {
 }
 async function loadInventory() {
   if (!inventoryRoomTypeId.value || !inventoryRange.value?.length) return
+  inventoryPage.value = 1
   try {
     const records = (await listHotelInventory({
       roomTypeId: inventoryRoomTypeId.value, from: inventoryRange.value[0], to: inventoryRange.value[1],
@@ -564,4 +601,5 @@ onMounted(async () => {
 .inline-actions, .filter-row { display: flex; align-items: center; gap: 8px; }
 .form-hint { margin-left: 10px; color: var(--el-text-color-secondary); font-size: 12px; }
 .filter-row { margin: 2px 0 14px; flex-wrap: wrap; }
+.table-pager { display: flex; justify-content: flex-end; margin-top: 12px; }
 </style>
