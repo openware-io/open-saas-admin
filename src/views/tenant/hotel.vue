@@ -1690,7 +1690,9 @@ onMounted(async () => {
 .room-summary-item.is-occupied b { color: #3478d4; }
 .room-summary-item.is-dirty b { color: #d68a19; }
 .room-summary-item.is-maintenance b { color: #8b6bb1; }
-.room-board { min-height: 80px; padding-top: 6px; }
+.room-board { min-height: 80px; max-height: 620px; overflow-y: auto; padding: 6px 4px 6px 0; }
+.room-board::-webkit-scrollbar { width: 6px; }
+.room-board::-webkit-scrollbar-thumb { border-radius: 999px; background: #dce4ef; }
 .room-board-empty { padding: 28px 0; color: var(--el-text-color-secondary); text-align: center; }
 .room-floor + .room-floor { margin-top: 18px; }
 .room-floor-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 9px; }
