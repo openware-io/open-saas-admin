@@ -12,7 +12,7 @@
       <div class="image-url-editor__title">
         <strong>{{ label }}</strong>
         <el-tag v-if="modelValue" size="small" type="success" effect="plain">已自定义</el-tag>
-        <el-tag v-else size="small" type="info" effect="plain">使用默认图</el-tag>
+        <el-tag v-else size="small" type="info" effect="plain">{{ defaultUrl ? '使用默认图' : '未设置' }}</el-tag>
       </div>
       <p class="image-url-editor__tip">{{ constraintText }}</p>
       <div class="image-url-editor__actions">
@@ -64,7 +64,7 @@ function pick() {
 function clear() {
   if (props.disabled) return
   emit('update:modelValue', '')
-  ElMessage.success('已恢复默认图片')
+  ElMessage.success(props.defaultUrl ? '已恢复默认图片' : '已清除自定义图片')
 }
 
 function validateFile(file) {
