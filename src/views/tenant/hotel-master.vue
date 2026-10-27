@@ -478,7 +478,8 @@ async function loadRooms() {
   rooms.value = lists.flatMap((list, index) => (list || []).map((room) => ({
     ...room,
     roomTypeName: typeName(room.roomTypeId) || types[index]?.name || '未分房型',
-  })))
+  }))).sort((a, b) => String(a.floor || '').localeCompare(String(b.floor || ''), 'zh-CN', { numeric: true })
+    || String(a.roomNo || '').localeCompare(String(b.roomNo || ''), 'zh-CN', { numeric: true }))
 }
 function openRoomType(row) {
   Object.assign(roomTypeForm, row ? { ...row } : { id: null, hotelId: hotelId.value, code: '', name: '', capacity: 2, bedType: '', areaSqm: 0 })
