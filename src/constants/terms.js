@@ -1102,7 +1102,7 @@ export function hotelFolioStatusText(status) {
 }
 
 export const HOTEL_ROOM_STATUS_TEXT = {
-  ACTIVE: '可用',
+  ACTIVE: '空闲',
   OCCUPIED: '在住',
   DIRTY: '待清扫',
   MAINTENANCE: '维修中',

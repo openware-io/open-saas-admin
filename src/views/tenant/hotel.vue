@@ -37,9 +37,17 @@
           <p class="room-board-subtitle">按楼层查看实时房态，颜色区分空闲、在住、脏房与维修</p>
         </div>
         <div class="room-board-summary">
-          <span v-for="item in roomSummary" :key="item.key" class="room-summary-item" :class="`is-${item.key}`">
+          <button
+            v-for="item in roomSummary"
+            :key="item.key"
+            type="button"
+            class="room-summary-item"
+            :class="[`is-${item.key}`, { 'is-selected': roomFilter.status === item.key }]"
+            :aria-pressed="roomFilter.status === item.key"
+            @click="filterByRoomSummary(item.key)"
+          >
             <b>{{ item.count }}</b><small>{{ item.label }}</small>
-          </span>
+          </button>
         </div>
       </div>
 
@@ -343,7 +351,10 @@
         <div class="room-detail-hero" :class="`room-detail-${selectedRoom.tone}`">
           <span class="room-detail-eyebrow">{{ selectedRoom.roomTypeName }}</span>
           <strong>{{ selectedRoom.roomNo }}</strong>
-          <span class="room-detail-status">{{ selectedRoom.statusLabel }}</span>
+          <div class="room-detail-status-line">
+            <span class="room-detail-status">{{ selectedRoom.statusLabel }}</span>
+            <span v-if="selectedRoom.cardBadge" class="room-detail-badge">{{ selectedRoom.cardBadge }}</span>
+          </div>
         </div>
         <el-descriptions :column="2" border size="small" class="room-detail-facts">
           <el-descriptions-item label="楼层">{{ selectedRoom.floor || '未分楼层' }}</el-descriptions-item>
@@ -361,6 +372,11 @@
             {{ selectedRoomTask?.checkInAt || '—' }}
           </el-descriptions-item>
         </el-descriptions>
+
+        <div v-if="selectedRoom.serviceHint" class="room-detail-service">
+          <el-icon><Bell /></el-icon>
+          <span>{{ selectedRoom.serviceHint }}</span>
+        </div>
 
         <div v-if="selectedRoomTask" class="room-detail-section">
           <div class="section-head">
@@ -424,7 +440,7 @@
             <el-button
               v-if="selectedRoom.status === 'MAINTENANCE' && canManageRooms"
               @click="setRoomMaintenance(false)"
-            >恢复可用</el-button>
+            >恢复空闲</el-button>
             <el-button
               v-if="selectedRoom.status !== 'MAINTENANCE' && selectedRoom.status !== 'OCCUPIED' && canManageRooms"
               @click="setRoomMaintenance(true)"
@@ -536,11 +552,11 @@
       <el-form-item label="住客">{{ checkInBooking?.guestName }}</el-form-item>
       <el-form-item label="房型">{{ checkInBooking?.roomType }}</el-form-item>
       <el-form-item label="分配房号">
-        <el-select v-model="checkInRoomId" placeholder="选择可用客房" style="width:100%">
+        <el-select v-model="checkInRoomId" placeholder="选择空闲客房" style="width:100%">
           <el-option v-for="room in checkInRooms" :key="room.id" :label="`${room.roomNo}（${room.floor || '未填楼层'}）`" :value="room.id" />
         </el-select>
       </el-form-item>
-      <div v-if="!checkInRooms.length" class="muted">该房型当前没有可用客房，请先维护客房或处理清扫。</div>
+      <div v-if="!checkInRooms.length" class="muted">该房型当前没有空闲客房，请先维护客房或处理清扫。</div>
     </el-form>
     <template #footer>
       <el-button @click="checkInVisible = false">取消</el-button>
@@ -553,11 +569,11 @@
       <el-form-item label="住客">{{ moveBooking?.guestName }}</el-form-item>
       <el-form-item label="原房号">{{ moveBooking?.roomNo || '未分配' }}</el-form-item>
       <el-form-item label="新房号">
-        <el-select v-model="moveRoomId" placeholder="选择可用客房" style="width:100%">
+        <el-select v-model="moveRoomId" placeholder="选择空闲客房" style="width:100%">
           <el-option v-for="room in moveRooms" :key="room.id" :label="`${room.roomNo}（${room.floor || '未填楼层'}）`" :value="room.id" />
         </el-select>
       </el-form-item>
-      <div v-if="!moveRooms.length" class="muted">该房型当前没有可用客房。</div>
+      <div v-if="!moveRooms.length" class="muted">该房型当前没有空闲客房。</div>
     </el-form>
     <template #footer>
       <el-button @click="moveVisible = false">取消</el-button>
@@ -665,8 +681,8 @@ const selectedRoomHousekeeping = computed(() => {
 const roomEmptyCopy = computed(() => {
   const status = selectedRoom.value?.status
   if (status === 'ACTIVE') return { title: '客房空闲', hint: '可以直接为到店客人创建预订或办理入住。' }
-  if (status === 'DIRTY') return { title: '等待清扫', hint: '完成客房清扫后即可恢复可售。' }
-  if (status === 'MAINTENANCE') return { title: '客房维修中', hint: '处理完成后恢复可用。' }
+  if (status === 'DIRTY') return { title: '等待清扫', hint: '完成客房清扫后即可恢复预订。' }
+  if (status === 'MAINTENANCE') return { title: '客房维修中', hint: '处理完成后恢复。' }
   return { title: '客房状态', hint: '请按房态完成对应操作。' }
 })
 const roomDrawerTitle = computed(() => selectedRoom.value
@@ -769,9 +785,9 @@ function financeHints(task) {
 
 function emptyRoomHint(room, upcoming) {
   if (upcoming) return `下一预订 ${shortDate(upcoming.checkInDate)} · ${upcoming.guestName}`
-  if (room.status === 'DIRTY') return '完成清扫后恢复可售'
-  if (room.status === 'MAINTENANCE') return '维修完成后恢复可售'
-  return '当前可售'
+  if (room.status === 'DIRTY') return '清扫完成可恢复预订'
+  if (room.status === 'MAINTENANCE') return '维修完成后恢复'
+  return '今日可预订'
 }
 
 const roomSummary = computed(() => {
@@ -879,6 +895,10 @@ const filteredRoomBoard = computed(() => {
 
 function resetRoomFilter() {
   Object.assign(roomFilter, { floor: '', roomType: '', status: '', date: '', keyword: '' })
+}
+
+function filterByRoomSummary(status) {
+  roomFilter.status = roomFilter.status === status ? '' : status
 }
 
 const metrics = computed(() => [
@@ -1215,7 +1235,7 @@ async function setRoomMaintenance(maintenance) {
   if (!selectedRoom.value) return
   try {
     await setHotelRoomStatus(selectedRoom.value.id, maintenance ? 'MAINTENANCE' : 'ACTIVE')
-    ElMessage.success(maintenance ? '客房已设为维修' : '客房已恢复可用')
+    ElMessage.success(maintenance ? '客房已设为维修' : '客房已恢复空闲')
     await loadRoomStates()
     closeRoomDrawer()
   } catch (error) {
@@ -1540,7 +1560,9 @@ onMounted(async () => {
 .room-board-summary { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .room-board-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; padding: 10px 12px; border-radius: 10px; background: #f7f9fc; }
 .room-filter-hint { color: #8a96a8; font-size: 11px; }
-.room-summary-item { min-width: 62px; padding: 8px 10px; border-radius: 10px; background: #f5f7fa; text-align: center; }
+.room-summary-item { min-width: 62px; padding: 8px 10px; border: 1px solid transparent; border-radius: 10px; background: #f5f7fa; color: #53647b; font: inherit; text-align: center; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.room-summary-item:hover { border-color: #d7e3f5; transform: translateY(-1px); }
+.room-summary-item.is-selected { border-color: #9dbff0; box-shadow: 0 0 0 2px rgba(79, 126, 207, .13); }
 .room-summary-item b { display: block; font-size: 18px; line-height: 1.1; }
 .room-summary-item small { color: var(--el-text-color-secondary); font-size: 11px; }
 .room-summary-item.is-active b { color: #1f9d61; }
@@ -1591,6 +1613,31 @@ onMounted(async () => {
 .room-tile-dirty .room-status-dot { background: #e6a23c; box-shadow: 0 0 0 4px rgba(230, 162, 60, .14); }
 .room-tile-maintenance { border-left-color: #a984c9; background: linear-gradient(135deg, #fff 65%, #faf5ff); }
 .room-tile-maintenance .room-status-dot { background: #a984c9; box-shadow: 0 0 0 4px rgba(169, 132, 201, .14); }
+.room-detail { padding: 2px 2px 20px; }
+.room-detail-hero { display: flex; flex-direction: column; gap: 4px; padding: 18px; border-radius: 14px; border-left: 5px solid #b9c2d0; background: #f7f9fc; }
+.room-detail-hero strong { color: #1f2d43; font-size: 32px; letter-spacing: -.5px; }
+.room-detail-eyebrow { color: #7d8ca3; font-size: 12px; }
+.room-detail-status { color: #53647b; font-size: 13px; font-weight: 700; }
+.room-detail-status-line { display: flex; align-items: center; gap: 8px; }
+.room-detail-badge { padding: 2px 7px; border-radius: 999px; color: #a66d14; background: #fff4df; font-size: 11px; font-weight: 600; }
+.room-detail-service { display: flex; align-items: center; gap: 6px; margin-top: 12px; padding: 8px 10px; border-radius: 8px; color: #9a6a19; background: #fff8ea; font-size: 12px; }
+.room-detail-active { border-left-color: #35b87a; background: linear-gradient(135deg, #f5fcf8, #eefaf4); }
+.room-detail-occupied { border-left-color: #4b8bea; background: linear-gradient(135deg, #f5f9ff, #edf4ff); }
+.room-detail-dirty { border-left-color: #e6a23c; background: linear-gradient(135deg, #fffbf3, #fff7e8); }
+.room-detail-maintenance { border-left-color: #a984c9; background: linear-gradient(135deg, #fbf7ff, #f5effc); }
+.room-detail-facts { margin-top: 14px; }
+.room-detail-section { margin-top: 20px; }
+.room-detail-section h4 { margin: 0; font-size: 14px; color: #2b3a50; }
+.room-guest-card { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; padding: 13px 14px; border: 1px solid #e6edf7; border-radius: 11px; background: #fff; }
+.room-guest-card strong { color: #26364d; font-size: 16px; }
+.room-guest-card span { color: #8492a6; font-size: 12px; }
+.room-finance-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.room-finance-summary span { padding: 3px 7px; border-radius: 5px; color: #5b6c83; background: #f3f6fa; font-size: 11px; }
+.room-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.room-balance-warning { margin-top: 10px; }
+.room-empty-note { display: flex; flex-direction: column; gap: 5px; padding: 14px; border-radius: 11px; color: #75849a; background: #f7f9fc; }
+.room-empty-note strong { color: #34445c; font-size: 14px; }
+.room-empty-note span { font-size: 12px; line-height: 1.6; }
 .room-legend { display: flex; gap: 16px; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px dashed #e7ebf2; color: #7c8799; font-size: 11px; }
 .room-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
