@@ -66,6 +66,12 @@ const routes = [
         meta: { title: '门店管理后台', icon: 'Shop', scope: 'STORE' },
       },
       {
+        path: 'admin/store/settings',
+        name: 'StoreSettings',
+        component: () => import('@/views/store/settings.vue'),
+        meta: { title: '门店设置', icon: 'SetUp', scope: 'STORE' },
+      },
+      {
         path: 'admin/tenant/stores',
         name: 'TenantStores',
         component: () => import('@/views/tenant/stores.vue'),

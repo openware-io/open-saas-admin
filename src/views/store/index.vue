@@ -8,7 +8,7 @@
           <span v-if="context?.businessType"> · {{ businessTypeText(context.businessType) }}</span>
         </p>
       </div>
-      <el-button :loading="loading" @click="loadTasks">刷新</el-button>
+      <el-button v-if="isHotel" :loading="loading" @click="loadTasks">刷新</el-button>
     </div>
 
     <el-alert
@@ -18,71 +18,83 @@
       title="请先在顶部选择具体门店，门店工作台只展示当前门店数据"
     />
 
-    <div class="metric-grid">
-      <div class="metric-card">
-        <span>待入住</span>
-        <strong>{{ counts.ARRIVAL }}</strong>
-        <small>前台今日到店</small>
+    <template v-if="isHotel">
+      <div class="metric-grid">
+        <div class="metric-card">
+          <span>待入住</span>
+          <strong>{{ counts.ARRIVAL }}</strong>
+          <small>前台今日到店</small>
+        </div>
+        <div class="metric-card">
+          <span>在住</span>
+          <strong>{{ counts.IN_HOUSE }}</strong>
+          <small>当前在店</small>
+        </div>
+        <div class="metric-card">
+          <span>待退房</span>
+          <strong>{{ counts.DUE_OUT }}</strong>
+          <small>今日离店</small>
+        </div>
+        <div class="metric-card">
+          <span>待处理</span>
+          <strong>{{ tasks.length }}</strong>
+          <small>前台任务</small>
+        </div>
       </div>
-      <div class="metric-card">
-        <span>在住</span>
-        <strong>{{ counts.IN_HOUSE }}</strong>
-        <small>当前在店</small>
-      </div>
-      <div class="metric-card">
-        <span>待退房</span>
-        <strong>{{ counts.DUE_OUT }}</strong>
-        <small>今日离店</small>
-      </div>
-      <div class="metric-card">
-        <span>待处理</span>
-        <strong>{{ tasks.length }}</strong>
-        <small>前台任务</small>
-      </div>
-    </div>
 
-    <div class="admin-card">
-      <div class="section-head">
-        <h3>前台任务</h3>
-        <el-tag effect="plain">{{ tasks.length }} 条</el-tag>
+      <div class="admin-card">
+        <div class="section-head">
+          <h3>前台任务</h3>
+          <el-tag effect="plain">{{ tasks.length }} 条</el-tag>
+        </div>
+        <el-table v-loading="loading" :data="tasks" border stripe>
+          <el-table-column prop="bookingNo" label="预订号" width="150" />
+          <el-table-column prop="guestName" label="住客" width="120" />
+          <el-table-column prop="roomType" label="房型" min-width="140" />
+          <el-table-column prop="roomNo" label="房号" width="90" align="center">
+            <template #default="{ row }">{{ row.roomNo || '待分配' }}</template>
+          </el-table-column>
+          <el-table-column label="入住 / 离店" min-width="180">
+            <template #default="{ row }">{{ row.checkInDate }} → {{ row.checkOutDate }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag :type="statusType(row.status)">{{ hotelBookingStatusText(row.status) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="130" align="center">
+            <template #default="{ row }">
+              <el-button
+                v-if="row.status === 'ARRIVAL' && canCheckIn"
+                link
+                type="primary"
+                @click="checkIn(row)"
+              >
+                办理入住
+              </el-button>
+              <el-button
+                v-else-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && canCheckOut"
+                link
+                type="primary"
+                @click="checkOut(row)"
+              >
+                办理退房
+              </el-button>
+              <span v-else class="muted">-</span>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
-      <el-table v-loading="loading" :data="tasks" border stripe>
-        <el-table-column prop="bookingNo" label="预订号" width="150" />
-        <el-table-column prop="guestName" label="住客" width="120" />
-        <el-table-column prop="roomType" label="房型" min-width="140" />
-        <el-table-column prop="roomNo" label="房号" width="90" align="center">
-          <template #default="{ row }">{{ row.roomNo || '待分配' }}</template>
-        </el-table-column>
-        <el-table-column label="入住 / 离店" min-width="180">
-          <template #default="{ row }">{{ row.checkInDate }} → {{ row.checkOutDate }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="statusType(row.status)">{{ hotelBookingStatusText(row.status) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="130" align="center">
-          <template #default="{ row }">
-            <el-button
-              v-if="row.status === 'ARRIVAL' && canCheckIn"
-              link
-              type="primary"
-              @click="checkIn(row)"
-            >
-              办理入住
-            </el-button>
-            <el-button
-              v-else-if="(row.status === 'IN_HOUSE' || row.status === 'DUE_OUT') && canCheckOut"
-              link
-              type="primary"
-              @click="checkOut(row)"
-            >
-              办理退房
-            </el-button>
-            <span v-else class="muted">-</span>
-          </template>
-        </el-table-column>
-      </el-table>
+    </template>
+
+    <div v-else class="admin-card ktv-home-card">
+      <div class="section-head">
+        <div>
+          <h3>KTV 门店工作台</h3>
+          <p>从门店业务进入预约、收银台和资源房态；经营配置在「门店设置」维护。</p>
+        </div>
+        <el-button type="primary" @click="router.push('/business/orders')">打开收银台</el-button>
+      </div>
     </div>
 
     <div class="admin-card quick-card">
@@ -113,6 +125,7 @@ const contextStore = useContextStore()
 const tasks = ref([])
 const loading = ref(false)
 const context = computed(() => contextStore.current)
+const isHotel = computed(() => context.value?.businessType === 'HOTEL')
 const canCheckIn = computed(() => hasPermission(context.value?.permissions, 'hotel.checkin'))
 const canCheckOut = computed(() => hasPermission(context.value?.permissions, 'hotel.checkout'))
 const canViewHotel = computed(() => hasPermission(context.value?.permissions, 'hotel.booking.view'))
@@ -148,7 +161,7 @@ function statusType(status) {
 }
 
 async function loadTasks() {
-  if (!context.value?.storeId || !canViewHotel.value) {
+  if (!isHotel.value || !context.value?.storeId || !canViewHotel.value) {
     tasks.value = []
     return
   }
@@ -194,5 +207,7 @@ onMounted(loadTasks)
 .quick-entry span { display: block; font-weight: 600; color: var(--el-text-color-primary); }
 .quick-entry small { display: block; margin-top: 4px; color: var(--el-text-color-secondary); }
 .quick-entry:hover { border-color: var(--el-color-primary); }
+.ktv-home-card .section-head { align-items: flex-start; }
+.ktv-home-card p { margin: 6px 0 0; color: var(--el-text-color-secondary); font-size: 13px; }
 .muted { color: var(--el-text-color-placeholder); }
 </style>
