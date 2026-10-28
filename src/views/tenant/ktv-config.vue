@@ -2,7 +2,7 @@
   <div class="admin-page">
     <div class="page-header">
       <h2>KTV 配置</h2>
-      <span class="page-desc">计价方案 / 服务人员 / 支付开关（租户后台）</span>
+      <span class="page-desc">租户管理员维护本租户默认/业务类型默认/门店覆盖；平台级支付渠道由平台配置</span>
       <!-- 储值是租户级、跨门店共用的资产，不在 KTV 配置里再开一套充值入口：统一去「储值管理」。 -->
       <el-button link type="primary" class="wallet-entry" @click="goWallet">
         {{ walletBrand }}储值在「储值管理」<el-icon><ArrowRight /></el-icon>
@@ -20,14 +20,14 @@
           <div class="filter-bar">
             <el-radio-group v-model="pricingScope" @change="loadPricing">
               <el-radio-button value="TENANT">租户默认</el-radio-button>
-              <el-radio-button value="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button value="BUSINESS">业务类型默认</el-radio-button>
               <el-radio-button value="STORE">门店覆盖</el-radio-button>
             </el-radio-group>
-            <el-select v-if="pricingScope === 'BUSINESS'" v-model="pricingBusinessType" placeholder="选择业态" style="width: 150px" @change="loadPricing">
+            <el-select v-if="pricingScope === 'BUSINESS'" v-model="pricingBusinessType" placeholder="选择业务类型" style="width: 150px" @change="loadPricing">
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
             </el-select>
             <el-select v-if="pricingScope === 'STORE'" v-model="pricingStoreIds" multiple collapse-tags placeholder="选择门店（可多选）" style="width: 260px" @change="loadPricing">
-              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+              <el-option v-for="store in ktvStores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
             </el-select>
             <el-button type="primary" @click="openPricingDialog()">
               <el-icon><Plus /></el-icon>新增计价方案
@@ -120,14 +120,14 @@
           <div class="filter-bar">
             <el-radio-group v-model="paymentScope" @change="loadPayment">
               <el-radio-button value="TENANT">租户默认</el-radio-button>
-              <el-radio-button value="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button value="BUSINESS">业务类型默认</el-radio-button>
               <el-radio-button value="STORE">门店覆盖</el-radio-button>
             </el-radio-group>
-            <el-select v-if="paymentScope === 'BUSINESS'" v-model="paymentBusinessType" placeholder="选择业态" style="width: 150px" @change="loadPayment">
+            <el-select v-if="paymentScope === 'BUSINESS'" v-model="paymentBusinessType" placeholder="选择业务类型" style="width: 150px" @change="loadPayment">
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
             </el-select>
             <el-select v-if="paymentScope === 'STORE'" v-model="paymentStoreIds" multiple collapse-tags placeholder="选择门店（可多选）" style="width: 260px" @change="loadPayment">
-              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+              <el-option v-for="store in ktvStores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
             </el-select>
             <span class="muted">仅展示平台已授权的线上渠道（支付宝 / 微信支付 / Stripe）；未授权渠道不显示。现金 / {{ walletBrand }} / 积分不依赖渠道配置。</span>
           </div>
@@ -164,18 +164,18 @@
       <!-- ============ 积分与预约规则 ============ -->
       <el-tab-pane label="积分与预约规则" name="rules">
         <div class="admin-card rules-card">
-          <p class="tip">规则按门店覆盖、业态默认、租户默认解析；积分有效期仅支持租户/业态层，预约窗口以到店时间为基准，单位为分钟。</p>
+          <p class="tip">规则按门店覆盖、业务类型默认、租户默认解析；积分有效期仅支持租户/业务类型层，预约窗口以到店时间为基准，单位为分钟。</p>
           <div class="filter-bar">
             <el-radio-group v-model="ruleScope" @change="loadRules">
               <el-radio-button value="TENANT">租户默认</el-radio-button>
-              <el-radio-button value="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button value="BUSINESS">业务类型默认</el-radio-button>
               <el-radio-button value="STORE">门店覆盖</el-radio-button>
             </el-radio-group>
-            <el-select v-if="ruleScope !== 'TENANT'" v-model="ruleBusinessType" placeholder="选择业态" style="width: 150px" @change="loadRules">
+            <el-select v-if="ruleScope !== 'TENANT'" v-model="ruleBusinessType" placeholder="选择业务类型" style="width: 150px" @change="loadRules">
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
             </el-select>
             <el-select v-if="ruleScope === 'STORE'" v-model="ruleStoreId" placeholder="选择门店" style="width: 220px" @change="loadRules">
-              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+              <el-option v-for="store in ktvStores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
             </el-select>
             <el-button type="primary" @click="saveRules">保存规则</el-button>
             <el-button @click="loadRules">刷新</el-button>
@@ -203,18 +203,18 @@
       <!-- ============ 退款与日结规则 ============ -->
       <el-tab-pane label="退款与日结规则" name="payment-rules">
         <div class="admin-card rules-card">
-          <p class="tip">退款审批阈值按租户币种配置，用于标记高风险退款；线下退款开关仅支持租户/业态默认。日结时间为门店营业日切点，只能按门店设置。作废审批要求按门店覆盖、业态默认、租户默认解析。</p>
+          <p class="tip">退款审批阈值按租户币种配置，用于标记高风险退款；线下退款开关仅支持租户/业务类型默认。日结时间为门店营业日切点，只能按门店设置。作废审批要求按门店覆盖、业务类型默认、租户默认解析。</p>
           <div class="filter-bar">
             <el-radio-group v-model="paymentRuleScope" @change="loadPaymentRules">
               <el-radio-button value="TENANT">租户默认</el-radio-button>
-              <el-radio-button value="BUSINESS">业态默认</el-radio-button>
+              <el-radio-button value="BUSINESS">业务类型默认</el-radio-button>
               <el-radio-button value="STORE">门店覆盖</el-radio-button>
             </el-radio-group>
-            <el-select v-if="paymentRuleScope !== 'TENANT'" v-model="paymentRuleBusinessType" placeholder="选择业态" style="width: 150px" @change="loadPaymentRules">
+            <el-select v-if="paymentRuleScope !== 'TENANT'" v-model="paymentRuleBusinessType" placeholder="选择业务类型" style="width: 150px" @change="loadPaymentRules">
               <el-option v-for="type in businessTypes" :key="type" :label="type" :value="type" />
             </el-select>
             <el-select v-if="paymentRuleScope === 'STORE'" v-model="paymentRuleStoreId" placeholder="选择门店" style="width: 220px" @change="loadPaymentRules">
-              <el-option v-for="store in stores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
+              <el-option v-for="store in ktvStores" :key="store.storeId" :label="store.storeName" :value="store.storeId" />
             </el-select>
             <el-button @click="loadPaymentRules">刷新</el-button>
           </div>
@@ -228,7 +228,7 @@
                 </el-form-item>
                 <el-form-item label="允许线下退款" :disabled="paymentRuleScope === 'STORE'">
                   <el-switch v-model="paymentRuleForm.offlineRefundEnabled" :disabled="paymentRuleScope === 'STORE'" />
-                  <span v-if="paymentRuleScope === 'STORE'" class="field-hint">门店继承业态或租户设置</span>
+                  <span v-if="paymentRuleScope === 'STORE'" class="field-hint">门店继承业务类型或租户设置</span>
                 </el-form-item>
               </el-form>
               <h3>订单作废</h3>
@@ -259,7 +259,7 @@
       <el-tab-pane label="营业时间" name="hours">
         <div class="admin-card">
           <p class="tip">
-            KTV 是夜间业态，默认营业时间 <b>18:00 – 次日 05:00</b>（跨自然日）。<b>预约到店时间必须落在营业时段内</b>：
+            KTV 是夜间业务类型，默认营业时间 <b>18:00 – 次日 05:00</b>（跨自然日）。<b>预约到店时间必须落在营业时段内</b>：
             这条规则由服务端在所有预约入口统一校验（C 端下单、B 端/后台代客预约都一样），
             本页只维护那一份配置。门店未单独配置时继承租户默认；判定为左闭右开（18:00 可约、05:00 已打烊）。
           </p>
@@ -462,6 +462,7 @@ const paymentRuleBusinessType = ref('KTV')
 const paymentRuleStoreId = ref(null)
 const paymentRuleForm = ref({ approvalThreshold: 0, offlineRefundEnabled: true, closingTime: '00:00', requireVoidApproval: false, voidVersion: 0, refundVersion: 0, closingVersion: 0 })
 const stores = ref([])
+const ktvStores = computed(() => stores.value.filter((s) => s.businessType === 'KTV'))
 const businessTypes = Object.keys(BUSINESS_TYPE_TEXT)
 const scopeLabel = (scope) => CONFIG_SCOPE_TEXT[scope] || scope
 const pricingDialogVisible = ref(false)
@@ -489,8 +490,14 @@ function emptyPricing() {
 }
 
 async function loadPricing() {
+  const storeId = pricingScope.value === 'STORE' ? (pricingStoreIds.value[0] || null) : null
+  if (pricingScope.value === 'STORE' && !storeId) {
+    pricingRows.value = []
+    loadError.value = '请选择 KTV 门店'
+    return
+  }
   try {
-    const storeId = pricingScope.value === 'STORE' ? (pricingStoreIds.value[0] || contextStore.storeId || null) : null
+    loadError.value = ''
     pricingRows.value = await getPricingPlans({ storeId, businessType: pricingScope.value === 'TENANT' ? undefined : pricingBusinessType.value })
   } catch (e) {
     pricingRows.value = []
@@ -502,6 +509,7 @@ function ruleParams() {
   return { storeId: ruleScope.value === 'STORE' ? ruleStoreId.value : undefined, businessType: ruleScope.value === 'TENANT' ? undefined : ruleBusinessType.value }
 }
 async function loadRules() {
+  if (ruleScope.value === 'STORE' && !ruleStoreId.value) return
   try {
     const [points, reservation] = await Promise.all([getPointRule(ruleParams()), getReservationRule(ruleParams())])
     pointRuleForm.value = { ...pointRuleForm.value, ...points }
@@ -742,6 +750,7 @@ const paymentForm = ref({
 })
 
 async function loadPayment() {
+  if (paymentScope.value === 'STORE' && !paymentStoreIds.value[0]) return
   try {
     // 1) 平台已授权（granted）的支付方式
     const grants = await listPaymentMethodGrants(contextStore.tenantId)
@@ -882,8 +891,6 @@ onMounted(() => {
   loadPayment()
   loadWalletBrand()
   loadBusinessHours()
-  ruleStoreId.value = contextStore.storeId || null
-  paymentRuleStoreId.value = contextStore.storeId || null
   loadRules()
   loadPaymentRules()
 })
@@ -894,10 +901,16 @@ async function loadStores() {
     stores.value = (Array.isArray(list) ? list : []).map((item) => ({
       storeId: item.id ?? item.storeId,
       storeName: item.name ?? item.storeName,
-    })).filter((item) => item.storeId != null)
-    if (!pricingStoreIds.value.length && contextStore.storeId) pricingStoreIds.value = [contextStore.storeId]
-    if (!paymentStoreIds.value.length && contextStore.storeId) paymentStoreIds.value = [contextStore.storeId]
-    if (!paymentRuleStoreId.value && contextStore.storeId) paymentRuleStoreId.value = contextStore.storeId
+      businessType: item.businessType,
+    })).filter((item) => item.storeId != null && item.businessType === 'KTV')
+    const current = stores.value.find((s) => s.storeId === contextStore.storeId)
+    if (current) {
+      if (!pricingStoreIds.value.length) pricingStoreIds.value = [current.storeId]
+      if (!paymentStoreIds.value.length) paymentStoreIds.value = [current.storeId]
+      if (!ruleStoreId.value) ruleStoreId.value = current.storeId
+      if (!paymentRuleStoreId.value) paymentRuleStoreId.value = current.storeId
+      await Promise.all([loadPricing(), loadPayment(), loadRules(), loadPaymentRules()])
+    }
   } catch { stores.value = [] }
 }
 </script>

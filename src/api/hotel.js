@@ -1,0 +1,195 @@
+import request from './request'
+
+/** 酒店前台任务：与 B 端 / Web 共用同一套动作权限。 */
+export function listHotelFrontDeskTasks() {
+  return request.get('/api/v1/admin/hotel/frontdesk/tasks')
+}
+
+export function checkInHotelBooking(id, roomId) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/checkin`, null, {
+    params: roomId ? { roomId } : undefined,
+  })
+}
+
+export function moveHotelRoom(id, roomId) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/move-room`, { roomId })
+}
+
+export function cancelHotelBooking(id, reason) {
+  return request.post(`/api/v1/admin/hotel/bookings/${id}/cancel`, { reason })
+}
+
+export function noShowHotelBooking(id) {
+  return request.post(`/api/v1/admin/hotel/bookings/${id}/no-show`)
+}
+
+export function confirmHotelDeposit(id) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/confirm-deposit`)
+}
+
+export function getHotelPolicy(hotelId) {
+  return request.get('/api/v1/admin/hotel/policy', { params: { hotelId } })
+}
+
+export function updateHotelPolicy(hotelId, data) {
+  return request.put('/api/v1/admin/hotel/policy', data, { params: { hotelId } })
+}
+
+export function checkOutHotelBooking(id) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/checkout`)
+}
+
+export function extendHotelBooking(id, newCheckOutDate) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/extend`, { newCheckOutDate })
+}
+
+export function listHotels() {
+  return request.get('/api/v1/admin/hotel/hotels')
+}
+
+export function listHotelBookings(params) {
+  return request.get('/api/v1/admin/hotel/bookings', { params })
+}
+
+export function listHotelRoomTypes(hotelId) {
+  return request.get('/api/v1/admin/hotel/room-types', { params: { hotelId } })
+}
+
+export function createHotelRoomType(data) {
+  return request.post('/api/v1/admin/hotel/room-types', data)
+}
+
+export function updateHotelRoomType(id, data) {
+  return request.put(`/api/v1/admin/hotel/room-types/${id}`, data)
+}
+
+export function listHotelRooms(roomTypeId) {
+  return request.get('/api/v1/admin/hotel/rooms', { params: { roomTypeId } })
+}
+
+/** 房态图：返回三组房态字段（占用/清扫/不可售）与当前在住客人。 */
+export function getHotelRoomBoard() {
+  return request.get('/api/v1/admin/hotel/rooms/board')
+}
+
+export function createHotelRoom(data) {
+  return request.post('/api/v1/admin/hotel/rooms', data)
+}
+
+export function updateHotelRoom(id, data) {
+  return request.put(`/api/v1/admin/hotel/rooms/${id}`, data)
+}
+
+/** 清扫状态：CLEAN/DIRTY/CLEANING/INSPECTED。 */
+export function setHotelRoomHousekeeping(id, status) {
+  return request.put(`/api/v1/admin/hotel/rooms/${id}/housekeeping`, { status })
+}
+
+/** 维修/停售/恢复：会同步调整房型房量。 */
+export function setHotelRoomOutOfOrder(id, data) {
+  return request.put(`/api/v1/admin/hotel/rooms/${id}/out-of-order`, data)
+}
+
+export function listHotelRoomHolds(id) {
+  return request.get(`/api/v1/admin/hotel/rooms/${id}/holds`)
+}
+
+export function addHotelRoomHold(id, data) {
+  return request.post(`/api/v1/admin/hotel/rooms/${id}/holds`, data)
+}
+
+export function releaseHotelRoomHold(id, holdId) {
+  return request.post(`/api/v1/admin/hotel/rooms/${id}/holds/${holdId}/release`)
+}
+
+export function listHotelRatePlans(hotelId) {
+  return request.get('/api/v1/admin/hotel/rate-plans', { params: { hotelId } })
+}
+
+export function createHotelRatePlan(data) {
+  return request.post('/api/v1/admin/hotel/rate-plans', data)
+}
+
+export function updateHotelRatePlan(id, data) {
+  return request.put(`/api/v1/admin/hotel/rate-plans/${id}`, data)
+}
+
+export function listHotelDailyRates(params) {
+  return request.get('/api/v1/admin/hotel/daily-rates', { params })
+}
+
+export function setHotelDailyRate(data) {
+  return request.put('/api/v1/admin/hotel/daily-rates', data)
+}
+
+/** 酒店订单读模型：订单号/预订号/住客/房型/房号/入离/状态/金额。 */
+export function listHotelOrders(params) {
+  return request.get('/api/v1/admin/hotel/orders', { params })
+}
+
+/** 房量日历（房量不是库存）。 */
+export function listHotelAvailability(params) {
+  return request.get('/api/v1/admin/hotel/availability', { params })
+}
+
+export function setHotelAvailability(data) {
+  return request.put('/api/v1/admin/hotel/availability', data)
+}
+
+export function quoteHotelStay(data) {
+  return request.post('/api/v1/admin/hotel/quotes', data)
+}
+
+export function createHotelBooking(data) {
+  return request.post('/api/v1/admin/hotel/bookings', data)
+}
+
+export function confirmHotelBooking(id) {
+  return request.post(`/api/v1/admin/hotel/bookings/${id}/confirm`)
+}
+
+export function collectHotelOrder(orderId, data, idempotencyKey) {
+  return request.post(`/api/v1/business/orders/${orderId}/collect`, data, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+export function getHotelFolio(id) {
+  return request.get(`/api/v1/admin/hotel/frontdesk/bookings/${id}/folio`)
+}
+
+export function collectHotelDeposit(id, data) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/deposit`, data)
+}
+
+export function refundHotelDeposit(id, data) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/refund`, data)
+}
+
+export function requestHotelOnlineRefund(id, data) {
+  return request.post(`/api/v1/admin/hotel/frontdesk/bookings/${id}/refund-requests`, data)
+}
+
+export function syncHotelRefunds() {
+  return request.post('/api/v1/admin/hotel/frontdesk/refunds/sync')
+}
+
+export function listHousekeepingTasks() {
+  return request.get('/api/v1/admin/hotel/housekeeping/tasks')
+}
+
+export function startHousekeepingTask(id) {
+  return request.post(`/api/v1/admin/hotel/housekeeping/tasks/${id}/start`)
+}
+
+export function completeHousekeepingTask(id) {
+  return request.post(`/api/v1/admin/hotel/housekeeping/tasks/${id}/complete`)
+}
+
+export function listNightAudits() {
+  return request.get('/api/v1/admin/hotel/night-audit')
+}
+
+export function runNightAudit(businessDate) {
+  return request.post('/api/v1/admin/hotel/night-audit/run', { businessDate })
+}

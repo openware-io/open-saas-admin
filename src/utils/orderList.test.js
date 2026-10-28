@@ -11,23 +11,30 @@ import {
 } from './orderList'
 
 /**
- * 订单管理（后台列表）纯函数口径：
- *  - 状态筛选/关键字匹配只做客户端二次过滤（时间区间由服务端按 created_at 过滤）；
+ * 订单管理（后台列表）纯函数口径（领域重构后）：
+ *  - 状态筛选按**交易状态 tradeStatus**（不再读兼容列 ord_order.status）；
  *  - 金额合计只在命中行币种一致时给出，混币种不求和（16_CURRENCY_CONVENTIONS §3）；
- *  - 取消入口只给非终态（终态与后端 OrderCancellationApplicationService 同集合）；
+ *  - 取消入口只给非终态（COMPLETED/CANCELLED；已收款由后端 409 兜底）；
  *  - 分页越界回落到最后一页。
  */
 const rows = [
-  { id: 1, orderNo: 'O202609190001', status: 'SERVING', roomName: 'K01', roomCode: 'K01', customerId: 77, totalAmount: 20000, paidAmount: 0, currencyCode: 'CNY', createdAt: '2026-09-19T20:00:00' },
-  { id: 2, orderNo: 'O202609190002', status: 'WAITING_PAYMENT', roomName: 'K02', customerId: 88, totalAmount: 30000, paidAmount: 0, currencyCode: 'CNY', createdAt: '2026-09-19T21:00:00' },
-  { id: 3, orderNo: 'O202609190003', status: 'COMPLETED', roomName: 'K03', customerId: 99, totalAmount: 15000, paidAmount: 15000, currencyCode: 'CNY', createdAt: '2026-09-19T18:00:00' },
-  { id: 4, orderNo: 'O202609190004', status: 'VOIDED', roomName: 'K04', totalAmount: 9000, paidAmount: 0, currencyCode: 'CNY', createdAt: '2026-09-19T17:00:00' },
+  { id: 1, orderNo: 'O202609190001', tradeStatus: 'DRAFT', sessionStatus: 'OPEN', roomName: 'K01', roomCode: 'K01', customerId: 77, totalAmount: 20000, paidAmount: 0, currencyCode: 'CNY', createdAt: '2026-09-19T20:00:00' },
+  { id: 2, orderNo: 'O202609190002', tradeStatus: 'PENDING_PAYMENT', sessionStatus: 'CLOSED', roomName: 'K02', customerId: 88, totalAmount: 30000, paidAmount: 0, currencyCode: 'CNY', createdAt: '2026-09-19T21:00:00' },
+  { id: 3, orderNo: 'O202609190003', tradeStatus: 'COMPLETED', sessionStatus: 'CLOSED', roomName: 'K03', customerId: 99, totalAmount: 15000, paidAmount: 15000, currencyCode: 'CNY', createdAt: '2026-09-19T18:00:00' },
+  { id: 4, orderNo: 'O202609190004', tradeStatus: 'CANCELLED', sessionStatus: 'CANCELLED', roomName: 'K04', totalAmount: 9000, paidAmount: 0, currencyCode: 'CNY', createdAt: '2026-09-19T17:00:00' },
 ]
 
 describe('订单管理筛选与匹配', () => {
-  it('按状态筛选', () => {
-    expect(filterOrders(rows, { status: 'SERVING' }).map((row) => row.id)).toEqual([1])
+  it('按交易状态筛选', () => {
+    expect(filterOrders(rows, { status: 'DRAFT' }).map((row) => row.id)).toEqual([1])
+    expect(filterOrders(rows, { status: 'PENDING_PAYMENT' }).map((row) => row.id)).toEqual([2])
     expect(filterOrders(rows, { status: '' })).toHaveLength(4)
+  })
+
+  it('只按 tradeStatus 筛选：旧 status 不参与（兼容列已删除）', () => {
+    expect(filterOrders([{ id: 9, status: 'WAITING_PAYMENT' }], { status: 'PENDING_PAYMENT' })).toEqual([])
+    expect(filterOrders([{ id: 9, tradeStatus: 'PENDING_PAYMENT' }], { status: 'PENDING_PAYMENT' })
+      .map((row) => row.id)).toEqual([9])
   })
 
   it('关键字匹配订单号 / 包厢名 / 包厢编号 / 客户ID / 订单ID', () => {
@@ -40,8 +47,8 @@ describe('订单管理筛选与匹配', () => {
   })
 
   it('状态 + 关键字叠加过滤', () => {
-    expect(filterOrders(rows, { status: 'WAITING_PAYMENT', keyword: 'k02' }).map((row) => row.id)).toEqual([2])
-    expect(filterOrders(rows, { status: 'SERVING', keyword: 'k02' })).toEqual([])
+    expect(filterOrders(rows, { status: 'PENDING_PAYMENT', keyword: 'k02' }).map((row) => row.id)).toEqual([2])
+    expect(filterOrders(rows, { status: 'DRAFT', keyword: 'k02' })).toEqual([])
   })
 
   it('按创建时间倒序（同刻按 id 倒序）', () => {
@@ -55,12 +62,12 @@ describe('订单管理筛选与匹配', () => {
 })
 
 describe('订单管理汇总', () => {
-  it('统计各状态与在场订单数，并给出应收/已收合计（同币种）', () => {
+  it('统计交易状态与在场订单数，并给出应收/已收合计（同币种）', () => {
     const summary = orderSummary(rows)
     expect(summary.total).toBe(4)
-    expect(summary.active).toBe(2)
-    expect(summary.waitingSettlement).toBe(0)
+    expect(summary.active).toBe(1)
     expect(summary.waitingPayment).toBe(1)
+    expect(summary.paid).toBe(0)
     expect(summary.completed).toBe(1)
     expect(summary.voided).toBe(1)
     expect(summary.payableAmount).toBe(74000)
@@ -71,8 +78,8 @@ describe('订单管理汇总', () => {
 
   it('混币种不求和：currencyCode 为空且标记 mixedCurrency（禁止跨币种相加）', () => {
     const summary = orderSummary([
-      { status: 'SERVING', totalAmount: 100, paidAmount: 0, currencyCode: 'CNY' },
-      { status: 'SERVING', totalAmount: 200, paidAmount: 0, currencyCode: 'USD' },
+      { tradeStatus: 'DRAFT', totalAmount: 100, paidAmount: 0, currencyCode: 'CNY' },
+      { tradeStatus: 'DRAFT', totalAmount: 200, paidAmount: 0, currencyCode: 'USD' },
     ])
     expect(summary.currencyCode).toBeNull()
     expect(summary.mixedCurrency).toBe(true)
@@ -84,8 +91,8 @@ describe('订单管理汇总', () => {
    */
   it('汇总金额取服务端实时合计（缺字段才退回库内合计）', () => {
     const summary = orderSummary([
-      { status: 'SERVING', totalAmount: 10150, liveTotalAmount: 70150, paidAmount: 0, currencyCode: 'CNY' },
-      { status: 'COMPLETED', totalAmount: 4000, paidAmount: 4000, currencyCode: 'CNY' },
+      { tradeStatus: 'DRAFT', totalAmount: 10150, liveTotalAmount: 70150, paidAmount: 0, currencyCode: 'CNY' },
+      { tradeStatus: 'COMPLETED', totalAmount: 4000, paidAmount: 4000, currencyCode: 'CNY' },
     ])
     expect(summary.payableAmount).toBe(74150)
     expect(summary.paidAmount).toBe(4000)
@@ -102,21 +109,23 @@ describe('订单管理汇总', () => {
 })
 
 describe('在场与可取消判定', () => {
-  it('在场状态与收银台看板一致（DRAFT/SERVING/待结算/待支付）', () => {
-    expect(isActiveOrder({ status: 'DRAFT' })).toBe(true)
-    expect(isActiveOrder({ status: 'SERVING' })).toBe(true)
-    expect(isActiveOrder({ status: 'WAITING_SETTLEMENT' })).toBe(true)
-    expect(isActiveOrder({ status: 'WAITING_PAYMENT' })).toBe(true)
-    expect(isActiveOrder({ status: 'COMPLETED' })).toBe(false)
+  it('在场看会话状态（待开台/开台中/挂单中）', () => {
+    expect(isActiveOrder({ sessionStatus: 'RESERVED' })).toBe(true)
+    expect(isActiveOrder({ sessionStatus: 'OPEN' })).toBe(true)
+    expect(isActiveOrder({ sessionStatus: 'PAUSED' })).toBe(true)
+    expect(isActiveOrder({ sessionStatus: 'CLOSED', tradeStatus: 'PENDING_PAYMENT' })).toBe(false)
+    expect(isActiveOrder({ tradeStatus: 'DRAFT' })).toBe(true)
   })
 
-  it('终态（已完成/已作废/已取消/已退款）不给取消入口', () => {
-    for (const status of ['COMPLETED', 'VOIDED', 'CANCELLED', 'REFUNDED', 'PARTIAL_REFUNDED']) {
-      expect(`${status}:${canCancelOrder({ status })}`).toBe(`${status}:false`)
+  it('终态（已完成/已取消/已作废）不给取消入口', () => {
+    for (const status of ['COMPLETED', 'CANCELLED', 'VOIDED']) {
+      expect(`${status}:${canCancelOrder({ tradeStatus: status })}`).toBe(`${status}:false`)
     }
-    for (const status of ['DRAFT', 'SERVING', 'WAITING_SETTLEMENT', 'WAITING_PAYMENT']) {
-      expect(`${status}:${canCancelOrder({ status })}`).toBe(`${status}:true`)
+    for (const status of ['DRAFT', 'PENDING_PAYMENT', 'PAID']) {
+      expect(`${status}:${canCancelOrder({ tradeStatus: status })}`).toBe(`${status}:true`)
     }
+    // 旧 status 不再参与判定（缺 tradeStatus 时视为未终结，页面另有 isLoading 态兜底）
+    expect(canCancelOrder({ status: 'VOIDED' })).toBe(true)
   })
 })
 

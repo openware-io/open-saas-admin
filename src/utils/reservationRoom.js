@@ -39,7 +39,7 @@ function text(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-/** 历史预约：没有房型（`ord_reservation.room_type_id` 为 null），只有当初选定的包厢。 */
+/** 历史预约：没有房型（`ktv_reservation.room_type_id` 为 null），只有当初选定的包厢。 */
 export function isHistoricalReservation(row) {
   return !row || row.roomTypeId === null || row.roomTypeId === undefined || row.roomTypeId === ''
 }
@@ -85,7 +85,7 @@ export function canOpenTable(row) {
  * 是否显示「开台」：**已到店（ARRIVED）**，或**已确认且已分配包厢（CONFIRMED）**。
  *
  * <p>后端 open-table 同时接受 ARRIVED 与 CONFIRMED，并在 CONFIRMED 开台时隐含登记到店时间
- * （{@code ord_reservation.arrived_at}）：客人到了、包厢也留好了，运营不必先点「到店」再点「开台」。
+ * （{@code ktv_reservation.arrived_at}）：客人到了、包厢也留好了，运营不必先点「到店」再点「开台」。
  * 未确认（PENDING）仍不可开台。
  */
 export function canOpenTableAction(row) {

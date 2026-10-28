@@ -5,13 +5,18 @@ import { parseStoredJson } from '@/utils/storage'
 import { resetCurrencyRuntime } from '@/utils/currency-runtime'
 
 export const SCOPE_LABELS = {
-  PLATFORM: '平台运营后台',
-  TENANT: '租户后台',
+  PLATFORM: '平台管理后台',
+  TENANT: '租户管理后台',
+  STORE: '门店管理后台',
 }
 
 export const useAuthStore = defineStore('auth', () => {
   const scope = ref(localStorage.getItem('saas_admin_scope') || 'PLATFORM')
   const user = ref(readStoredUser())
+  const roles = ref([])
+  const workspaces = ref([])
+  const defaultWorkspace = ref(localStorage.getItem('saas_admin_workspace') || 'PLATFORM')
+  const landing = ref(localStorage.getItem('saas_admin_landing') || '')
   const authenticated = ref(false)
   let initialization = null
   // 本 SPA 会话内是否已确认过登录态。
@@ -25,13 +30,19 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // 登录态由 HttpOnly Cookie（Redis 服务端会话）承载；localStorage 只存展示用的 user/scope。
-  function setAuth(userVal, scopeVal) {
+  function setAuth(userVal, scopeVal, workspace = {}) {
     user.value = userVal
     scope.value = scopeVal
+    roles.value = workspace.roles || []
+    workspaces.value = workspace.workspaces || []
+    defaultWorkspace.value = workspace.defaultWorkspace || 'PLATFORM'
+    landing.value = workspace.landing || ''
     authenticated.value = true
     verified = true
     localStorage.setItem('saas_admin_user', JSON.stringify(userVal))
     localStorage.setItem('saas_admin_scope', scopeVal)
+    localStorage.setItem('saas_admin_workspace', defaultWorkspace.value)
+    localStorage.setItem('saas_admin_landing', landing.value)
   }
 
   function setScope(scopeVal) {
@@ -42,11 +53,17 @@ export const useAuthStore = defineStore('auth', () => {
   function clearLocalState() {
     user.value = null
     scope.value = 'PLATFORM'
+    roles.value = []
+    workspaces.value = []
+    defaultWorkspace.value = 'PLATFORM'
+    landing.value = ''
     authenticated.value = false
     verified = false
     initialization = null
     localStorage.removeItem('saas_admin_user')
     localStorage.removeItem('saas_admin_scope')
+    localStorage.removeItem('saas_admin_workspace')
+    localStorage.removeItem('saas_admin_landing')
     // 币种是租户级的：退出/会话失效后回到缺省 USD，不把上一个租户的币种带到下一个账号。
     resetCurrencyRuntime()
   }
@@ -77,7 +94,15 @@ export const useAuthStore = defineStore('auth', () => {
           clearLocalState()
           return false
         }
-        setAuth(sessionUser, session.scope || scope.value || 'PLATFORM')
+        const workspace = session.defaultWorkspace || 'PLATFORM'
+        const sessionScope = session.scope ||
+          (workspace === 'STORE' ? 'STORE' : workspace === 'HEADQUARTERS' ? 'TENANT' : 'PLATFORM')
+        setAuth(sessionUser, sessionScope, {
+          roles: session.roles || [],
+          workspaces: session.workspaces || [],
+          defaultWorkspace: workspace,
+          landing: session.landing || '',
+        })
         authenticated.value = true
         return true
       } catch {
@@ -98,5 +123,5 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { scope, user, authenticated, setAuth, setScope, initialize, invalidateSession, logout, clearLocalState }
+  return { scope, user, roles, workspaces, defaultWorkspace, landing, authenticated, setAuth, setScope, initialize, invalidateSession, logout, clearLocalState }
 })

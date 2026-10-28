@@ -16,9 +16,29 @@ export function useBackend() {
 
   async function activateScope(scope) {
     authStore.setScope(scope)
-    if (scope === 'TENANT') await useContextStore().ensureContext(scope)
+    const contextStore = useContextStore()
+    if (scope === 'TENANT' || scope === 'STORE') await contextStore.ensureContext(scope)
+    if (scope === 'TENANT') {
+      const headquarters = contextStore.items.find((item) => item.scopeType === 'TENANT' || !item.storeId || item.storeId === 0)
+      if (headquarters && contextStore.current?.storeId) {
+        await contextStore.select(headquarters.contextId)
+      }
+    }
+    if (scope === 'STORE') {
+      const storeContext = contextStore.items.find((item) => item.storeId != null)
+      if (storeContext && contextStore.current?.storeId !== storeContext.storeId) {
+        await contextStore.select(storeContext.contextId)
+      }
+    }
     await menuStore.fetchMenus(scope)
-    const target = menuStore.firstLeafPath() || (scope === 'TENANT' ? '/admin/tenant/stores' : '/select')
+    const landing = authStore.landing || ''
+    const landingMatches = scope === 'TENANT'
+      ? landing.startsWith('/admin/tenant') || landing.startsWith('/business')
+      : scope === 'STORE'
+        ? landing.startsWith('/store') || landing.startsWith('/business')
+        : landing.startsWith('/admin/platform') || landing.startsWith('/admin/iam')
+    const target = (landingMatches && landing) || menuStore.firstLeafPath() ||
+      (scope === 'TENANT' ? '/admin/tenant/stores' : scope === 'STORE' ? '/store' : '/select')
     await router.push(target)
   }
 
@@ -31,6 +51,8 @@ export function useBackend() {
       await activateScope('PLATFORM')
     } else if (code === 'tenant') {
       await activateScope('TENANT')
+    } else if (code === 'store') {
+      await activateScope('STORE')
     } else if (code === 'im') {
       openImAdmin()
     } else {
@@ -54,9 +76,15 @@ export function useBackend() {
       }
       return
     }
+    const preferred = authStore.defaultWorkspace === 'STORE'
+      ? 'store'
+      : authStore.defaultWorkspace === 'HEADQUARTERS' ? 'tenant' : 'platform'
+    if (backends.some((backend) => backend.code === preferred)) {
+      await enterBackend(preferred)
+      return
+    }
     await router.replace('/select')
   }
-
   function goToSelect() {
     router.push('/select')
   }

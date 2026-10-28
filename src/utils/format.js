@@ -117,7 +117,7 @@ export function formatMoneyValue(major, currency) {
 
 // —— 代币（储值币）与积分：数量口径，不是货币 ——————————————————————————
 /**
- * 储值代币（A380 币等租户自定义品牌）与积分**不是货币**
+ * 储值代币（OpenChat 币等租户自定义品牌）与积分**不是货币**
  * （`open-im-server/docs/standards/16_CURRENCY_CONVENTIONS.md` §9）：
  *  - 只有现金与价格带币种，展示一律走 {@link formatMoney}（缺省 USD）；
  *  - 储值币 / 积分是组合支付里的**支付工具**，界面只显示数量，

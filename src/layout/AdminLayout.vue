@@ -1,18 +1,31 @@
 <template>
-  <el-container class="admin-layout">
+  <el-container class="admin-layout" :class="shell.className">
     <button v-if="!isCollapse" class="sidebar-backdrop" aria-label="收起导航" @click="isCollapse = true" />
     <el-aside :width="isCollapse ? '64px' : '220px'" class="sidebar" :class="{ 'sidebar-expanded': !isCollapse }">
       <div class="logo" @click="router.push('/select')">
         <el-icon :size="24"><OfficeBuilding /></el-icon>
-        <span v-show="!isCollapse" class="logo-text">SaaS 管理后台</span>
+        <span v-show="!isCollapse" class="logo-text">{{ shell.title }}</span>
       </div>
-      <div v-if="authStore.scope === 'TENANT'" class="context-panel">
-        <div class="context-tenant">租户 · {{ contextStore.current?.tenantName || '请选择租户' }}</div>
-        <div v-if="contextStore.current?.storeId" class="context-store">
-          <span>门店 · {{ contextStore.current?.storeName || '当前门店' }}</span>
-          <span class="context-meta">{{ contextStore.current?.businessType || '业务' }} · {{ contextStore.current?.timezone || '时区未设置' }}</span>
+      <div v-if="shell.showStoreContext" class="context-panel">
+        <div v-if="showContextSwitcher" class="context-tenant">
+          <span class="context-kicker">租户</span>
+          <strong>{{ contextStore.current?.tenantName || '请选择租户' }}</strong>
         </div>
-        <div v-else class="context-store context-empty">请选择门店进入门店经营</div>
+        <div v-if="contextStore.current?.scopeType === 'TENANT' || contextStore.current?.storeId === 0" class="context-store">
+          <span class="context-kicker">当前范围</span>
+          <strong>总部</strong>
+          <span class="context-meta">全部门店 · 跨店汇总与租户设置</span>
+        </div>
+        <div v-else-if="contextStore.current?.storeId" class="context-store">
+          <span class="context-kicker">当前门店</span>
+          <strong>{{ contextStore.current?.storeName || '当前门店' }}</strong>
+          <span class="context-meta">{{ businessTypeText(contextStore.current?.businessType) }} · {{ contextStore.current?.timezone || '时区未设置' }}</span>
+        </div>
+        <div v-else class="context-store context-empty">
+          <span class="context-kicker">当前门店</span>
+          <strong>未选择门店</strong>
+          <span class="context-meta">请选择门店进入门店经营</span>
+        </div>
       </div>
       <el-menu
         :default-active="route.path"
@@ -20,7 +33,7 @@
         :router="true"
         background-color="#1d1e2c"
         text-color="#a3a6ad"
-        active-text-color="#409eff"
+        active-text-color="var(--brand-primary)"
         class="sidebar-menu"
         @select="collapseOnNavigation"
       >
@@ -51,7 +64,7 @@
             </el-icon>
           </button>
           <el-breadcrumb class="header-breadcrumb" separator="/">
-            <el-breadcrumb-item :to="{ path: '/select' }">后台入口</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: '/select' }">{{ scopeLabel }}</el-breadcrumb-item>
             <el-breadcrumb-item>{{ route.meta.title || '页面' }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -68,7 +81,7 @@
           <el-tag :type="authStore.scope === 'PLATFORM' ? 'primary' : 'success'" effect="plain">
             {{ scopeLabel }}
           </el-tag>
-          <TenantContextSelector v-if="authStore.scope === 'TENANT'" />
+          <TenantContextSelector v-if="showContextSwitcher" />
           <el-button size="small" @click="goToSelect">
             <el-icon><Grid /></el-icon>后台入口
           </el-button>
@@ -149,6 +162,7 @@ import { changePassword, getSession } from '@/api/admin'
 import { refreshCsrfToken, resetAuthRedirectGuard } from '@/api/request'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, SCOPE_LABELS } from '@/stores/auth'
+import { workspaceShell } from '@/layout/workspaceShell'
 import { useMenuStore } from '@/stores/menu'
 import { usePendingApprovalStore } from '@/stores/pendingApproval'
 import { useContextStore } from '@/stores/context'
@@ -156,7 +170,7 @@ import { useCurrencyStore } from '@/stores/currency'
 import { filterMenusByPermission } from '@/utils/menuPermission'
 import { createSessionWatchdog } from '@/utils/sessionWatchdog'
 import { SESSION_EXPIRED_EVENT, emitRuntimeEvent } from '@/utils/runtime-events'
-import { ERRORS } from '@/constants/terms'
+import { ERRORS, businessTypeText } from '@/constants/terms'
 import SidebarMenuItem from './components/SidebarMenuItem.vue'
 import PendingApprovalDrawer from '@/components/PendingApprovalDrawer.vue'
 import TenantContextSelector from '@/components/TenantContextSelector.vue'
@@ -276,6 +290,9 @@ onUnmounted(() => {
 })
 
 const scopeLabel = computed(() => SCOPE_LABELS[authStore.scope] || authStore.scope)
+const shell = computed(() => workspaceShell(authStore.scope))
+// 租户管理员切到门店上下文后仍需要能切回总部；门店经理不展示租户选择器。
+const showContextSwitcher = computed(() => shell.value.showTenantSelector || authStore.workspaces.includes('HEADQUARTERS'))
 const showPendingApproval = computed(() => authStore.scope === 'TENANT')
 
 watch(
@@ -306,7 +323,76 @@ const contextBlocked = computed(() =>
  * 「无 tenant.currency.manage 就不显示」的可见性口径统一登记在 `utils/menuPermission`
  * 的映射里，避免页面各自维护一份固定入口。
  */
-const visibleMenus = computed(() => filterMenusByPermission(menuStore.menus, contextStore.current?.permissions))
+const HOTEL_STORE_MENUS = [
+  {
+    id: 'hotel-ops',
+    code: 'hotel.ops',
+    name: '酒店运营',
+    icon: 'Shop',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-frontdesk', code: 'hotel.frontdesk', name: '酒店前台', path: '/admin/tenant/hotel', icon: 'OfficeBuilding', requiredPermission: 'hotel.booking.view' },
+      { id: 'hotel-orders', code: 'hotel.orders', name: '订单管理', path: '/admin/orders', icon: 'Tickets', requiredPermission: 'order.view' },
+    ],
+  },
+  {
+    id: 'hotel-resource',
+    code: 'hotel.resource',
+    name: '酒店资源',
+    icon: 'Management',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-resources', code: 'hotel.resources', name: '房型、房价与房量', path: '/admin/tenant/hotel-resources', icon: 'Calendar', requiredPermission: 'hotel.room.availability.manage' },
+    ],
+  },
+  {
+    id: 'hotel-stock',
+    code: 'hotel.stock',
+    name: '酒店商品与库存',
+    icon: 'Goods',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-inventory', code: 'hotel.inventory', name: '酒店商品与库存', path: '/admin/inventory', icon: 'Box', requiredPermission: 'inventory.view' },
+    ],
+  },
+  {
+    id: 'hotel-crm',
+    code: 'hotel.crm',
+    name: '客户与资产',
+    icon: 'UserFilled',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-members', code: 'hotel.members', name: '客户管理', path: '/business/members', icon: 'User', requiredPermission: 'member.view' },
+      { id: 'hotel-points', code: 'hotel.points', name: '积分管理', path: '/business/points', icon: 'Star', requiredPermission: 'points.view' },
+      { id: 'hotel-wallet', code: 'hotel.wallet', name: '储值管理', path: '/business/wallet', icon: 'Wallet', requiredPermission: 'wallet.view' },
+    ],
+  },
+  {
+    id: 'hotel-report',
+    code: 'hotel.report',
+    name: '门店报表',
+    icon: 'TrendCharts',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-reports', code: 'hotel.reports', name: '经营报表', path: '/admin/reports', icon: 'DataAnalysis', requiredPermission: 'report.view' },
+    ],
+  },
+  {
+    id: 'hotel-settings',
+    code: 'hotel.settings',
+    name: '酒店设置',
+    icon: 'SetUp',
+    scope: 'STORE',
+    children: [
+      { id: 'hotel-master', code: 'hotel.master', name: '酒店资料与规则', path: '/admin/tenant/hotel-master', icon: 'Setting', requiredPermission: 'hotel.room.manage' },
+    ],
+  },
+]
+const visibleMenus = computed(() => {
+  const hotelStore = authStore.scope === 'STORE' && contextStore.current?.businessType === 'HOTEL'
+  const source = hotelStore ? HOTEL_STORE_MENUS : menuStore.menus
+  return filterMenusByPermission(source, contextStore.current?.permissions)
+})
 const menuSections = computed(() => {
   const sections = []
   for (const scope of ['TENANT', 'STORE', 'PLATFORM']) {
@@ -331,6 +417,7 @@ watch(
   () => contextStore.current?.permissions,
   (permissions) => {
     if (permissions && authStore.scope === 'TENANT') menuStore.fetchMenus('TENANT')
+    if (permissions && authStore.scope === 'STORE') menuStore.fetchMenus('STORE')
   }
 )
 
@@ -339,6 +426,9 @@ watch(() => contextStore.current?.tenantId, syncCurrencyWithContext)
 
 function syncScopeFromRoute() {
   const routeScope = route.meta.scope
+  // 门店工作区复用租户业务页面时，路由 meta 仍是 TENANT；不能因此把门店工作区
+  // 降级成租户后台，否则门店菜单/权限会被替换。
+  if (routeScope === 'TENANT' && authStore.scope === 'STORE' && contextStore.current?.storeId) return
   if (routeScope && routeScope !== authStore.scope) {
     authStore.setScope(routeScope)
   }
@@ -358,6 +448,9 @@ onMounted(() => {
 watch(
   () => route.meta.scope,
   (scope) => {
+    // 门店工作区复用 TENANT 业务页时，路由 meta 仍是 TENANT；
+    // 不能因此把门店 shell/菜单降级成租户后台。
+    if (scope === 'TENANT' && authStore.scope === 'STORE' && contextStore.current?.storeId) return
     if (scope && scope !== authStore.scope) {
       authStore.setScope(scope)
       menuStore.fetchMenus(scope)
@@ -427,6 +520,15 @@ async function submitPasswordChange() {
   min-width: 0;
 }
 
+.workspace-platform { --workspace-accent: #3b82f6; }
+.workspace-tenant { --workspace-accent: #10b981; }
+.workspace-store { --workspace-accent: #f59e0b; }
+.workspace-platform .logo,
+.workspace-tenant .logo,
+.workspace-store .logo {
+  box-shadow: inset 3px 0 0 var(--workspace-accent);
+}
+
 .content-container {
   min-width: 0;
 }
@@ -469,10 +571,47 @@ async function submitPasswordChange() {
   flex: 0 0 auto;
 }
 
-.context-tenant { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.context-store { color: #a3a6ad; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.context-meta { display: block; color: #7e8494; }
-.context-empty { color: #e6a23c; }
+.context-tenant,
+.context-store {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.context-store {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.context-kicker {
+  color: #737b8b;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+}
+
+.context-tenant strong,
+.context-store strong {
+  overflow: hidden;
+  color: #edf2f7;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-meta {
+  overflow: hidden;
+  color: #8b93a4;
+  font-size: 11px;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.context-empty strong { color: #e6a23c; }
 
 .sidebar-menu {
   border-right: none;
@@ -559,7 +698,7 @@ async function submitPasswordChange() {
 }
 
 .collapse-btn:hover {
-  color: #409eff;
+  color: var(--brand-primary);
 }
 
 .header-right {

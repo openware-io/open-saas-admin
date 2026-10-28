@@ -29,16 +29,16 @@ const routes = [
         meta: { title: '租户管理', icon: 'OfficeBuilding', scope: 'PLATFORM' },
       },
       {
-        path: 'admin/pricing-plans',
-        name: 'PricingPlans',
-        component: () => import('@/views/platform/pricing-plans.vue'),
-        meta: { title: '计价方案', icon: 'PriceTag', scope: 'PLATFORM' },
-      },
-      {
         path: 'admin/iam/roles',
         name: 'IamRoles',
-        component: () => import('@/views/platform/iam/roles.vue'),
+        component: () => import('@/views/platform/iam/roleAdmin.vue'),
         meta: { title: '角色', icon: 'Avatar', scope: 'PLATFORM' },
+      },
+      {
+        path: 'admin/iam/role-profiles',
+        name: 'IamRoleProfiles',
+        component: () => import('@/views/platform/iam/roles.vue'),
+        meta: { title: '工作台默认值', icon: 'Setting', scope: 'PLATFORM', hidden: true },
       },
       {
         path: 'admin/iam/permissions',
@@ -60,6 +60,24 @@ const routes = [
         meta: { title: '经营总览', icon: 'DataAnalysis', scope: 'TENANT' },
       },
       {
+        path: 'store',
+        name: 'StoreHome',
+        component: () => import('@/views/store/index.vue'),
+        meta: { title: '门店管理后台', icon: 'Shop', scope: 'STORE' },
+      },
+      {
+        path: 'admin/tenant/settings',
+        name: 'TenantSettings',
+        component: () => import('@/views/tenant/settings.vue'),
+        meta: { title: '租户设置', icon: 'Tools', scope: 'TENANT' },
+      },
+      {
+        path: 'admin/store/settings',
+        name: 'StoreSettings',
+        component: () => import('@/views/store/settings.vue'),
+        meta: { title: '门店设置', icon: 'SetUp', scope: 'STORE' },
+      },
+      {
         path: 'admin/tenant/stores',
         name: 'TenantStores',
         component: () => import('@/views/tenant/stores.vue'),
@@ -78,6 +96,12 @@ const routes = [
         name: 'Staff',
         component: () => import('@/views/tenant/staff.vue'),
         meta: { title: '运营人员', icon: 'Service', scope: 'TENANT' },
+      },
+      {
+        path: 'admin/roles',
+        name: 'TenantRoles',
+        component: () => import('@/views/platform/iam/roleAdmin.vue'),
+        meta: { title: '角色与权限', icon: 'Avatar', scope: 'TENANT' },
       },
       {
         path: 'admin/resources',
@@ -180,6 +204,25 @@ const routes = [
         component: () => import('@/views/tenant/ktv-config.vue'),
         meta: { title: 'KTV 配置', icon: 'Setting', scope: 'TENANT' },
       },
+      {
+        // 酒店业务原型：接口未接入前只展示本地 mock；后续替换为酒店 BFF 数据。
+        path: 'admin/tenant/hotel',
+        name: 'HotelManagement',
+        component: () => import('@/views/tenant/hotel.vue'),
+        meta: { title: '酒店管理', icon: 'OfficeBuilding', scope: 'STORE' },
+      },
+      {
+        path: 'admin/tenant/hotel-master',
+        name: 'HotelMasterData',
+        component: () => import('@/views/tenant/hotel-master.vue'),
+        meta: { title: '酒店设置', icon: 'Setting', scope: 'STORE', hidden: true },
+      },
+      {
+        path: 'admin/tenant/hotel-resources',
+        name: 'HotelResources',
+        component: () => import('@/views/tenant/hotel-master.vue'),
+        meta: { title: '房型、房价与库存', icon: 'Calendar', scope: 'STORE', hidden: true },
+      },
       // 审计日志：菜单与 audit.view 权限由后端下发（不新增后端菜单/权限），
       // 因此这里刻意不绑定 meta.scope —— 平台/租户两种视角都能直达本页，
       // 「租户」列由页面按当前 scope 决定是否展示，越权拦截由后端强制。
@@ -194,7 +237,7 @@ const routes = [
         path: ':pathMatch(.*)*',
         name: 'GenericStub',
         component: () => import('@/views/GenericStub.vue'),
-        meta: { title: '页面开发中' },
+        meta: { title: '页面不存在' },
       },
     ],
   },
@@ -206,7 +249,7 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-  document.title = `${to.meta.title || 'SaaS 管理后台'} - SaaS 管理后台`
+  document.title = `${to.meta.title || '管理后台'} - 管理后台`
   const authStore = useAuthStore()
   const contextStore = useContextStore()
   if (!to.meta.public && !(await authStore.initialize())) {
@@ -222,7 +265,27 @@ router.beforeEach(async (to, from, next) => {
   //    校验丢进后台（节流只读一次会话），交互不再等网络；
   //  - 只有冷启动的第一次导航才等待，避免页面刚挂载就打出一串 401。
   // 权限/上下文真变了仍拦得住：服务端按会话签名授权，接口层 403/401 会自愈重试。
-  if (to.meta.scope === 'TENANT' || to.meta.scope === 'PLATFORM') {
+  // 平台工作区只对平台运营开放；租户/门店账号直达平台 URL 时直接回到自己的工作区。
+  if (to.meta.scope === 'PLATFORM' && !authStore.workspaces.includes('PLATFORM')) {
+    return next(authStore.workspaces.includes('STORE') ? '/store' : '/admin/tenant/overview')
+  }
+  // 租户经营页只对租户总部账号开放；店长仍可进入共享的业务运营页
+  //（预约/收银/订单/资源/库存/报表/酒店前台/KTV 配置），但不能进入租户默认配置、
+  // 角色权限和门店管理。
+  const storeOperations = (path) =>
+    (path.startsWith('/business/') && !path.startsWith('/business/tenant')) ||
+    ['/admin/orders', '/admin/resources', '/admin/products', '/admin/inventory',
+      '/admin/reports', '/admin/tenant/hotel', '/admin/tenant/hotel-master',
+      '/admin/ktv/config'].some((prefix) => path === prefix || path.startsWith(prefix + '/'))
+  if (to.meta.scope === 'TENANT' && !authStore.workspaces.includes('HEADQUARTERS')) {
+    if (!(authStore.workspaces.includes('STORE') && storeOperations(to.path))) {
+      return next(authStore.workspaces.includes('STORE') ? '/store' : '/select')
+    }
+  }
+
+  // PLATFORM 工作区没有租户/门店上下文：不能调用 ensureContext，否则空 contextId
+  // 会被后端拒绝成 403，页面会误报“没有操作权限”。平台页面使用平台级接口。
+  if (to.meta.scope === 'TENANT' && authStore.workspaces.includes('HEADQUARTERS')) {
     if (contextStore.settled) {
       contextStore.revalidateInBackground(to.meta.scope)
     } else {
@@ -231,6 +294,15 @@ router.beforeEach(async (to, from, next) => {
       } catch (e) {
         // 上下文选择失败不阻断导航，页面侧展示空态/提示
       }
+    }
+  }
+  // 店长直接打开 /store（刷新/书签）时也要自动选唯一可用的门店，
+  // 否则工作台永远停“未选择门店”，什么都不加载。
+  if (to.meta.scope === 'STORE' && !contextStore.current) {
+    try {
+      await contextStore.ensureContext('STORE')
+    } catch (e) {
+      // 保持门店工作台空态，不把导航打断
     }
   }
   next()

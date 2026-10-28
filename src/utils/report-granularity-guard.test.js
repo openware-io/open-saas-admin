@@ -84,12 +84,11 @@ describe('统计粒度词表（constants/terms）', () => {
 })
 
 describe('订单状态词表（销售明细按状态复核）', () => {
-  it('ord_order 的 10 个状态都有中文（含 WAITING_ARRIVAL / 退款态）', () => {
+  it('交易状态 6 值都有中文（CANCELLED/VOIDED 独立，报表按 trade_status 复核）', () => {
     const codes = ORDER_STATUS_OPTIONS.map((item) => item.value)
-    expect(codes).toContain('WAITING_ARRIVAL')
-    expect(codes).toContain('VOIDED')
-    expect(codes).toContain('REFUNDED')
-    expect(codes).toContain('PARTIAL_REFUNDED')
+    for (const code of ['DRAFT', 'PENDING_PAYMENT', 'PAID', 'COMPLETED', 'CANCELLED', 'VOIDED']) {
+      expect(codes).toContain(code)
+    }
     for (const option of ORDER_STATUS_OPTIONS) {
       expect(option.label).not.toBe(option.value)
     }

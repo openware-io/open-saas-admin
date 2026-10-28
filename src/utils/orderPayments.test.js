@@ -61,7 +61,7 @@ describe('hasCollections / isCombinedPayment', () => {
     const empty = view({ collections: [] })
     expect(hasCollections(empty)).toBe(false)
     expect(isCombinedPayment(empty)).toBe(false)
-    expect(collectionMethodSummary(empty, 'A380币')).toBe('')
+    expect(collectionMethodSummary(empty, 'SaaS 币')).toBe('')
   })
 
   it('单腿不算组合支付，多腿才算', () => {
@@ -92,13 +92,13 @@ describe('collectionLegs / collectionMethodSummary', () => {
         collection({ collectNo: 'PC-2', legs: [{ method: 'POINT', amount: 100 }, { method: 'WALLET', amount: 200 }, { method: 'CASH', amount: 300 }] }),
       ],
     })
-    expect(collectionMethodSummary(twoCollections, 'A380币')).toBe('积分+A380币+现金')
+    expect(collectionMethodSummary(twoCollections, 'SaaS 币')).toBe('积分+SaaS 币+现金')
     expect(collectionMethodSummary(twoCollections, '皇冠币')).toBe('积分+皇冠币+现金')
   })
 
   it('未知支付方式回落「未知（CODE）」而不是英文原文', () => {
     const unknown = view({ collections: [collection({ legs: [{ method: 'PAYPAL', amount: 100 }] })] })
-    expect(collectionMethodSummary(unknown, 'A380币')).toContain('未知')
+    expect(collectionMethodSummary(unknown, 'SaaS 币')).toContain('未知')
   })
 })
 

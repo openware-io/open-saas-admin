@@ -24,9 +24,33 @@ import { hasPermission } from './context'
  * `showCurrencyEntry` 的严格判定一致。
  */
 export const MENU_ITEM_PERMISSIONS = Object.freeze({
-  // 租户级币种设置（入口归后端菜单，权限口径沿用原前端固定项）。
+  // 租户/门店业务入口：后端菜单有些只下发 path、requiredPermission 为空，
+  // 前端必须补齐权限门禁，避免“看得到菜单、点进去 403”。
+  '/admin/tenant/overview': 'tenant.overview.view',
+  '/admin/tenant/stores': 'tenant.store.manage',
   '/admin/tenant/currency': 'tenant.currency.manage',
+  '/admin/tenant/wallet-token-config': 'tenant.tenant.manage',
+  '/admin/tenant/hotel': 'hotel.booking.view',
+  '/admin/tenant/hotel-master': 'hotel.room.manage',
+  '/admin/tenant/hotel-resources': 'hotel.room.availability.manage',
+  '/admin/staff': 'iam.role.manage',
+  '/admin/security': 'iam.role.manage',
+  '/admin/audits': 'audit.view',
+  '/admin/ktv/config': 'tenant.business.manage',
+  '/admin/orders': 'order.view',
+  '/admin/resources': 'resource.manage',
+  '/admin/products': 'product.view',
+  '/admin/inventory': 'inventory.view',
+  '/business/payment-methods': 'payment.collect',
+  '/business/reservations': 'reservation.view',
+  '/business/orders': 'order.view',
+  '/business/payments': 'payment.collect',
+  '/business/shifts': 'order.settle',
+  '/business/members': 'member.view',
+  '/business/points': 'points.view',
+  '/business/wallet': 'wallet.view',
 })
+
 
 /** 归一化菜单路径：去空白、去查询串、去尾部斜杠（后端 path 与路由可能带/不带尾斜杠）。 */
 export function normalizeMenuPath(path) {
@@ -37,7 +61,9 @@ export function normalizeMenuPath(path) {
 
 /** 单个菜单项是否可见：未登记权限码 → 恒可见；登记了 → 必须命中权限快照。 */
 export function isMenuItemVisible(item, permissions) {
-  const code = MENU_ITEM_PERMISSIONS[normalizeMenuPath(item && item.path)]
+  if (!item) return false
+  // 后端已声明的 requiredPermission 优先；没有声明的按前端映射补门禁。
+  const code = item.requiredPermission || MENU_ITEM_PERMISSIONS[normalizeMenuPath(item.path)]
   if (!code) return true
   return hasPermission(permissions, code)
 }

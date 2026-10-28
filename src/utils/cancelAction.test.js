@@ -232,8 +232,9 @@ describe('两个入口的交互守卫（源码级）', () => {
     expect(source).toContain('hasPermissionOrMissing')
     // 状态门槛从「直接隐藏入口」改成「入口显示但禁用并写明原因」：隐藏时运营点开 ··· 只看到「订单详情」，
     // 会以为「取消订单没反应」（2026-09-19 修）；已作废/已取消才不出现。
-    expect(source).toContain('canCancelOrder && showCancelItem(room.order.status)')
-    expect(source).toContain(':disabled="!canVoid(room.order.status)"')
+    // 状态门槛改由交易状态判定（constants/ktvOrderStatus.canVoidOrder）：已作废/已完成才不出现。
+    expect(source).toContain('canCancelOrder && showCancelItem(room.order)')
+    expect(source).toContain(':disabled="!canVoid(room.order)"')
     expect(source).toContain('取消订单（已完成，须先退款）')
   })
 

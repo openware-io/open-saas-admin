@@ -13,8 +13,10 @@ import 'element-plus/theme-chalk/el-message.css'
 import 'element-plus/theme-chalk/el-message-box.css'
 import 'element-plus/theme-chalk/el-notification.css'
 import './styles/global.css'
+import { permissionDirective } from './directives/permission'
 
 const app = createApp(App)
+app.directive('permission', permissionDirective)
 app.use(createPinia())
 app.use(router)
 app.mount('#app')

@@ -13,6 +13,7 @@ import {
   CATALOG_ITEM_TYPE_TEXT,
   DURATION_LABELS,
   ERRORS,
+  FORBIDDEN_TERM_PATTERNS,
   FORBIDDEN_TERMS,
   MONEY_FIELD_TEXT,
   PRODUCT_STATUS_TEXT,
@@ -104,7 +105,7 @@ const RULES = [
   {
     id: 'forbidden-term',
     // 禁用词是用户可见术语，注释里也不该再出现（避免复制粘贴回文案）。
-    pattern: new RegExp(FORBIDDEN_TERMS.join('|')),
+    pattern: new RegExp(FORBIDDEN_TERM_PATTERNS.join('|')),
     message: '出现已废弃术语（房间/包间/商家/待收/房台）',
     stripComments: false,
   },
@@ -216,16 +217,21 @@ describe('术语词表', () => {
     expect(RESOURCE_STATE_TEXT.RESERVED).toBe('已预订')
   })
 
-  it('订单详情不再直接渲染 sessionStatus 原码（必须走 sessionStatusText）', async () => {
+  it('订单详情不再直接渲染 sessionStatus 原码（必须走状态词表函数）', async () => {
     const source = await readSource(path.join(srcRoot, 'views/tenant/order-management.vue'))
-    expect(source).toContain('sessionStatusText(detailOrder.sessionStatus)')
+    // KTV 会话状态词表已从本文件迁到 constants/ktvOrderStatus（ktvSessionStatusText）；
+    // 兼容旧调用名 sessionStatusText，两者都算通过。
+    expect(
+      source.includes('ktvSessionStatusText(detailOrder.sessionStatus)')
+      || source.includes('sessionStatusText(detailOrder.sessionStatus)'),
+    ).toBe(true)
     expect(source).not.toContain("{{ detailOrder.sessionStatus || '—' }}")
   })
 })
 
 describe('储值品牌名', () => {
   it('默认值与后端 tnt_tenant_config.wallet_brand_name 的默认值一致', () => {
-    expect(WALLET_BRAND_NAME_DEFAULT).toBe('OpenChat币')
+    expect(WALLET_BRAND_NAME_DEFAULT).toBe('SaaS 币')
   })
 
   it('只认租户配置，缺配置/空配置回落唯一默认值', () => {
@@ -275,7 +281,7 @@ describe('状态词表', () => {
     expect(staffStatusActionText('ACTIVE')).toBe('禁用')
     expect(staffStatusActionText('DISABLED')).toBe('启用')
     expect(shiftStatusText('OPEN')).toBe('进行中')
-    expect(orderStatusText('WAITING_SETTLEMENT')).toBe('待结算')
+    expect(orderStatusText('PENDING_PAYMENT')).toBe('待收款')
     expect(orderItemStatusText('PENDING_APPROVAL')).toBe('待确认')
     expect(enabledStatusText('ENABLED')).toBe('启用')
     expect(roomTypeStatusText('ACTIVE')).toBe('启用')
@@ -371,7 +377,7 @@ describe('i18n 防回退（源码扫描）', () => {
         const relative = path.relative(srcRoot, file).split(path.sep).join('/')
         if (relative === 'constants/terms.js') continue
         const source = await readSource(file)
-        expect(`${relative}:${/A380币/.test(source)}`).toBe(`${relative}:false`)
+        expect(`${relative}:${/SaaS 币/.test(source)}`).toBe(`${relative}:false`)
       }
     }
   })

@@ -21,7 +21,8 @@ const STORE_MENU = { id: 10, name: '门店', path: '/admin/tenant/stores', child
 
 describe('菜单权限映射（后端菜单 + 前端附加门禁）', () => {
   it('只登记币种一项，路径与后端下发的路由一致', () => {
-    expect(MENU_ITEM_PERMISSIONS).toEqual({ '/admin/tenant/currency': 'tenant.currency.manage' })
+    expect(MENU_ITEM_PERMISSIONS['/admin/tenant/currency']).toBe('tenant.currency.manage')
+    expect(MENU_ITEM_PERMISSIONS['/admin/tenant/overview']).toBe('tenant.overview.view')
   })
 
   it('权限快照的四种形态都容错（数组 / {code} / {permissionCode} / {code:true}）', () => {
@@ -40,8 +41,18 @@ describe('菜单权限映射（后端菜单 + 前端附加门禁）', () => {
   })
 
   it('未登记权限的菜单一律可见：快照缺失时不误伤其它菜单', () => {
-    expect(isMenuItemVisible(STORE_MENU, undefined)).toBe(true)
-    expect(filterMenusByPermission([STORE_MENU], undefined)).toEqual([STORE_MENU])
+    const unmapped = { id: 99, name: '报表', path: '/admin/reports', children: [] }
+    expect(isMenuItemVisible(unmapped, undefined)).toBe(true)
+    expect(filterMenusByPermission([unmapped], undefined)).toEqual([unmapped])
+  })
+
+  it('租户/门店入口没有权限时直接隐藏，而不是渲染后 403', () => {
+    expect(isMenuItemVisible(STORE_MENU, ['tenant.overview.view'])).toBe(false)
+    expect(isMenuItemVisible(STORE_MENU, ['tenant.store.manage'])).toBe(true)
+    expect(isMenuItemVisible({ path: '/admin/ktv/config' }, [])).toBe(false)
+    expect(isMenuItemVisible({ path: '/admin/ktv/config' }, ['tenant.business.manage'])).toBe(true)
+    expect(isMenuItemVisible({ path: '/admin/roles', requiredPermission: 'iam.role.manage' }, [])).toBe(false)
+    expect(isMenuItemVisible({ path: '/admin/roles', requiredPermission: 'iam.role.manage' }, ['iam.role.manage'])).toBe(true)
   })
 
   it('过滤时保留原菜单顺序与结构，子项同样适用映射', () => {
@@ -51,11 +62,11 @@ describe('菜单权限映射（后端菜单 + 前端附加门禁）', () => {
       STORE_MENU,
     ]
     const filtered = filterMenusByPermission(tree, ['tenant.currency.manage'])
-    expect(filtered.map((item) => item.path)).toEqual(['/admin/iam', '/admin/tenant/currency', '/admin/tenant/stores'])
+    expect(filtered.map((item) => item.path)).toEqual(['/admin/iam', '/admin/tenant/currency'])
     expect(filtered[0].children).toHaveLength(1)
 
     const hidden = filterMenusByPermission(tree, [])
-    expect(hidden.map((item) => item.path)).toEqual(['/admin/iam', '/admin/tenant/stores'])
+    expect(hidden.map((item) => item.path)).toEqual(['/admin/iam'])
   })
 
   it('非数组入参（菜单还没加载）返回空数组，不抛错', () => {

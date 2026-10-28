@@ -2,7 +2,7 @@
  * 从候选上下文里挑一个可用的。
  *
  * 背景（2026-09-10 修复）：
- * 1) 旧实现只在候选“恰好 1 个”时才返回，账号有多个上下文（默认租户 + A380）时一个都不选，
+ * 1) 旧实现只在候选“恰好 1 个”时才返回，账号有多个上下文（默认租户 + SaaS）时一个都不选，
  *    导致业务接口全部 401 SAAS_CONTEXT_REQUIRED；
  * 2) 只对 TENANT 路由确保上下文也不够——平台运营后台的部分页面（如支付方式授权）会调用
  *    租户维度接口，没有上下文同样 401，而 401 会被当作会话失效把用户踢回登录页。
@@ -20,7 +20,13 @@ export function chooseSingleContext(items, preferredScope) {
   if (preferredScope === 'PLATFORM') {
     return scoped[0] || list[0]
   }
-  const withStore = list.filter((c) => c.storeId != null)
+  // 租户后台默认进总部；门店是独立工作区。否则租户管理员一进来就被
+  // 带到某家 KTV，经营总览必然报“必须在租户上下文”。
+  if (preferredScope === 'TENANT') {
+    const headquarters = list.filter((c) => c.scopeType === 'TENANT' || c.storeId === 0)
+    if (headquarters.length) return headquarters[0]
+  }
+  const withStore = list.filter((c) => c.storeId != null && c.storeId !== 0)
   if (withStore.length) return withStore[0]
   if (scoped.length) return scoped[0]
   return list[0]

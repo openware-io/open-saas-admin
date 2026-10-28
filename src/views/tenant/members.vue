@@ -113,6 +113,9 @@
         <el-form-item label="营销授权">
           <el-switch v-model="createForm.consent" />
         </el-form-item>
+        <el-form-item label="C 端密码">
+          <el-input v-model="createForm.password" type="password" show-password placeholder="可选；填写后客户可到 /c/ 用手机号登录" autocomplete="new-password" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="createVisible = false">取消</el-button>
@@ -188,6 +191,7 @@ import { Refresh, Plus } from '@element-plus/icons-vue'
 import {
   listMembers,
   createMember,
+  provisionCustomerLogin,
   purgeUnlinkedMember,
   getMemberPoints,
   adjustPoints,
@@ -252,7 +256,7 @@ const loading = ref(false)
 const query = reactive({ page: 1, pageSize: 10, keyword: '', level: null, status: '', range: emptyDateRange() })
 
 const createVisible = ref(false)
-const createForm = reactive({ name: '', phone: '', imAccount: '', imUsername: '', consent: true })
+const createForm = reactive({ name: '', phone: '', imAccount: '', imUsername: '', consent: true, password: '' })
 
 const detailVisible = ref(false)
 const detail = ref(null)
@@ -330,6 +334,7 @@ function openCreate() {
   createForm.imAccount = ''
   createForm.imUsername = ''
   createForm.consent = true
+  createForm.password = ''
   createVisible.value = true
 }
 

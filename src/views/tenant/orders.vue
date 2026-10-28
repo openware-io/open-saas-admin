@@ -147,7 +147,7 @@
           <template v-else-if="room.boardStatus === 'cleaning'">
             <div class="cleaning-content">
               <el-icon><Service /></el-icon>
-              <strong>{{ ROOM_STATE_LABEL.cleaning }}</strong>
+              <strong>{{ ROOM_BOARD_STATE_TEXT.cleaning }}</strong>
               <span>清洁中的包厢不可开台、不可预约</span>
             </div>
             <div class="room-actions">
@@ -178,14 +178,14 @@
                 plain
                 @click.stop="pendingApprovalStore.openDrawer()"
               >待确认加项 ×{{ pendingApprovalStore.countOfOrder(room.order.id) }}</el-button>
-              <el-button v-if="room.order.status === 'SERVING'" size="small" @click.stop="openItems(room.order)">＋ 加项</el-button>
+              <el-button v-if="canAddItems(room.order)" size="small" @click.stop="openItems(room.order)">＋ 加项</el-button>
               <el-button size="small" @click.stop="showBill(room.order)">账单</el-button>
-              <el-button v-if="room.order.status === 'DRAFT'" size="small" type="success" @click.stop="confirm(room.order)">确认</el-button>
-              <el-button v-if="room.order.status === 'SERVING'" size="small" type="danger" plain @click.stop="closeOrderSession(room.order)">结台</el-button>
-              <el-button v-if="room.order.status === 'WAITING_SETTLEMENT'" size="small" type="warning" @click.stop="settle(room.order)">结算</el-button>
-              <el-button v-if="room.order.status === 'WAITING_PAYMENT'" size="small" type="success" @click.stop="openCollect(room.order)">收银</el-button>
+              <el-button v-if="canConfirmOrder(room.order)" size="small" type="success" @click.stop="confirm(room.order)">确认</el-button>
+              <el-button v-if="canCloseSession(room.order)" size="small" type="danger" plain @click.stop="closeOrderSession(room.order)">结台</el-button>
+              <el-button v-if="canSettleOrder(room.order)" size="small" type="warning" @click.stop="settle(room.order)">结算</el-button>
+              <el-button v-if="canCollectOrder(room.order)" size="small" type="success" @click.stop="openCollect(room.order)">收银</el-button>
               <!-- 结台后包厢进入清洁中，但客人可能还在买单：待结账卡片同时给出「清洁完成」，避免清洁状态吞掉收款入口 -->
-              <el-button v-if="room.cleaning" size="small" type="success" plain :loading="isSubmitting(room)" @click.stop="markRoomCleaned(room)">清洁完成</el-button>
+              <el-button v-if="room?.cleaning" size="small" type="success" plain :loading="isSubmitting(room)" @click.stop="markRoomCleaned(room)">清洁完成</el-button>
               <el-dropdown trigger="click" @command="(command) => handleRoomCommand(command, room.order)">
                 <el-button size="small" @click.stop>···</el-button>
                 <template #dropdown>
@@ -195,16 +195,16 @@
                          运营点开 ··· 只看到「订单详情」，会以为「取消订单没反应」。
                          已作废/已取消的订单本身已终止，不再出现（另有「库存处理」入口）。 -->
                     <el-dropdown-item
-                      v-if="canCancelOrder && showCancelItem(room.order.status)"
+                      v-if="canCancelOrder && showCancelItem(room.order)"
                       command="cancel"
-                      :disabled="!canVoid(room.order.status)"
+                      :disabled="!canVoid(room.order)"
                       divided
-                    >{{ cancelMenuText(room.order.status) }}</el-dropdown-item>
+                    >{{ cancelMenuText(room.order) }}</el-dropdown-item>
                     <el-dropdown-item
-                      v-if="canCancelOrder && canVoid(room.order.status)"
+                      v-if="canCancelOrder && canVoid(room.order)"
                       command="void-request"
                     >申请作废</el-dropdown-item>
-                    <el-dropdown-item v-if="room.order.status === 'VOIDED'" command="recovery" divided>库存处理</el-dropdown-item>
+                    <el-dropdown-item v-if="['CANCELLED', 'VOIDED'].includes(orderTradeStatus(room.order))" command="recovery" divided>库存处理</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -269,9 +269,9 @@
       <template #footer>
         <div v-if="detailRoom?.order" class="drawer-footer">
           <el-button @click="showBill(detailRoom.order)">完整账单</el-button>
-          <el-button v-if="detailRoom.order.status === 'SERVING'" type="primary" @click="openItems(detailRoom.order)">点单/加项</el-button>
-          <el-button v-if="detailRoom.order.status === 'WAITING_SETTLEMENT'" type="warning" @click="settle(detailRoom.order)">结算</el-button>
-          <el-button v-if="detailRoom.order.status === 'WAITING_PAYMENT'" type="success" @click="openCollect(detailRoom.order)">收银</el-button>
+          <el-button v-if="canAddItems(detailRoom.order)" type="primary" @click="openItems(detailRoom.order)">点单/加项</el-button>
+          <el-button v-if="canSettleOrder(detailRoom.order)" type="warning" @click="settle(detailRoom.order)">结算</el-button>
+          <el-button v-if="canCollectOrder(detailRoom.order)" type="success" @click="openCollect(detailRoom.order)">收银</el-button>
         </div>
       </template>
     </el-drawer>
@@ -601,7 +601,7 @@
             <span class="muted">服务端将按目录项快照名称与单价计费，请确认商品、数量和总价后提交。</span>
           </div>
           <el-button
-            v-if="itemsOrder?.status === 'SERVING'"
+            v-if="canAddItems(itemsOrder)"
             type="primary"
             :loading="catalogSubmitting"
             :disabled="!selectedCatalogQuantity"
@@ -732,7 +732,21 @@ import { notifyAdminRequestError, notifyCancelRequestError, resolveAdminErrorMes
 import { submitCancelWithReason, CANCEL_REASON_MAX_LENGTH } from '@/utils/cancelAction'
 import { hasPermissionOrMissing } from '@/utils/context'
 import { collectedLegText, isQuantityLeg, legInputPrecision, legInputStep, legInputToMinor, legMinorToInput, methodLabel, orderAllowedMethods } from '@/constants/payment-methods'
-import { ROOM_BOARD_STATE_TEXT, WALLET_BRAND_NAME_DEFAULT, catalogItemTypeText, orderItemStatusText, orderItemStatusType, orderStatusText, orderVoidApprovalStatusText, reservationBoardActionText, reservationBoardStateText, resolveWalletBrandName, roomBoardStateText } from '@/constants/terms'
+import { ROOM_BOARD_STATE_TEXT, WALLET_BRAND_NAME_DEFAULT, catalogItemTypeText, orderItemStatusText, orderItemStatusType, orderVoidApprovalStatusText, reservationBoardActionText, reservationBoardStateText, resolveWalletBrandName, roomBoardStateText } from '@/constants/terms'
+import {
+  canAddItems,
+  canCloseSession,
+  canCollectOrder,
+  canConfirmOrder,
+  canSettleOrder,
+  canVoidOrder,
+  isActiveOrder,
+  isTerminalOrder,
+  ktvSessionStatusText,
+  orderDisplayStatusText,
+  orderStatusTagType,
+  orderTradeStatus,
+} from '@/constants/ktvOrderStatus'
 import { arrivalReservation, confirmReservation, getReservations, noShowReservation, openTableReservation } from '@/api/reservation'
 import { canMarkNoShow, isReservationRoomAssigned } from '@/utils/reservationRoom'
 import { listResources as listAdminResources, setRoomCleaningStatus } from '@/api/resource'
@@ -771,8 +785,8 @@ const route = useRoute()
 const router = useRouter()
 
 /**
- * 订单状态文案唯一出处是 constants/terms 的 ORDER_STATUS_TEXT（orderStatusText），
- * 页面不再内联「进行中/待结算/…」映射，避免与后端新增状态脱节。
+ * 订单状态文案唯一出处是 constants/ktvOrderStatus（tradeStatusText / ktvSessionStatusText /
+ * orderDisplayStatusText），页面不再内联「进行中/待结算/…」映射，也不读收口前的 ord_order.status。
  */
 /**
  * 看板列状态（前端组合态）→ 后端资源状态枚举。
@@ -784,7 +798,6 @@ function boardStateText(state) {
 
 /** 统计磁贴与筛选条共用同一份状态文案（键与 roomSummary / boardStatus 对齐）。 */
 const BOARD_FILTERS = Object.entries(ROOM_BOARD_STATE_TEXT).map(([value, label]) => ({ value, label }))
-const ACTIVE_ORDER_STATUSES = new Set(['DRAFT', 'SERVING', 'WAITING_SETTLEMENT', 'WAITING_PAYMENT'])
 const ACTIVE_RESERVATION_STATUSES = new Set(['PENDING', 'CONFIRMED', 'ARRIVED'])
 const AREA_ALL = '全部区域'
 /** 后端订单/会话接口暂未提供的字段：明确标注「未接入」，不再用推测值填充。 */
@@ -950,7 +963,7 @@ const canCancelOrder = computed(() => hasPermissionOrMissing(contextStore.curren
 const activeOrderByResource = computed(() => {
   const result = new Map()
   rows.value
-    .filter((order) => ACTIVE_ORDER_STATUSES.has(order.status) && (!order.businessType || order.businessType === 'KTV'))
+    .filter((order) => isActiveOrder(order) && (!order.businessType || order.businessType === 'KTV'))
     .sort((a, b) => dateValue(a.createdAt) - dateValue(b.createdAt))
     .forEach((order) => {
       const session = sessionsByOrder.value[order.id] || {}
@@ -979,7 +992,7 @@ const roomCards = computed(() => {
 
   const linkedOrderIds = new Set(cards.map((room) => room.order?.id).filter((id) => id != null))
   rows.value
-    .filter((order) => ACTIVE_ORDER_STATUSES.has(order.status) && (!order.businessType || order.businessType === 'KTV') && !linkedOrderIds.has(order.id))
+    .filter((order) => isActiveOrder(order) && (!order.businessType || order.businessType === 'KTV') && !linkedOrderIds.has(order.id))
     .forEach((order) => cards.push(normalizeOrphanOrder(order)))
 
   return cards.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true }))
@@ -1038,7 +1051,7 @@ const roomSummary = computed(() => {
   const summary = { total: roomCards.value.length, idle: 0, serving: 0, checkout: 0, reserved: 0, cleaning: 0, currentAmount: 0 }
   roomCards.value.forEach((room) => {
     if (summary[room.boardStatus] != null) summary[room.boardStatus] += 1
-    if (room.order && ACTIVE_ORDER_STATUSES.has(room.order.status)) summary.currentAmount += numberValue(room.amount)
+    if (room.order && isActiveOrder(room.order)) summary.currentAmount += numberValue(room.amount)
   })
   return summary
 })
@@ -1047,11 +1060,11 @@ const roomAreaTabs = computed(() => roomAreas.value.map((area) => ({ value: area
 
 const roomStats = computed(() => [
   { key: 'all', label: '全部包厢', value: roomSummary.value.total, suffix: '间', icon: Grid, tone: 'total', filterValue: 'all' },
-  { key: 'idle', label: ROOM_STATE_LABEL.idle, value: roomSummary.value.idle, suffix: '间', icon: Check, tone: 'idle', filterValue: 'idle' },
-  { key: 'serving', label: ROOM_STATE_LABEL.serving, value: roomSummary.value.serving, suffix: '间', icon: Timer, tone: 'serving', filterValue: 'serving' },
-  { key: 'checkout', label: ROOM_STATE_LABEL.checkout, value: roomSummary.value.checkout, suffix: '间', icon: Money, tone: 'checkout', filterValue: 'checkout' },
-  { key: 'reserved', label: ROOM_STATE_LABEL.reserved, value: roomSummary.value.reserved, suffix: '间', icon: Calendar, tone: 'reserved', filterValue: 'reserved' },
-  { key: 'cleaning', label: ROOM_STATE_LABEL.cleaning, value: roomSummary.value.cleaning, suffix: '间', icon: Service, tone: 'cleaning', filterValue: 'cleaning' },
+  { key: 'idle', label: ROOM_BOARD_STATE_TEXT.idle, value: roomSummary.value.idle, suffix: '间', icon: Check, tone: 'idle', filterValue: 'idle' },
+  { key: 'serving', label: ROOM_BOARD_STATE_TEXT.serving, value: roomSummary.value.serving, suffix: '间', icon: Timer, tone: 'serving', filterValue: 'serving' },
+  { key: 'checkout', label: ROOM_BOARD_STATE_TEXT.checkout, value: roomSummary.value.checkout, suffix: '间', icon: Money, tone: 'checkout', filterValue: 'checkout' },
+  { key: 'reserved', label: ROOM_BOARD_STATE_TEXT.reserved, value: roomSummary.value.reserved, suffix: '间', icon: Calendar, tone: 'reserved', filterValue: 'reserved' },
+  { key: 'cleaning', label: ROOM_BOARD_STATE_TEXT.cleaning, value: roomSummary.value.cleaning, suffix: '间', icon: Service, tone: 'cleaning', filterValue: 'cleaning' },
   { key: 'amount', label: '在场订单金额', value: formatYuanCompact(roomSummary.value.currentAmount), icon: Tickets, tone: 'amount', clickable: false },
 ])
 
@@ -1157,13 +1170,14 @@ function mergeResourceAvailability(adminData, businessData) {
 /**
  * 看板列状态（前端组合态）。
  *
- * <p>顺序很重要：**待结账优先于清洁中**。结台后包厢自动进入「清洁中」，但订单还在 WAITING_SETTLEMENT /
- * WAITING_PAYMENT（客人正在前台买单）。若先判清洁中，订单会被折叠成「清洁中」卡片，结算/收银入口
+ * <p>顺序很重要：**待收款优先于清洁中**。结台后包厢自动进入「清洁中」，但订单交易状态是
+ * PENDING_PAYMENT（客人正在前台买单）。若先判清洁中，订单会被折叠成「清洁中」卡片，结算/收银入口
  * 从看板上消失（此前就是这样）。现在清洁中 + 未收款 → 显示「待结账」，并在卡片上同时给出「清洁完成」。
  */
 function resourceBoardStatus(resource, order, reservation) {
   const rawStatus = String(firstValue(resource.roomState, resource.cleaningStatus, resource.occupancyStatus, resource.roomStatus, resource.businessStatus, resource.status, '')).toUpperCase()
-  if (order?.status === 'WAITING_SETTLEMENT' || order?.status === 'WAITING_PAYMENT') return 'checkout'
+  // 结算/收款看交易状态（已结台/已结算未收款），不再看已废弃的 WAITING_SETTLEMENT/WAITING_PAYMENT 订单状态。
+  if (order && orderTradeStatus(order) === 'PENDING_PAYMENT') return 'checkout'
   if (['CLEANING', 'MAINTENANCE', 'OUT_OF_SERVICE'].includes(rawStatus)) return 'cleaning'
   if (order) return 'serving'
   if (reservation) return 'reserved'
@@ -1172,7 +1186,7 @@ function resourceBoardStatus(resource, order, reservation) {
 }
 
 function boardStatusLabel(boardState, order, reservation) {
-  if (order) return orderStatusText(order.status)
+  if (order) return orderDisplayStatusText(order)
   if (boardState === 'reserved') return reservationBoardStateText(reservation?.status)
   // 空闲 / 使用中 / 清洁中一律取 constants/terms 的资源状态词表。
   return boardStateText(boardState)
@@ -1310,7 +1324,7 @@ function normalizeOrphanOrder(order) {
   const sessionStartedAt = firstValue(session.openedAt, pickField(session, 'billingStartAt', 'billing_start_at'), session.startedAt, session.startAt)
   const sessionEndedAt = firstValue(session.closedAt, session.closed_at, session.endedAt)
   const sessionPausedSeconds = pickField(session, 'pausedSeconds', 'paused_seconds')
-  const boardState = ['WAITING_SETTLEMENT', 'WAITING_PAYMENT'].includes(order.status) ? 'checkout' : 'serving'
+  const boardState = orderTradeStatus(order) === 'PENDING_PAYMENT' ? 'checkout' : 'serving'
   const orderNo = order.orderNo || `#${order.id}`
   const guests = firstValue(pickField(session, 'partySize', 'party_size'), session.guestCount, pickField(order, 'partySize', 'party_size'), order.guestCount)
   const capacity = firstValue(session.capacity, order.capacity)
@@ -1327,7 +1341,7 @@ function normalizeOrphanOrder(order) {
     reservation: null,
     session,
     boardStatus: boardState,
-    statusLabel: orderStatusText(order.status),
+    statusLabel: orderDisplayStatusText(order),
     amount: orderAmount(order),
     guests: guests === undefined || guests === null || guests === '' ? null : numberValue(guests),
     startedAt: timeText(sessionStartedAt),
@@ -1341,18 +1355,19 @@ function normalizeOrphanOrder(order) {
   }
 }
 
-function canVoid(s) {
-  return !['VOIDED', 'COMPLETED', 'CANCELLED'].includes(s)
+/** 是否可作废：交易状态非终态即可（已收款订单后端 409「先退款」兜底）。 */
+function canVoid(order) {
+  return canVoidOrder(order)
 }
 
 /** 取消入口是否出现在「···」菜单里：已作废/已取消不再出现，其余状态都要出现（不可取消时禁用并写明原因）。 */
-function showCancelItem(status) {
-  return status !== 'VOIDED' && status !== 'CANCELLED'
+function showCancelItem(order) {
+  return !!order && !isTerminalOrder(order)
 }
 
 /** 取消入口文案：不可取消时把原因写在菜单项上，运营不用点也知道下一步该做什么。 */
-function cancelMenuText(status) {
-  return canVoid(status) ? '取消订单' : '取消订单（已完成，须先退款）'
+function cancelMenuText(order) {
+  return canVoid(order) ? '取消订单' : '取消订单（已完成，须先退款）'
 }
 
 /** 清洁完成：包厢置回空闲，恢复可开台/可预约。 */
@@ -1396,7 +1411,7 @@ async function load() {
     reservations.value = asList(reservationData).filter((reservation) => reservation.storeId == null || String(reservation.storeId) === storeId)
     ktvPricing.value = pricingData
 
-    const activeOrders = rows.value.filter((order) => ACTIVE_ORDER_STATUSES.has(order.status) && (!order.businessType || order.businessType === 'KTV'))
+    const activeOrders = rows.value.filter((order) => isActiveOrder(order) && (!order.businessType || order.businessType === 'KTV'))
     const sessionEntries = await Promise.all(activeOrders.map(async (order) => {
       try {
         return [order.id, await getOrderSession(order.id)]
@@ -1695,20 +1710,12 @@ function normalizedPartySize() {
 const billOpen = computed(() => {
   const live = bill.value?.roomFee?.live
   if (typeof live === 'boolean') return live
-  const status = bill.value?.status
-  if (status === 'SERVING' || status === 'DRAFT') return true
-  return !bill.value?.roomFee?.periodEnd && status !== 'COMPLETED' && status !== 'VOIDED'
+  const trade = bill.value?.tradeStatus
+  if (trade === 'DRAFT') return true
+  return !bill.value?.roomFee?.periodEnd && trade !== 'COMPLETED' && trade !== 'CANCELLED'
 })
-const billStatusText = computed(() => (bill.value?.status ? orderStatusText(bill.value.status) : ''))
-const billStatusTagType = computed(() => {
-  switch (bill.value?.status) {
-    case 'SERVING': return 'warning'
-    case 'COMPLETED': return 'success'
-    case 'VOIDED':
-    case 'CANCELLED': return 'info'
-    default: return 'primary'
-  }
-})
+const billStatusText = computed(() => (bill.value ? orderDisplayStatusText(bill.value) : ''))
+const billStatusTagType = computed(() => orderStatusTagType(bill.value))
 
 async function showBill(row) {
   billVisible.value = true
@@ -1982,10 +1989,10 @@ async function closeOrderSession(order, closeItemsDialog = false) {
     // 结台即结算（服务端同一事务完成，2026-09-19）：没有待确认的客户自助加项时订单已进入待支付，
     // 收银按钮随即可点；仍有待确认加项时保持「待结算」——那些加项不计入应付，先确认/拒绝再点「结算」。
     const refreshed = rows.value.find((item) => String(item.id) === String(order.id))
-    if (refreshed?.status === 'WAITING_SETTLEMENT') {
+    if (refreshed && orderTradeStatus(refreshed) === 'PENDING_PAYMENT' && refreshed.sessionStatus === 'CLOSED' && pendingCount > 0) {
       ElMessage.warning('已结台；该订单还有待确认的客户自助加项，确认或拒绝后再点「结算」')
     } else {
-      ElMessage.success('已结台并进入待支付')
+      ElMessage.success('已结台并进入待收款')
     }
   } catch (e) {
     notifyAdminRequestError(e, '结台失败')
@@ -1994,7 +2001,7 @@ async function closeOrderSession(order, closeItemsDialog = false) {
 
 // —— 收银：组合支付（KTV_BUSINESS_01 §7.2）——
 // 抵扣顺序固定「积分 → 储值 → 现金补差额」，每笔 ≤ 剩余应收；支付方式取后台授权口径，
-// 储值展示名取租户配置 wallet_brand_name，与 A380 商户端 H5 收银台保持同一套口径。
+// 储值展示名取租户配置 wallet_brand_name，与 SaaS 商户端 H5 收银台保持同一套口径。
 const collectOrderTotalMinor = computed(() => Math.round(Number(collectOrder.value?.totalAmount || 0)))
 const collectOrderPaidMinor = computed(() => Math.round(Number(collectOrder.value?.paidAmount || 0)))
 /** 应收优先用服务端账单的 payableAmount，缺省时退回「合计 − 已收」。 */
@@ -2627,7 +2634,7 @@ onUnmounted(() => {
   .catalog-manage-toolbar { align-items: stretch; flex-direction: column; }
   .catalog-manage-form { grid-template-columns: 1fr; }
 }
-/* 收银台：组合支付金额与拆分校验提示（与 A380 商户端 H5 一致的口径） */
+/* 收银台：组合支付金额与拆分校验提示（与 SaaS 商户端 H5 一致的口径） */
 .collect-amount { font-size: 20px; font-weight: 700; color: #f56c6c; }
 .collect-muted { margin-left: 8px; color: var(--el-text-color-secondary); font-size: 12px; }
 .collect-mismatch { margin-left: 8px; color: var(--el-color-warning); font-size: 13px; }

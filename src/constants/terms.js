@@ -42,6 +42,8 @@ export const TERMS = {
 
 /** 界面禁用词：新文案不得出现，由 terms.test.js 扫描 views/ 守住。 */
 export const FORBIDDEN_TERMS = ['房间', '包间', '商家', '待收', '房台']
+/** 扫描用表达式：放行新状态词「待收款」，仍拦截裸「待收」。 */
+export const FORBIDDEN_TERM_PATTERNS = ['房间', '包间', '商家', '待收(?!款)', '房台']
 
 // —— 2. 金额字段与单位 —————————————————————————————————————————————
 /**
@@ -94,7 +96,7 @@ export const DURATION_LABELS = {
  * 储值品牌展示名默认值。规则：只取租户配置 `tnt_tenant_config.wallet_brand_name`，
  * 没有配置时才回落本默认值；全后台只有这一处可以写死品牌名（审计 §4.7）。
  */
-export const WALLET_BRAND_NAME_DEFAULT = 'OpenChat币'
+export const WALLET_BRAND_NAME_DEFAULT = 'SaaS 币'
 
 /** 解析储值展示名：只认租户配置，缺配置回落唯一默认值（页面不得自行拼默认名）。 */
 export function resolveWalletBrandName(config) {
@@ -418,11 +420,11 @@ export function pointsEntryTypeText(type) {
 }
 
 /**
- * 门店业态（tnt_store.business_type，字典 tnt_business_type.code）：后端已种子的唯一业态是
- * KTV（字典里的 name 也是「KTV」），因此界面展示保持「KTV」；新增业态必须补进本词表。
+ * 门店业务类型（tnt_store.business_type，字典 tnt_business_type.code）：后端已种子的唯一业务类型是
+ * KTV（字典里的 name 也是「KTV」），因此界面展示保持「KTV」；新增业务类型必须补进本词表。
  */
-export const BUSINESS_TYPE_TEXT = { KTV: 'KTV' }
-export const CONFIG_SCOPE_TEXT = { TENANT: '租户默认', BUSINESS: '业态默认', STORE: '门店覆盖' }
+export const BUSINESS_TYPE_TEXT = { KTV: 'KTV', HOTEL: '酒店' }
+export const CONFIG_SCOPE_TEXT = { TENANT: '租户默认', BUSINESS: '业务类型默认', STORE: '门店覆盖' }
 export function businessTypeText(type) {
   return BUSINESS_TYPE_TEXT[type] || unknownEnumText(type)
 }
@@ -443,6 +445,10 @@ export const TENANT_STATUS_TYPE = { ACTIVE: 'success', PENDING: 'warning', SUSPE
 export function tenantStatusText(status) {
   return TENANT_STATUS_TEXT[status] || unknownEnumText(status)
 }
+export function tenantStatusActionText(status) {
+  return status === 'ACTIVE' ? '停用' : '启用'
+}
+
 export function tenantStatusType(status) {
   return TENANT_STATUS_TYPE[status] || 'info'
 }
@@ -489,6 +495,16 @@ export function scopeTypeHintText(scope) {
   return SCOPE_TYPE_HINT_TEXT[scope] || scopeTypeText(scope)
 }
 
+/** IAM 角色类型（iam_role.role_type）。 */
+export const ROLE_TYPE_TEXT = {
+  PRESET: '预置',
+  TENANT: '自定义',
+  PLATFORM: '平台',
+}
+export function roleTypeText(type) {
+  return ROLE_TYPE_TEXT[type] || unknownEnumText(type)
+}
+
 /** IAM 权限项类型（iam_permission.type）。 */
 export const PERMISSION_TYPE_TEXT = { MENU: '菜单', ACTION: '操作' }
 export const PERMISSION_TYPE_TAG = { MENU: 'primary', ACTION: 'warning' }
@@ -509,18 +525,21 @@ export function shiftStatusType(status) {
   return SHIFT_STATUS_TYPE[status] || 'info'
 }
 
-/** 订单状态（ord_order.status，取值见 V1__ord_order_baseline.sql:8）。 */
+/**
+ * 订单**交易状态**（{@code ord_order.trade_status}，V24 目标契约 §2：
+ * DRAFT / PENDING_PAYMENT / PAID / COMPLETED / CANCELLED / VOIDED）。
+ *
+ * 订单主表只表达交易事实：KTV 开台中/挂单/结台看会话状态（ktvOrderStatus.js 的 sessionStatus），
+ * {@code ord_order.status} 是收口前兼容列，报表/列表都不再用它做展示口径。
+ * CANCELLED=用户取消、VOIDED=审批作废（报表独立统计，不混算）。
+ */
 export const ORDER_STATUS_TEXT = {
-  DRAFT: '进行中',
-  SERVING: '服务中',
-  WAITING_SETTLEMENT: '待结算',
-  WAITING_PAYMENT: '待支付',
-  WAITING_ARRIVAL: '待到店',
+  DRAFT: '开台中',
+  PENDING_PAYMENT: '待收款',
+  PAID: '已收款',
   COMPLETED: '已完成',
-  PARTIAL_REFUNDED: '部分退款',
-  REFUNDED: '已退款',
-  VOIDED: '已作废',
   CANCELLED: '已取消',
+  VOIDED: '已作废',
 }
 export function orderStatusText(status) {
   return ORDER_STATUS_TEXT[status] || unknownEnumText(status)
@@ -654,7 +673,7 @@ export const GRANULARITY_DEFAULT = 'DAY'
 /**
  * 销售报表的收款构成分类（后端 `pay_transaction.provider` 已归类，前端只做展示，不再自己映射渠道）。
  *
- * 口径：现金 CASH / 线上（ALIPAY、WECHAT、STRIPE）/ 储值币 WALLET（A380币）/ 积分 POINT /
+ * 口径：现金 CASH / 线上（ALIPAY、WECHAT、STRIPE）/ 储值币 WALLET（SaaS 币）/ 积分 POINT /
  * 其它（新增渠道未归类时后端显式暴露，保证「构成之和 = 收款金额」可核对）。
  *
  * 五个字段都是**金额**（最小货币单位、行内币种），不是代币数量：储值币/积分支付时，
@@ -776,7 +795,7 @@ export const AUDIT_RESOURCE_TYPE_TEXT = {
   ord_inventory_transaction: '库存流水',
   ord_ktv_session: 'KTV 会话',
   ord_ktv_server_session: '服务人员会话',
-  ord_reservation: '预约',
+  ktv_reservation: '预约',
   res_resource: '包厢',
   res_room_type: '房型',
   res_occupation: '包厢占用',
@@ -800,7 +819,7 @@ export const AUDIT_RESOURCE_TYPE_TEXT = {
   tnt_store: '门店',
   tnt_organization: '组织',
   tnt_pricing_plan: '计价方案',
-  tnt_business_type: '业态',
+  tnt_business_type: '业务类型',
   iam_role: '角色',
   iam_permission: '权限',
   iam_user_role: '账号角色',
@@ -1022,4 +1041,110 @@ export const ORDER_VOID_APPROVAL_STATUS_TEXT = {
 }
 export function orderVoidApprovalStatusText(status) {
   return ORDER_VOID_APPROVAL_STATUS_TEXT[status] || unknownEnumText(status)
+}
+
+// —— 酒店业务（2.4.0-hotel 原型）——
+export const HOTEL_BOOKING_STATUS_TEXT = {
+  PENDING_CONFIRM: '待确认',
+  CONFIRMED: '已确认',
+  CHECKED_IN: '已入住',
+  DUE_OUT: '在住 · 今日离店',
+  CHECKED_OUT: '已退房',
+  CANCELLED: '已取消',
+  NO_SHOW: '未到店',
+}
+export function hotelBookingStatusText(status) {
+  return HOTEL_BOOKING_STATUS_TEXT[status] || unknownEnumText(status)
+}
+
+/** 酒店订单来源：房态卡只展示来源，不在模板里自建英文枚举映射。 */
+export const HOTEL_BOOKING_SOURCE_TEXT = {
+  WEB: '官网/线上',
+  ADMIN: '前台',
+  PHONE: '电话',
+  WALK_IN: '散客',
+  OTA: 'OTA',
+}
+export function hotelBookingSourceText(source) {
+  return HOTEL_BOOKING_SOURCE_TEXT[source] || '前台'
+}
+
+export const HOUSEKEEPING_STATUS_TEXT = {
+  PENDING: '待清扫',
+  IN_PROGRESS: '清扫中',
+  DONE: '已完成',
+}
+export function housekeepingStatusText(status) {
+  return HOUSEKEEPING_STATUS_TEXT[status] || unknownEnumText(status)
+}
+
+/** 清扫类型：在住日常清扫不改变房态，退房清扫完成后才恢复可售。 */
+export const HOUSEKEEPING_TYPE_TEXT = {
+  STAYOVER: '在住清扫',
+  DEPARTURE: '退房清扫',
+}
+export function housekeepingTypeText(type) {
+  return HOUSEKEEPING_TYPE_TEXT[type] || '退房清扫'
+}
+
+export const HOUSEKEEPING_SOURCE_TEXT = {
+  CUSTOMER: '住客申请',
+  FRONT_DESK: '前台',
+  CHECKOUT: '退房',
+}
+export function housekeepingSourceText(source) {
+  return HOUSEKEEPING_SOURCE_TEXT[source] || '退房'
+}
+
+export const HOTEL_FOLIO_STATUS_TEXT = {
+  OPEN: '待结算',
+  SETTLED: '已结算',
+}
+export function hotelFolioStatusText(status) {
+  return HOTEL_FOLIO_STATUS_TEXT[status] || unknownEnumText(status)
+}
+
+export const HOTEL_ROOM_STATUS_TEXT = {
+  ACTIVE: '空闲',
+  OCCUPIED: '在住',
+  DIRTY: '待清扫',
+  MAINTENANCE: '维修中',
+}
+export function hotelRoomStatusText(status) {
+  return HOTEL_ROOM_STATUS_TEXT[status] || unknownEnumText(status)
+}
+
+export const HOTEL_PAYMENT_MODE_TEXT = {
+  PREPAY: '全额预付',
+  PAY_AT_HOTEL: '到店付',
+  DEPOSIT: '定金',
+}
+export function hotelPaymentModeText(mode) {
+  return HOTEL_PAYMENT_MODE_TEXT[mode] || unknownEnumText(mode)
+}
+
+/** 客房保留/不可售原因（htl_room_hold.reason）。 */
+export const HOTEL_ROOM_HOLD_REASON_TEXT = {
+  RESERVED: '预留',
+  GROUP_BLOCK: '团队保留',
+  HOUSE_USE: '自用房',
+  LOCKED: '锁定',
+  MAINTENANCE: '维修',
+  OUT_OF_SERVICE: '停售',
+}
+export function hotelRoomHoldReasonText(reason) {
+  return HOTEL_ROOM_HOLD_REASON_TEXT[reason] || unknownEnumText(reason)
+}
+
+/** 交易状态（ord_order.trade_status）；酒店订单页同时展示订单与预订两套状态。 */
+export const ORDER_TRADE_STATUS_TEXT = {
+  DRAFT: '草稿',
+  PENDING_PAYMENT: '待支付',
+  PAID: '已支付',
+  COMPLETED: '已完成',
+  CANCELLED: '已取消',
+  VOIDED: '已作废',
+}
+export function orderTradeStatusText(status) {
+  return ORDER_TRADE_STATUS_TEXT[status] || unknownEnumText(status)
 }

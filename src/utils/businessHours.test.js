@@ -10,10 +10,10 @@ import {
 
 /**
  * 营业时间判定：与服务端（KtvBusinessHoursApplicationService / TenantBusinessHoursClient）
- * 同一语义 —— 左闭右开、跨自然日、全天营业；缺省 KTV 夜间业态 18:00 – 次日 05:00。
+ * 同一语义 —— 左闭右开、跨自然日、全天营业；缺省 KTV 夜间业务类型 18:00 – 次日 05:00。
  */
 describe('营业时间：缺省与文案', () => {
-  it('缺省就是 KTV 夜间业态 18:00 – 次日 05:00', () => {
+  it('缺省就是 KTV 夜间业务类型 18:00 – 次日 05:00', () => {
     expect(DEFAULT_BUSINESS_HOURS.openTime).toBe('18:00')
     expect(DEFAULT_BUSINESS_HOURS.closeTime).toBe('05:00')
     expect(DEFAULT_BUSINESS_HOURS.crossesMidnight).toBe(true)
@@ -89,7 +89,7 @@ describe('营业时间：时刻是否在时段内（左闭右开）', () => {
 })
 
 describe('营业时间：预约门店本地时间取时刻', () => {
-  it('从 ord_reservation.startAt（门店本地墙上时间）取 HH:mm', () => {
+  it('从 ktv_reservation.startAt（门店本地墙上时间）取 HH:mm', () => {
     expect(timeOfStoreDateTime('2026-09-20T20:30:00')).toBe('20:30')
     expect(timeOfStoreDateTime('2026-09-20 01:05:00')).toBe('01:05')
     expect(timeOfStoreDateTime('')).toBe(null)

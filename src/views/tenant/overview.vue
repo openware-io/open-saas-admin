@@ -19,16 +19,50 @@
 
     <template v-else>
       <div class="admin-card filter-bar">
+        <el-radio-group v-model="scopeMode" size="small">
+          <el-radio-button value="ALL">全部门店</el-radio-button>
+          <el-radio-button value="HOTEL" :disabled="!isEntitled('HOTEL')">酒店</el-radio-button>
+          <el-radio-button value="KTV" :disabled="!isEntitled('KTV')">KTV</el-radio-button>
+          <el-radio-button value="STORE">单店</el-radio-button>
+        </el-radio-group>
+        <el-tag v-for="item in entitlements" :key="item.businessType" size="small" effect="plain">
+          {{ businessTypeText(item.businessType) }} 已开通
+        </el-tag>
+        <template v-if="canManageBusiness && entitlementsLoaded">
+          <el-button v-if="!isEntitled('HOTEL')" link type="primary" @click="enableBusinessType('HOTEL')">
+            开通酒店
+          </el-button>
+          <el-button v-if="!isEntitled('KTV')" link type="primary" @click="enableBusinessType('KTV')">
+            开通 KTV
+          </el-button>
+        </template>
         <el-date-picker v-model="range" type="daterange" value-format="YYYY-MM-DD" range-separator="至"
           start-placeholder="开始日期" end-placeholder="结束日期" clearable />
-        <el-select v-model="selectedStoreIds" multiple collapse-tags collapse-tags-tooltip clearable
-          placeholder="全部可见门店" style="width: 320px">
+        <el-select v-if="scopeMode === 'STORE'" v-model="selectedStoreIds" multiple collapse-tags collapse-tags-tooltip clearable
+          placeholder="选择门店" style="width: 280px">
           <el-option v-for="store in stores" :key="store.id" :label="store.name" :value="store.id" />
         </el-select>
         <el-button type="primary" :loading="loading" @click="load">查询</el-button>
       </div>
 
       <el-alert v-if="error" type="error" :closable="false" show-icon :title="error" class="error-alert" />
+
+      <section v-if="showOnboarding" class="admin-card onboarding-card">
+        <div class="section-title">开通清单</div>
+        <p class="subtle">新租户/新门店先完成这些动作，再进入日常经营。</p>
+        <div class="onboarding-list">
+          <div v-for="step in onboardingSteps" :key="step.key" class="onboarding-item" :class="{ done: step.done }">
+            <span class="onboarding-dot">{{ step.done ? '✓' : '·' }}</span>
+            <div>
+              <strong>{{ step.label }}</strong>
+              <small>{{ step.hint }}</small>
+            </div>
+            <el-button v-if="!step.done && step.action" link type="primary" @click="goStep(step.action)">
+              {{ step.actionLabel }}
+            </el-button>
+          </div>
+        </div>
+      </section>
 
       <div v-if="overview" class="metric-grid" v-loading="loading">
         <section class="metric-card"><span>客户数</span><strong>{{ integer(customer.memberCount) }}</strong><small>租户去重客户，不按门店相加</small></section>
@@ -62,7 +96,7 @@
         <div class="section-title">订单经营事实</div>
         <el-table :data="overview.order.rows || []" size="small" border>
           <el-table-column prop="storeId" label="门店" width="100" />
-          <el-table-column label="业态" width="120">
+          <el-table-column label="业务类型" width="120">
             <template #default="{ row }">{{ businessTypeText(row.businessType) }}</template>
           </el-table-column>
           <el-table-column prop="currencyCode" label="币种" width="100" />
@@ -74,7 +108,7 @@
             <template #default="{ row }">{{ formatMoney(Number(row.paidAmount || 0), row.currencyCode) }}</template>
           </el-table-column>
         </el-table>
-        <p class="subtle">订单事实按门店、业态和币种分组；退款事实由支付领域独立展示。</p>
+        <p class="subtle">订单事实按门店、业务类型和币种分组；退款事实由支付领域独立展示。</p>
       </section>
       <el-alert v-if="overview?.dataStatus === 'PARTIAL'" type="warning" :closable="false" show-icon
         title="部分领域暂不可用" description="页面展示的指标来自当前可用领域，失败项可稍后刷新重试。" class="error-alert" />
@@ -87,22 +121,45 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 import { getTenantOverview } from '@/api/tenant-overview'
+import { listBusinessEntitlements, enableBusiness } from '@/api/business'
 import { listStores } from '@/api/store'
 import { useContextStore } from '@/stores/context'
 import { formatMoney, formatTime } from '@/utils/format'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { businessTypeText } from '@/constants/terms'
+import { hasPermission } from '@/utils/context'
 
 const contextStore = useContextStore()
+const router = useRouter()
 const loading = ref(false)
 const error = ref('')
 const overview = ref(null)
 const stores = ref([])
 const selectedStoreIds = ref([])
+const entitlements = ref([])
+const entitlementsLoaded = ref(false)
+const scopeMode = ref('ALL')
 const range = ref([])
 const customer = computed(() => overview.value?.customer || {})
+const onboardingSteps = computed(() => [
+  { key: 'store', label: '创建门店', hint: '至少有一家营业门店', done: stores.value.length > 0, action: '/admin/tenant/stores', actionLabel: '去创建' },
+  { key: 'business', label: '开通业务类型', hint: '门店已绑定酒店/KTV等业务类型', done: stores.value.some((store) => !!store.businessType), action: '/admin/tenant/stores', actionLabel: '去配置' },
+  { key: 'payment', label: '配置支付方式', hint: '至少配置一种可用收款方式', done: (overview.value?.payment?.rows || []).length > 0, action: '/business/payment-methods', actionLabel: '去配置' },
+  { key: 'order', label: '产生首笔订单', hint: '有订单后经营总览才有真实数据', done: (overview.value?.order?.rows || []).length > 0, action: '/business/orders', actionLabel: '去查看' },
+])
+const showOnboarding = computed(() => !!overview.value && onboardingSteps.value.some((step) => !step.done))
+
+function isEntitled(businessType) {
+  if (!entitlements.value.length) return true
+  return entitlements.value.some((item) => item.businessType === businessType && item.status === 'ACTIVE')
+}
+
+function goStep(path) {
+  router.push(path)
+}
 
 function integer(value) { return new Intl.NumberFormat('zh-CN').format(Number(value || 0)) }
 function signed(value) { const number = Number(value || 0); return `${number > 0 ? '+' : ''}${integer(number)}` }
@@ -113,6 +170,10 @@ async function loadStores() {
   try { stores.value = (await listStores({ status: 'ACTIVE' })) || [] } catch { stores.value = [] }
 }
 
+async function loadBusinesses() {
+  try { entitlements.value = (await listBusinessEntitlements()) || [] } catch { entitlements.value = [] }
+}
+
 async function load() {
   if (contextStore.storeId) return
   loading.value = true
@@ -121,7 +182,10 @@ async function load() {
     overview.value = await getTenantOverview({
       from: range.value?.[0] || undefined,
       to: range.value?.[1] || undefined,
-      storeIds: selectedStoreIds.value.length ? selectedStoreIds.value.join(',') : undefined,
+      businessType: scopeMode.value === 'HOTEL' || scopeMode.value === 'KTV' ? scopeMode.value : undefined,
+      storeIds: scopeMode.value === 'STORE' && selectedStoreIds.value.length
+        ? selectedStoreIds.value.join(',')
+        : undefined,
     })
   } catch (exception) {
     overview.value = null
@@ -130,7 +194,22 @@ async function load() {
   } finally { loading.value = false }
 }
 
-onMounted(async () => { await loadStores(); await load() })
+onMounted(async () => {
+  // 总部经营总览只属于 HEADQUARTERS 数据范围；门店上下文没有跨店汇总，
+  // 直接进入该门店的业务首页，避免显示一条“没有权限”的空页面。
+  if (contextStore.storeId) {
+    const target = contextStore.businessType === 'HOTEL'
+      ? '/admin/tenant/hotel'
+      : contextStore.businessType === 'KTV'
+        ? '/admin/ktv/config'
+        : '/admin/orders'
+    await router.replace(target)
+    return
+  }
+  await loadStores()
+  await loadBusinesses()
+  await load()
+})
 </script>
 
 <style scoped>
@@ -143,5 +222,14 @@ onMounted(async () => { await loadStores(); await load() })
 .error-alert { margin-top: 16px; }
 .payment-summary { margin-top: 16px; }
 .section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+.onboarding-card { margin-top: 16px; }
+.onboarding-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-top: 12px; }
+.onboarding-item { display: flex; align-items: flex-start; gap: 9px; padding: 10px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; }
+.onboarding-item.done { background: var(--el-color-success-light-9); }
+.onboarding-dot { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--el-fill-color); color: var(--el-text-color-secondary); font-size: 12px; flex: 0 0 20px; }
+.onboarding-item.done .onboarding-dot { background: var(--el-color-success); color: #fff; }
+.onboarding-item strong { display: block; font-size: 13px; }
+.onboarding-item small { display: block; margin-top: 3px; color: var(--el-text-color-secondary); font-size: 12px; }
+.onboarding-item .el-button { margin-left: auto; }
 .refund-title { margin-top: 20px; }
 </style>

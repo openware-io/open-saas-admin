@@ -54,8 +54,8 @@ describe('订单/包厢看板（orders.vue）', () => {
     expect(source).toContain("boardStatus === 'cleaning'")
     expect(source).toContain('roomSummary.value.cleaning')
     expect(source).toContain("filterValue: 'cleaning'")
-    expect(source).toContain('ROOM_STATE_LABEL.cleaning')
-    expect(source).toContain('RESOURCE_STATE_TEXT')
+    expect(source).toContain('ROOM_BOARD_STATE_TEXT.cleaning')
+    expect(source).not.toContain('ROOM_STATE_LABEL')
   })
 
   it('F9：包厢卡片与目录项都有懒加载缩略图与失败占位', async () => {
@@ -129,7 +129,7 @@ describe('全后台文案一致性', () => {
   it('消费端页面不在硬编码储值品牌名（取租户配置 wallet_brand_name）', async () => {
     for (const view of ['tenant/orders.vue', 'tenant/payments.vue', 'tenant/ktv-config.vue']) {
       const source = await readSource(`views/${view}`)
-      expect(source).not.toContain('A380币')
+      expect(source).not.toContain('SaaS 币')
     }
   })
 

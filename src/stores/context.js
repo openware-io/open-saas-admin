@@ -198,6 +198,8 @@ export const useContextStore = defineStore('context', () => {
    */
   async function revalidate(preferredScope, { force = false } = {}) {
     if (revalidating) return revalidating
+    // 平台工作区没有租户/门店上下文，不能走空 contextId 的 select，否则 403 会伪装成权限错误。
+    if (preferredScope === 'PLATFORM') return 'fresh'
     if (!force && Date.now() - lastRevalidatedAt < REVALIDATE_INTERVAL_MS) return 'fresh'
     const myGeneration = generation
     const seq = ++revalidateSeq
@@ -223,6 +225,8 @@ export const useContextStore = defineStore('context', () => {
         const serverContextId = session.selectedContextId || ''
         const localContextId = observedContextId
         const snapshotStale = Date.now() - snapshotAt > SNAPSHOT_FRESH_MS
+        // 平台会话没有 selectedContextId；不能把空字符串当成「要重选的门店」。
+        if (!serverContextId && !localContextId) return 'fresh'
         if (serverContextId === localContextId && !snapshotStale) return 'fresh'
         if (serverContextId === localContextId) {
           await select(localContextId)

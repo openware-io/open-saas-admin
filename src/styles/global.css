@@ -17,21 +17,37 @@ body,
     Arial,
     'PingFang SC',
     'Microsoft YaHei',
+    'Roboto',
+    'Helvetica Neue',
+    Arial,
     sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 :root {
+  --brand-primary: #13b981;
+  --brand-primary-dark: #079668;
+  --brand-navy: #273f73;
+  --brand-gold: #ffd978;
   --sidebar-bg: #1d1e2c;
-  --sidebar-active: #409eff;
+  --sidebar-active: var(--brand-primary);
   --header-height: 56px;
   --sidebar-width: 220px;
-  --admin-bg: #f0f2f5;
+  --admin-bg: #f5f6f8;
   --admin-content-max: 1680px;
-  --admin-radius: 10px;
-  --admin-radius-sm: 8px;
+  --admin-radius: 14px;
+  --admin-radius-sm: 10px;
   --admin-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   --admin-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --el-color-primary: #13b981;
+  --el-color-primary-light-3: #52cfa8;
+  --el-color-primary-light-5: #80ddc1;
+  --el-color-primary-light-7: #b3ead9;
+  --el-color-primary-light-8: #c9f0e4;
+  --el-color-primary-light-9: #e3f8f1;
+  --el-color-primary-dark-2: #079668;
+  --el-border-radius-base: 10px;
+  --el-border-radius-small: 8px;
 }
 
 /* ========== 页面骨架（各业务页根节点加 class="admin-page"） ========== */
@@ -189,4 +205,27 @@ body,
 .el-table th.el-table__cell {
   text-align: center !important;
   vertical-align: middle;
+}
+
+/* ========== 业务指标卡（KTV/酒店等业务页共用） ========== */
+.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.metric-card { display: flex; flex-direction: column; padding: 16px 18px; border: 1px solid var(--el-border-color-lighter); border-radius: var(--admin-radius); background: var(--el-bg-color); box-shadow: var(--admin-shadow-card); }
+.metric-card span, .metric-card small { color: var(--el-text-color-secondary); font-size: 13px; }
+.metric-card strong { margin: 8px 0 4px; color: var(--el-text-color-primary); font-size: 26px; line-height: 1.1; }
+@media (max-width: 640px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .metric-grid { grid-template-columns: 1fr; } }
+
+/* Unified B/C surface tokens: dialogs, popovers and form controls. */
+.el-dialog,
+.el-message-box,
+.el-drawer {
+  border-radius: var(--admin-radius);
+}
+.el-select__popper.el-popper,
+.el-date-picker,
+.el-picker-panel {
+  border-radius: var(--admin-radius-sm);
+}
+.el-button {
+  border-radius: var(--el-border-radius-base);
 }

@@ -72,8 +72,8 @@ describe('server-owned selected context', () => {
     })
     const store = useContextStore()
     await store.ensureContext('TENANT')
-    expect(store.current?.contextId).toBe('200:200:200')
-    expect(selectContext.mock.calls.map((call) => call[0])).toEqual(['100::', '200:200:200'])
+    expect(store.current?.contextId).toBe('1::')
+    expect(selectContext.mock.calls.map((call) => call[0])).toEqual(['100::', '1::'])
   })
 
   it('clears account state on session expiry', async () => {
@@ -101,7 +101,7 @@ describe('context select 传播币种（§3）', () => {
   })
 
   it('选择响应合并候选上下文名称，左侧租户/门店标题不丢失', async () => {
-    const named = { ...candidates[1], tenantName: 'A380', organizationName: 'A380 总部', storeName: 'A380 KTV 旗舰店' }
+    const named = { ...candidates[1], tenantName: 'SaaS', organizationName: 'SaaS 总部', storeName: 'SaaS KTV 旗舰店' }
     getContexts.mockResolvedValue({ items: [named] })
     selectContext.mockResolvedValue({ tenantId: 100, organizationId: null, storeId: null, permissions: ['tenant.overview.view'], currencyCode: 'USD' })
     getSession.mockResolvedValue({ authenticated: true, selectedContextId: '100::' })
@@ -111,9 +111,9 @@ describe('context select 传播币种（§3）', () => {
 
     expect(store.current).toMatchObject({
       tenantId: 100,
-      tenantName: 'A380',
-      organizationName: 'A380 总部',
-      storeName: 'A380 KTV 旗舰店',
+      tenantName: 'SaaS',
+      organizationName: 'SaaS 总部',
+      storeName: 'SaaS KTV 旗舰店',
       currencyCode: 'USD',
     })
   })

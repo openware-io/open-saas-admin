@@ -43,12 +43,56 @@ export function createTenant(data) {
   return request.post('/api/v1/admin/platform/tenants', data)
 }
 
+/** 平台：为新租户创建首个租户管理员（tenant.owner）。 */
+export function bootstrapTenantOwner(tenantId, data) {
+  return request.post('/api/v1/admin/staff/bootstrap-owner', { tenantId, ...data })
+}
+
+/** 平台：启用/停用租户。 */
+export function updateTenantStatus(tenantId, status) {
+  return request.patch('/api/v1/admin/platform/tenants/' + tenantId + '/status', { status })
+}
+
 // 脱敏权限管理（租户级安全：member.pii.view）
 export function listMaskingRoles() {
   return request.get('/api/v1/admin/iam/masking')
 }
 export function toggleRolePermission(roleId, permissionCode, granted) {
   return request.post('/api/v1/admin/iam/roles/' + roleId + '/permissions/toggle', { permissionCode, granted })
+}
+
+// 角色工作台模板（平台级）：工作区、登录落点、数据范围。
+export function listRoleProfiles() {
+  return request.get('/api/v1/admin/iam/role-profiles')
+}
+export function updateRoleProfile(id, data) {
+  return request.put('/api/v1/admin/iam/role-profiles/' + id, data)
+}
+
+// 角色与权限：平台/租户目录、权限矩阵、租户自定义角色
+export function listRoleCatalog() {
+  return request.get('/api/v1/admin/iam/roles/catalog')
+}
+export function listPermissions() {
+  return request.get('/api/v1/admin/iam/permissions')
+}
+export function listRolePermissions(roleId) {
+  return request.get('/api/v1/admin/iam/roles/' + roleId + '/permissions')
+}
+export function createRole(data) {
+  return request.post('/api/v1/admin/iam/roles', data)
+}
+export function assignRolePermissions(roleId, permissionIds) {
+  return request.post('/api/v1/admin/iam/roles/' + roleId + '/permissions', { permissionIds })
+}
+export function assignUserRole(data) {
+  return request.post('/api/v1/admin/iam/user-roles', data)
+}
+export function revokeRoleMember(roleId, accountId) {
+  return request.delete(`/api/v1/admin/iam/roles/${roleId}/accounts/${accountId}`)
+}
+export function updateRoleMemberScope(roleId, accountId, data) {
+  return request.put(`/api/v1/admin/iam/roles/${roleId}/accounts/${accountId}/scope`, data)
 }
 
 // 租户钱包代币配置（名称 + 金额:代币比例）
