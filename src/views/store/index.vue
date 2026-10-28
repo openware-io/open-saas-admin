@@ -126,8 +126,8 @@ const tasks = ref([])
 const loading = ref(false)
 const context = computed(() => contextStore.current)
 const isHotel = computed(() => context.value?.businessType === 'HOTEL')
-const canCheckIn = computed(() => hasPermission(context.value?.permissions, 'hotel.checkin'))
-const canCheckOut = computed(() => hasPermission(context.value?.permissions, 'hotel.checkout'))
+const canCheckIn = computed(() => hasPermission(context.value?.permissions, 'hotel.room.manage'))
+const canCheckOut = computed(() => hasPermission(context.value?.permissions, 'hotel.folio.manage'))
 const canViewHotel = computed(() => hasPermission(context.value?.permissions, 'hotel.booking.view'))
 
 const counts = computed(() => {

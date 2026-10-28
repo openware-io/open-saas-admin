@@ -795,7 +795,7 @@ export const AUDIT_RESOURCE_TYPE_TEXT = {
   ord_inventory_transaction: '库存流水',
   ord_ktv_session: 'KTV 会话',
   ord_ktv_server_session: '服务人员会话',
-  ord_reservation: '预约',
+  ktv_reservation: '预约',
   res_resource: '包厢',
   res_room_type: '房型',
   res_occupation: '包厢占用',

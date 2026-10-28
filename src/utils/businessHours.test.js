@@ -89,7 +89,7 @@ describe('营业时间：时刻是否在时段内（左闭右开）', () => {
 })
 
 describe('营业时间：预约门店本地时间取时刻', () => {
-  it('从 ord_reservation.startAt（门店本地墙上时间）取 HH:mm', () => {
+  it('从 ktv_reservation.startAt（门店本地墙上时间）取 HH:mm', () => {
     expect(timeOfStoreDateTime('2026-09-20T20:30:00')).toBe('20:30')
     expect(timeOfStoreDateTime('2026-09-20 01:05:00')).toBe('01:05')
     expect(timeOfStoreDateTime('')).toBe(null)
