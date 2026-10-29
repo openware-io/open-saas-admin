@@ -89,36 +89,43 @@
       :close-on-click-modal="false"
       :before-close="beforePermissionClose"
     >
-      <el-alert
-        v-if="isPreset(currentRole)"
-        type="warning"
-        :closable="false"
-        title="预置角色只读；需要调整请复制为租户自定义角色"
-        class="permission-alert"
-      />
-      <div v-loading="permissionLoading" class="permission-groups">
-        <section v-for="group in permissionGroups" :key="group.module" class="permission-group">
-          <h4>{{ group.module }}</h4>
-          <el-checkbox-group v-model="selectedPermissionIds" :disabled="isPreset(currentRole)">
-            <el-checkbox v-for="permission in group.items" :key="permission.id" :value="permission.id">
-              {{ permission.description || permission.code }}
-            </el-checkbox>
-          </el-checkbox-group>
-        </section>
-        <el-empty v-if="!permissionLoading && !permissionGroups.length" description="当前作用域没有可授予权限" />
-      </div>
-      <template #footer>
-        <el-button @click="requestPermissionClose">取消</el-button>
-        <el-button
-          v-if="!isPreset(currentRole)"
-          type="primary"
-          :loading="savingPermissions"
-          @click="savePermissions"
-        >
-          保存权限
-        </el-button>
-        <el-button v-else type="primary" @click="copyCurrentRole">复制角色</el-button>
-      </template>
+        <el-alert
+          v-if="!canManage && !isPreset(currentRole)"
+          type="info"
+          :closable="false"
+          title="当前账号只有角色查看权限，权限矩阵为只读"
+          class="permission-alert"
+        />
+        <el-alert
+          v-if="isPreset(currentRole)"
+          type="warning"
+          :closable="false"
+          title="预置角色只读；需要调整请复制为租户自定义角色"
+          class="permission-alert"
+        />
+        <div v-loading="permissionLoading" class="permission-groups">
+          <section v-for="group in permissionGroups" :key="group.module" class="permission-group">
+            <h4>{{ group.module }}</h4>
+            <el-checkbox-group v-model="selectedPermissionIds" :disabled="isPreset(currentRole) || !canManage">
+              <el-checkbox v-for="permission in group.items" :key="permission.id" :value="permission.id">
+                {{ permission.description || permission.code }}
+              </el-checkbox>
+            </el-checkbox-group>
+          </section>
+          <el-empty v-if="!permissionLoading && !permissionGroups.length" description="当前作用域没有可授予权限" />
+        </div>
+        <template #footer>
+          <el-button @click="requestPermissionClose">取消</el-button>
+          <el-button
+            v-if="!isPreset(currentRole) && canManage"
+            type="primary"
+            :loading="savingPermissions"
+            @click="savePermissions"
+          >
+            保存权限
+          </el-button>
+          <el-button v-else-if="isPreset(currentRole)" type="primary" @click="copyCurrentRole">复制角色</el-button>
+        </template>
     </el-dialog>
     <el-dialog v-model="memberVisible" :title="memberRole ? `分配人员 · ${memberRole.name}` : '分配人员'" width="620px">
       <el-alert
@@ -235,8 +242,9 @@ const isPlatform = computed(() => {
   const current = contextStore.current
   return current?.scopeType === 'PLATFORM' || !current?.tenantId
 })
-const canCreate = computed(() => hasPermission(contextStore.current?.permissions,
+const canManage = computed(() => hasPermission(contextStore.current?.permissions,
   isPlatform.value ? 'platform.iam.role.manage' : 'iam.role.manage'))
+const canCreate = canManage
 const scopeHint = computed(() => isPlatform.value
   ? '平台角色按 PLATFORM 可授予范围配置权限；平台运营进入租户上下文时使用同一权限快照。'
   : '租户可创建 TENANT/STORE 角色；预置角色只读，修改请复制。')

@@ -20,10 +20,10 @@ const CURRENCY_MENU = { id: 27, name: '币种', path: '/admin/tenant/currency', 
 const STORE_MENU = { id: 10, name: '门店', path: '/admin/tenant/stores', children: [] }
 
 describe('菜单权限映射（后端菜单 + 前端附加门禁）', () => {
-  it('角色/权限管理菜单登记 iam.role.manage 门禁', () => {
+  it('角色菜单登记查看权限，写操作由页面按钮控制', () => {
     expect(MENU_ITEM_PERMISSIONS['/admin/tenant/currency']).toBe('tenant.currency.manage')
     expect(MENU_ITEM_PERMISSIONS['/admin/tenant/overview']).toBe('tenant.overview.view')
-    expect(MENU_ITEM_PERMISSIONS['/admin/roles']).toBe('iam.role.manage')
+    expect(MENU_ITEM_PERMISSIONS['/admin/roles']).toBe('iam.role.view')
   })
 
   it('权限快照的四种形态都容错（数组 / {code} / {permissionCode} / {code:true}）', () => {
@@ -52,8 +52,8 @@ describe('菜单权限映射（后端菜单 + 前端附加门禁）', () => {
     expect(isMenuItemVisible(STORE_MENU, ['tenant.store.manage'])).toBe(true)
     expect(isMenuItemVisible({ path: '/admin/ktv/config' }, [])).toBe(false)
     expect(isMenuItemVisible({ path: '/admin/ktv/config' }, ['tenant.business.manage'])).toBe(true)
-    expect(isMenuItemVisible({ path: '/admin/roles', requiredPermission: 'iam.role.manage' }, [])).toBe(false)
-    expect(isMenuItemVisible({ path: '/admin/roles', requiredPermission: 'iam.role.manage' }, ['iam.role.manage'])).toBe(true)
+    expect(isMenuItemVisible({ path: '/admin/roles', requiredPermission: 'iam.role.view' }, [])).toBe(false)
+    expect(isMenuItemVisible({ path: '/admin/roles', requiredPermission: 'iam.role.view' }, ['iam.role.view'])).toBe(true)
   })
 
   it('过滤时保留原菜单顺序与结构，子项同样适用映射', () => {
