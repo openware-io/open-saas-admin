@@ -73,6 +73,7 @@ const ERROR_CODE_MESSAGES = Object.freeze({
   TENANT_SCOPE_DENIED: '无权访问其他租户的数据。',
   TENANT_CONTEXT_MISSING: '缺少租户上下文，请重新选择门店后重试。',
   PERMISSION_DENIED: '当前账号没有执行此操作的权限。',
+  PERMISSION_VERSION_CONFLICT: '角色权限已被其他管理员修改，请刷新后重试。',
   CONTEXT_FORBIDDEN: '当前上下文没有该操作权限，请重新选择门店上下文后重试。',
   SAAS_CONTEXT_REQUIRED: '请先选择租户 / 门店上下文。',
   SAAS_CONTEXT_INVALID: '运营上下文已失效，请重新选择门店上下文。',

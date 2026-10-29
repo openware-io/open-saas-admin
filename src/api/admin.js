@@ -57,8 +57,10 @@ export function updateTenantStatus(tenantId, status) {
 export function listMaskingRoles() {
   return request.get('/api/v1/admin/iam/masking')
 }
-export function toggleRolePermission(roleId, permissionCode, granted) {
-  return request.post('/api/v1/admin/iam/roles/' + roleId + '/permissions/toggle', { permissionCode, granted })
+export function toggleRolePermission(roleId, permissionCode, granted, expectedVersion) {
+  const body = { permissionCode, granted }
+  if (expectedVersion) body.expectedVersion = expectedVersion
+  return request.post('/api/v1/admin/iam/roles/' + roleId + '/permissions/toggle', body)
 }
 
 // 角色工作台模板（平台级）：工作区、登录落点、数据范围。
@@ -76,14 +78,31 @@ export function listRoleCatalog() {
 export function listPermissions() {
   return request.get('/api/v1/admin/iam/permissions')
 }
+/**
+ * 权限目录矩阵：权限列表 + 全局角色授权覆盖，一次请求同一快照。
+ * @param {object} [params] `{ refresh: true }` 跳过服务端缓存读取（页面手动刷新）
+ */
+export function getPermissionMatrix(params) {
+  return request.get('/api/v1/admin/iam/permissions/matrix', { params })
+}
+/** 权限目录版本：页面聚焦时轻量校验，版本未变不重新拉全量矩阵。 */
+export function getPermissionMatrixVersion() {
+  return request.get('/api/v1/admin/iam/permissions/matrix/version')
+}
 export function listRolePermissions(roleId) {
   return request.get('/api/v1/admin/iam/roles/' + roleId + '/permissions')
+}
+/** 角色权限快照：权限编码 + 版本（编辑弹窗做乐观并发校验）。 */
+export function getRolePermissionSnapshot(roleId) {
+  return request.get('/api/v1/admin/iam/roles/' + roleId + '/permissions/snapshot')
 }
 export function createRole(data) {
   return request.post('/api/v1/admin/iam/roles', data)
 }
-export function assignRolePermissions(roleId, permissionIds) {
-  return request.post('/api/v1/admin/iam/roles/' + roleId + '/permissions', { permissionIds })
+export function assignRolePermissions(roleId, permissionIds, expectedVersion) {
+  const body = { permissionIds }
+  if (expectedVersion) body.expectedVersion = expectedVersion
+  return request.post('/api/v1/admin/iam/roles/' + roleId + '/permissions', body)
 }
 export function assignUserRole(data) {
   return request.post('/api/v1/admin/iam/user-roles', data)

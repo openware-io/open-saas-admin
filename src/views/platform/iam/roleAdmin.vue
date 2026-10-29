@@ -85,6 +85,7 @@
       :title="currentRole ? `权限矩阵 · ${currentRole.name}` : '权限矩阵'"
       width="720px"
       :close-on-click-modal="false"
+      :before-close="beforePermissionClose"
     >
       <el-alert
         v-if="isPreset(currentRole)"
@@ -105,7 +106,7 @@
         <el-empty v-if="!permissionLoading && !permissionGroups.length" description="当前作用域没有可授予权限" />
       </div>
       <template #footer>
-        <el-button @click="permissionVisible = false">取消</el-button>
+        <el-button @click="requestPermissionClose">取消</el-button>
         <el-button
           v-if="!isPreset(currentRole)"
           type="primary"
@@ -181,12 +182,13 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   assignRolePermissions,
   assignUserRole,
   createRole,
+  getRolePermissionSnapshot,
   listPermissions,
   listRoleCatalog,
   listRolePermissions,
@@ -200,6 +202,7 @@ import { useContextStore } from '@/stores/context'
 import { roleTypeText, scopeTypeText } from '@/constants/terms'
 
 const router = useRouter()
+const route = useRoute()
 const contextStore = useContextStore()
 const roles = ref([])
 const permissions = ref([])
@@ -212,6 +215,8 @@ const saving = ref(false)
 const savingPermissions = ref(false)
 const currentRole = ref(null)
 const selectedPermissionIds = ref([])
+const initialPermissionIds = ref([])
+const permissionVersion = ref('')
 const memberVisible = ref(false)
 const memberRole = ref(null)
 const members = ref([])
@@ -290,6 +295,21 @@ async function load() {
   }
 }
 
+/**
+ * 从权限目录矩阵列头深链进入：query.role 指定角色 code，加载完成后自动打开该角色的权限矩阵。
+ * 打开后清掉 query，避免刷新/返回时重复弹出。
+ */
+async function openRoleFromQuery() {
+  const roleCode = typeof route.query.role === 'string' ? route.query.role : ''
+  if (!roleCode) return
+  const role = roles.value.find((item) => item.code === roleCode)
+  if (!role) return
+  const query = { ...route.query }
+  delete query.role
+  await router.replace({ query })
+  await openPermissions(role)
+}
+
 function openCreate(source) {
   form.code = source ? `${source.code}.copy` : ''
   form.name = source ? `${source.name} 副本` : ''
@@ -322,12 +342,18 @@ async function saveRole() {
 async function openPermissions(role) {
   currentRole.value = role
   selectedPermissionIds.value = []
+  initialPermissionIds.value = []
+  permissionVersion.value = ''
   permissionVisible.value = true
   permissionLoading.value = true
   try {
-    const codes = (await listRolePermissions(role.id)) || []
+    const snapshot = await getRolePermissionSnapshot(role.id)
+    const codes = snapshot?.permissionCodes || []
     const byCode = new Map(permissions.value.map((permission) => [permission.code, permission.id]))
-    selectedPermissionIds.value = codes.map((code) => byCode.get(code)).filter(Boolean)
+    const ids = codes.map((code) => byCode.get(code)).filter(Boolean)
+    selectedPermissionIds.value = ids
+    initialPermissionIds.value = [...ids]
+    permissionVersion.value = snapshot?.version || ''
   } catch (error) {
     notifyAdminRequestError(error, '加载角色权限失败')
   } finally {
@@ -335,15 +361,60 @@ async function openPermissions(role) {
   }
 }
 
+function normalizeIds(ids) {
+  return [...(Array.isArray(ids) ? ids : [])].sort((left, right) => Number(left) - Number(right)).join(',')
+}
+
+function permissionDirty() {
+  if (isPreset(currentRole.value)) return false
+  return normalizeIds(selectedPermissionIds.value) !== normalizeIds(initialPermissionIds.value)
+}
+
+async function closePermissionDialog() {
+  permissionVisible.value = false
+}
+
+function requestPermissionClose() {
+  beforePermissionClose(closePermissionDialog)
+}
+
+/** 有未保存修改时二次确认；预置角色只读，直接关闭。 */
+async function beforePermissionClose(done) {
+  if (!permissionDirty()) {
+    done()
+    return
+  }
+  try {
+    await ElMessageBox.confirm('权限修改尚未保存，确定关闭吗？', '未保存的修改', {
+      type: 'warning',
+      confirmButtonText: '放弃修改',
+      cancelButtonText: '继续编辑',
+    })
+    done()
+  } catch {
+    // 用户选择继续编辑
+  }
+}
+
+function isVersionConflict(error) {
+  return error?.response?.status === 409 || error?.response?.data?.code === 'PERMISSION_VERSION_CONFLICT'
+}
+
 async function savePermissions() {
   if (!currentRole.value) return
   savingPermissions.value = true
   try {
-    await assignRolePermissions(currentRole.value.id, selectedPermissionIds.value)
+    await assignRolePermissions(currentRole.value.id, selectedPermissionIds.value, permissionVersion.value)
     permissionCounts[currentRole.value.id] = selectedPermissionIds.value.length
+    initialPermissionIds.value = [...selectedPermissionIds.value]
     ElMessage.success('角色权限已保存')
     permissionVisible.value = false
   } catch (error) {
+    if (isVersionConflict(error)) {
+      ElMessage.warning('权限已被其他管理员修改，已重新加载最新授权')
+      await openPermissions(currentRole.value)
+      return
+    }
     notifyAdminRequestError(error, '保存角色权限失败')
   } finally {
     savingPermissions.value = false
@@ -460,7 +531,10 @@ async function assignMember() {  if (!selectedStaffId.value || !memberRole.value
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  await load()
+  await openRoleFromQuery()
+})
 </script>
 
 <style scoped>
