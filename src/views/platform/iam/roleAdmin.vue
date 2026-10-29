@@ -227,12 +227,14 @@ import {
 import { listStaff } from '@/api/staff'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { hasPermission } from '@/utils/context'
+import { useAuthStore } from '@/stores/auth'
 import { useContextStore } from '@/stores/context'
 import { roleTypeText, scopeTypeText } from '@/constants/terms'
 
 const router = useRouter()
 const route = useRoute()
 const contextStore = useContextStore()
+const authStore = useAuthStore()
 const roles = ref([])
 const permissions = ref([])
 const permissionCounts = reactive({})
@@ -262,8 +264,11 @@ const isPlatform = computed(() => {
   const current = contextStore.current
   return current?.scopeType === 'PLATFORM' || !current?.tenantId
 })
-const canManage = computed(() => hasPermission(contextStore.current?.permissions,
-  isPlatform.value ? 'platform.iam.role.manage' : 'iam.role.manage'))
+const canManage = computed(() => {
+  if (isPlatform.value && ['SUPER_ADMIN', 'PLATFORM_ADMIN'].includes(authStore.user?.role)) return true
+  return hasPermission(contextStore.current?.permissions,
+    isPlatform.value ? 'platform.iam.role.manage' : 'iam.role.manage')
+})
 const canCreate = canManage
 const canView = computed(() => canManage.value || hasPermission(contextStore.current?.permissions,
   isPlatform.value ? 'platform.iam.role.view' : 'iam.role.view'))

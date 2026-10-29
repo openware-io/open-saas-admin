@@ -61,9 +61,12 @@ export function normalizeMenuPath(path) {
   return trimmed || (path.trim() ? '/' : '')
 }
 
-/** 单个菜单项是否可见：未登记权限码 → 恒可见；登记了 → 必须命中权限快照。 */
+/** 单个菜单项是否可见：平台菜单由 BFF AdminRole 控制，不按 IAM 权限码隐藏；其余按权限快照。 */
 export function isMenuItemVisible(item, permissions) {
   if (!item) return false
+  // 平台菜单树由 platform-admin-service 按 AdminRole（SUPER_ADMIN/PLATFORM_ADMIN）过滤；
+  // required_permission 只是后续权限化元数据，不能在展示层把平台管理员的子菜单误隐藏。
+  if (item.scopeLevel === 'PLATFORM') return true
   // 后端已声明的 requiredPermission 优先；没有声明的按前端映射补门禁。
   const code = item.requiredPermission || MENU_ITEM_PERMISSIONS[normalizeMenuPath(item.path)]
   if (!code) return true

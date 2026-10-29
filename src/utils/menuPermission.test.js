@@ -57,6 +57,18 @@ describe('菜单权限映射（后端菜单 + 前端附加门禁）', () => {
     expect(isMenuItemVisible({ path: '/admin/roles', requiredPermission: 'iam.role.view' }, ['iam.role.view'])).toBe(true)
   })
 
+  it('平台菜单由 AdminRole 控制，不按 IAM requiredPermission 隐藏', () => {
+    const platformMenu = {
+      id: 31,
+      name: '角色与权限',
+      path: '/admin/iam/roles',
+      scopeLevel: 'PLATFORM',
+      requiredPermission: 'platform.iam.role.view',
+    }
+    expect(isMenuItemVisible(platformMenu, [])).toBe(true)
+    expect(filterMenusByPermission([platformMenu], [])).toEqual([platformMenu])
+  })
+
   it('过滤时保留原菜单顺序与结构，子项同样适用映射', () => {
     const tree = [
       { id: 3, name: '人员与权限', path: '/admin/iam', children: [{ id: 31, name: '角色与权限', path: '/admin/roles' }] },
