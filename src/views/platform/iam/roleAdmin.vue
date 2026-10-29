@@ -11,6 +11,7 @@
         <el-button :loading="loading" @click="load">刷新</el-button>
         <el-button v-if="isPlatform" @click="router.push('/admin/iam/role-profiles')">工作台默认值</el-button>
         <el-button v-if="isPlatform" @click="router.push('/admin/iam/permissions')">查看权限目录</el-button>
+        <el-button v-if="!isPlatform && canView" @click="router.push('/admin/roles/matrix')">角色权限矩阵</el-button>
         <el-button type="primary" :disabled="!canCreate" @click="openCreate()">新建角色</el-button>
       </div>
     </div>
@@ -245,6 +246,8 @@ const isPlatform = computed(() => {
 const canManage = computed(() => hasPermission(contextStore.current?.permissions,
   isPlatform.value ? 'platform.iam.role.manage' : 'iam.role.manage'))
 const canCreate = canManage
+const canView = computed(() => canManage.value || hasPermission(contextStore.current?.permissions,
+  isPlatform.value ? 'platform.iam.role.view' : 'iam.role.view'))
 const scopeHint = computed(() => isPlatform.value
   ? '平台角色按 PLATFORM 可授予范围配置权限；平台运营进入租户上下文时使用同一权限快照。'
   : '租户可创建 TENANT/STORE 角色；预置角色只读，修改请复制。')

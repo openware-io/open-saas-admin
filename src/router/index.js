@@ -104,6 +104,12 @@ const routes = [
         meta: { title: '角色与权限', icon: 'Avatar', scope: 'TENANT' },
       },
       {
+        path: 'admin/roles/matrix',
+        name: 'TenantRoleMatrix',
+        component: () => import('@/views/platform/iam/permissions.vue'),
+        meta: { title: '角色权限矩阵', icon: 'Grid', scope: 'TENANT', tenantMatrix: true },
+      },
+      {
         path: 'admin/resources',
         name: 'Resources',
         component: () => import('@/views/tenant/resources.vue'),

@@ -24,6 +24,7 @@ describe('菜单权限映射（后端菜单 + 前端附加门禁）', () => {
     expect(MENU_ITEM_PERMISSIONS['/admin/tenant/currency']).toBe('tenant.currency.manage')
     expect(MENU_ITEM_PERMISSIONS['/admin/tenant/overview']).toBe('tenant.overview.view')
     expect(MENU_ITEM_PERMISSIONS['/admin/roles']).toBe('iam.role.view')
+    expect(MENU_ITEM_PERMISSIONS['/admin/roles/matrix']).toBe('iam.role.view')
   })
 
   it('权限快照的四种形态都容错（数组 / {code} / {permissionCode} / {code:true}）', () => {

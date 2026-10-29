@@ -31,6 +31,7 @@ export const MENU_ITEM_PERMISSIONS = Object.freeze({
   '/admin/tenant/currency': 'tenant.currency.manage',
   '/admin/tenant/wallet-token-config': 'tenant.tenant.manage',
   '/admin/roles': 'iam.role.view',
+  '/admin/roles/matrix': 'iam.role.view',
   '/admin/tenant/hotel': 'hotel.booking.view',
   '/admin/tenant/hotel-master': 'hotel.room.manage',
   '/admin/tenant/hotel-resources': 'hotel.room.availability.manage',

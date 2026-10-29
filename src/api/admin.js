@@ -89,6 +89,13 @@ export function getPermissionMatrix(params) {
 export function getPermissionMatrixVersion() {
   return request.get('/api/v1/admin/iam/permissions/matrix/version')
 }
+/** 租户角色权限矩阵：全局预置 + 本租户自定义角色。 */
+export function getTenantPermissionMatrix(params) {
+  return request.get('/api/v1/admin/iam/permissions/matrix/tenant', { params })
+}
+export function getTenantPermissionMatrixVersion() {
+  return request.get('/api/v1/admin/iam/permissions/matrix/tenant/version')
+}
 export function listRolePermissions(roleId) {
   return request.get('/api/v1/admin/iam/roles/' + roleId + '/permissions')
 }
