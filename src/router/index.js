@@ -47,6 +47,12 @@ const routes = [
         meta: { title: '权限', icon: 'Key', scope: 'PLATFORM' },
       },
       {
+        path: 'admin/iam/platform-operators',
+        name: 'PlatformOperators',
+        component: () => import('@/views/platform/iam/platformOperators.vue'),
+        meta: { title: '平台运营人员', icon: 'Service', scope: 'PLATFORM' },
+      },
+      {
         path: 'admin/platform/payment-methods',
         name: 'PlatformPaymentMethods',
         component: () => import('@/views/platform/payment-methods.vue'),

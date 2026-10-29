@@ -107,6 +107,19 @@ export function getRolePermissionSnapshot(roleId) {
 export function getRolePermissionCounts() {
   return request.get('/api/v1/admin/iam/roles/permission-counts')
 }
+/** 平台运营人员（identity PLATFORM_OPERATOR）及其平台角色绑定。 */
+export function listPlatformOperators() {
+  return request.get('/api/v1/admin/iam/platform/operators')
+}
+export function assignPlatformRole(accountId, roleId) {
+  return request.post('/api/v1/admin/iam/platform/role-bindings', { accountId, roleId })
+}
+export function revokePlatformRole(bindingId) {
+  return request.delete('/api/v1/admin/iam/platform/role-bindings/' + bindingId)
+}
+export function disablePlatformRole(roleId) {
+  return request.post('/api/v1/admin/iam/platform/roles/' + roleId + '/disable')
+}
 export function createRole(data) {
   return request.post('/api/v1/admin/iam/roles', data)
 }

@@ -11,6 +11,7 @@
         <el-button :loading="loading" @click="load">刷新</el-button>
         <el-button v-if="isPlatform" @click="router.push('/admin/iam/role-profiles')">工作台默认值</el-button>
         <el-button v-if="isPlatform" @click="router.push('/admin/iam/permissions')">查看权限目录</el-button>
+        <el-button v-if="isPlatform" @click="router.push('/admin/iam/platform-operators')">平台运营人员</el-button>
         <el-button v-if="!isPlatform && canView" @click="router.push('/admin/roles/matrix')">角色权限矩阵</el-button>
         <el-button type="primary" :disabled="!canCreate" @click="openCreate()">新建角色</el-button>
       </div>
@@ -49,11 +50,19 @@
         <el-table-column label="权限" width="90" align="center">
           <template #default="{ row }">{{ permissionCounts[row.id] ?? '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="310" align="center" fixed="right">
+        <el-table-column label="操作" width="360" align="center" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openPermissions(row)">权限矩阵</el-button>
             <el-button link type="primary" @click="openRoleMatrix(row)">矩阵视图</el-button>
             <el-button link type="primary" :disabled="!canCreate" @click="openCreate(row)">复制</el-button>
+            <el-button
+              v-if="isPlatform && row.roleType !== 'PRESET'"
+              link
+              type="danger"
+              @click="disableRole(row)"
+            >
+              停用
+            </el-button>
             <el-button
               v-if="!isPlatform"
               link
@@ -209,6 +218,7 @@ import {
   createRole,
   getRolePermissionCounts,
   getRolePermissionSnapshot,
+  disablePlatformRole,
   listPermissions,
   listRoleCatalog,
   revokeRoleMember,
@@ -335,6 +345,25 @@ function openRoleMatrix(role) {
     name: isPlatform.value ? 'IamPermissions' : 'TenantRoleMatrix',
     query: { role: role.code },
   })
+}
+
+async function disableRole(role) {
+  try {
+    await ElMessageBox.confirm(
+      `停用平台角色“${role.name}”？停用前必须没有有效平台绑定。`,
+      '停用平台角色',
+      { type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await disablePlatformRole(role.id)
+    ElMessage.success('平台角色已停用')
+    await load()
+  } catch (error) {
+    notifyAdminRequestError(error, '停用平台角色失败')
+  }
 }
 
 function openCreate(source) {
