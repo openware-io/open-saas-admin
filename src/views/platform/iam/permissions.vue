@@ -2,12 +2,8 @@
   <div class="admin-page permission-catalog">
     <div class="page-header">
       <div>
-        <h2>{{ isTenantMatrix ? '角色权限矩阵' : '权限目录' }}</h2>
-        <p class="subtle">
-          {{ isTenantMatrix
-            ? '聚合本租户预置角色与自定义角色，按下表对照每个权限的授予情况。'
-            : '权限由平台统一维护；右侧矩阵列展示全局角色对每个权限的授予情况。' }}
-        </p>
+        <h2>权限目录</h2>
+        <p class="subtle">权限由平台统一维护；右侧矩阵列展示全局角色对每个权限的授予情况。</p>
       </div>
       <div class="header-actions">
         <el-button :disabled="!filteredRows.length" @click="exportCsv">导出当前视图</el-button>
@@ -21,18 +17,8 @@
       type="info"
       :closable="false"
       show-icon
-      :title="isTenantMatrix ? '角色权限矩阵' : '权限目录与角色矩阵对照'"
-      :description="isTenantMatrix
-        ? '左侧列表与右侧矩阵共用同一行序，排序/筛选同步；矩阵列包含本租户预置角色与自定义角色。⚠ 表示越界授权，需要治理。'
-        : '左侧列表与右侧矩阵共用同一行序，排序/筛选同步；矩阵列是平台统一维护的全局角色模板（不含租户自定义角色）。⚠ 表示已授予但该角色作用域不可授予，需要治理。'"
-    />
-
-    <el-alert
-      v-if="isTenantMatrix && tenantScopeHint"
-      type="warning"
-      :closable="false"
-      show-icon
-      :title="tenantScopeHint"
+      title="权限目录与角色矩阵对照"
+      description="左侧列表与右侧矩阵共用同一行序，排序/筛选同步；矩阵列是平台统一维护的全局角色模板（不含租户自定义角色）。⚠ 表示已授予但该角色作用域不可授予，需要治理。"
     />
 
     <el-alert
@@ -109,20 +95,8 @@
         <span class="legend-item"><span class="legend-dot legend-grantable">○</span>可授予未授予</span>
         <span class="legend-item"><span class="legend-dot legend-forbidden">—</span>不可授予</span>
         <span class="legend-item legend-anomaly"><span class="legend-dot">⚠</span>越界授权</span>
-        <span class="legend-item muted">列：{{ roleColumns.length }}/{{ allRoleColumns.length }} 个{{ isTenantMatrix ? '角色' : '全局角色' }}</span>
+        <span class="legend-item muted">列：{{ roleColumns.length }}/{{ allRoleColumns.length }} 个全局角色</span>
       </div>
-
-      <el-alert
-        v-if="focusRole"
-        type="info"
-        :closable="false"
-        class="focus-role-alert"
-      >
-        <template #title>
-          正在聚焦角色：{{ focusRole.name }}（{{ focusRole.code }}）
-          <el-button link type="primary" @click="showAllRoles">显示全部角色</el-button>
-        </template>
-      </el-alert>
 
       <el-alert
         v-if="allRoleColumns.length > 0 && roleColumns.length === 0"
@@ -197,7 +171,7 @@
       </el-table>
 
       <div class="catalog-meta">
-        <span>{{ rows.length }} 个权限 · {{ roleColumns.length === allRoleColumns.length ? `${roleColumns.length} 个${isTenantMatrix ? '角色' : '全局角色'}` : `${roleColumns.length}/${allRoleColumns.length} 个${isTenantMatrix ? '角色' : '全局角色'}` }}</span>
+        <span>{{ rows.length }} 个权限 · {{ roleColumns.length === allRoleColumns.length ? `${roleColumns.length} 个全局角色` : `${roleColumns.length}/${allRoleColumns.length} 个全局角色` }}</span>
         <span class="muted" v-if="meta.generatedAt">数据更新于 {{ generatedAtText }}</span>
         <el-button
           v-if="stateCounts.anomaly > 0"
@@ -221,16 +195,10 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Check, Refresh, WarningFilled } from '@element-plus/icons-vue'
-import { useContextStore } from '@/stores/context'
-import {
-  getPermissionMatrix,
-  getPermissionMatrixVersion,
-  getTenantPermissionMatrix,
-  getTenantPermissionMatrixVersion,
-} from '@/api/admin'
+import { getPermissionMatrix, getPermissionMatrixVersion } from '@/api/admin'
 import { formatTimeWithSeconds } from '@/utils/format'
 import { scopeTypeText } from '@/constants/terms'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
@@ -250,18 +218,6 @@ import {
 const rows = ref([])
 const roles = ref([])
 const router = useRouter()
-const route = useRoute()
-const isTenantMatrix = computed(() => route.meta?.tenantMatrix === true)
-const contextStore = useContextStore()
-const tenantScopeHint = computed(() => {
-  if (!isTenantMatrix.value) return ''
-  const current = contextStore.current
-  if (!current) return '当前未选择租户/门店上下文，无法确定角色适用范围。'
-  if (current.storeId && current.storeId > 0) {
-    return `当前数据范围：门店 ${current.storeName || current.storeId}。角色模板仍是租户级定义，列头按角色作用域标注。`
-  }
-  return `当前数据范围：${current.tenantName || '租户总部'}（跨门店），角色模板为租户级定义。`
-})
 const keyword = ref('')
 const moduleFilter = ref(null)
 const domainFilter = ref(null)
@@ -269,14 +225,12 @@ const scopeFilter = ref(null)
 const stateFilter = ref('all')
 const selectedRoleCodes = ref([])
 const roleSelectionTouched = ref(false)
-const focusRoleCode = ref('')
 const loading = ref(false)
 const stale = ref(false)
 const sortState = ref({ prop: '', order: '' })
 const meta = ref({ version: '', generatedAt: '', cached: false })
 
 const allRoleColumns = computed(() => roleMatrixColumns(roles.value))
-const focusRole = computed(() => allRoleColumns.value.find((role) => role.code === focusRoleCode.value) || null)
 const roleColumns = computed(() => {
   if (!roleSelectionTouched.value) return allRoleColumns.value
   return allRoleColumns.value.filter((role) => selectedRoleCodes.value.includes(role.code))
@@ -308,11 +262,6 @@ const filteredRows = computed(() => {
 
 function onRoleSelectionChange() {
   roleSelectionTouched.value = true
-  if (!focusRoleCode.value) return
-  focusRoleCode.value = ''
-  const query = { ...route.query }
-  delete query.role
-  router.replace({ query })
 }
 
 function resetFilters() {
@@ -323,12 +272,6 @@ function resetFilters() {
   stateFilter.value = 'all'
   selectedRoleCodes.value = allRoleColumns.value.map((role) => role.code)
   roleSelectionTouched.value = false
-  focusRoleCode.value = ''
-  if (route.query.role) {
-    const query = { ...route.query }
-    delete query.role
-    router.replace({ query })
-  }
 }
 
 /** 首次加载默认全选；用户手动选择过则保留其选择，只剔除已失效角色。 */
@@ -339,27 +282,6 @@ function applyRoleSelection() {
     return
   }
   selectedRoleCodes.value = selectedRoleCodes.value.filter((code) => codes.includes(code))
-}
-
-/** 角色页/深链传入 ?role=CODE 时只聚焦该角色列，避免在几十列里手动找。 */
-function applyRouteRoleFocus() {
-  const code = typeof route.query.role === 'string' ? route.query.role : ''
-  if (!code || !allRoleColumns.value.some((role) => role.code === code)) {
-    focusRoleCode.value = ''
-    return
-  }
-  focusRoleCode.value = code
-  selectedRoleCodes.value = [code]
-  roleSelectionTouched.value = true
-}
-
-function showAllRoles() {
-  focusRoleCode.value = ''
-  roleSelectionTouched.value = false
-  selectedRoleCodes.value = allRoleColumns.value.map((role) => role.code)
-  const query = { ...route.query }
-  delete query.role
-  router.replace({ query })
 }
 
 const emptyDescription = computed(() => {
@@ -397,7 +319,7 @@ function onSortChange({ prop, order }) {
 
 /** 从矩阵列头进入角色权限编辑：角色页按 query.role 自动打开对应矩阵。 */
 function openRole(role) {
-  router.push({ name: isTenantMatrix.value ? 'TenantRoles' : 'IamRoles', query: { role: role.code } })
+  router.push({ name: 'IamRoles', query: { role: role.code } })
 }
 
 /** 导出当前筛选结果与当前角色列，供 Excel 复核。 */
@@ -419,9 +341,7 @@ function exportCsv() {
 async function checkVersion() {
   if (loading.value || !meta.value.version || document.visibilityState !== 'visible') return
   try {
-    const data = isTenantMatrix.value
-      ? await getTenantPermissionMatrixVersion()
-      : await getPermissionMatrixVersion()
+    const data = await getPermissionMatrixVersion()
     if (data?.version && data.version !== meta.value.version) stale.value = true
   } catch {
     // 轻量校验失败不影响主数据；下次聚焦/刷新会重试
@@ -435,20 +355,17 @@ function onVisibilityChange() {
 async function load(refresh = false) {
   loading.value = true
   try {
-    const data = isTenantMatrix.value
-      ? await getTenantPermissionMatrix(refresh ? { refresh: true } : undefined)
-      : await getPermissionMatrix(refresh ? { refresh: true } : undefined)
+    const data = await getPermissionMatrix(refresh ? { refresh: true } : undefined)
     rows.value = Array.isArray(data?.permissions) ? data.permissions : []
     roles.value = Array.isArray(data?.roles) ? data.roles : []
     applyRoleSelection()
-    applyRouteRoleFocus()
     meta.value = {
       version: data?.version || '',
       generatedAt: data?.generatedAt || '',
       cached: Boolean(data?.cached),
     }
     stale.value = false
-    if (refresh) ElMessage.success(isTenantMatrix.value ? '角色权限矩阵已刷新' : '权限目录已刷新')
+    if (refresh) ElMessage.success('权限目录已刷新')
   } catch (error) {
     rows.value = []
     roles.value = []
@@ -491,7 +408,6 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
-.focus-role-alert { margin-bottom: 12px; }
 
 .legend-item {
   display: inline-flex;

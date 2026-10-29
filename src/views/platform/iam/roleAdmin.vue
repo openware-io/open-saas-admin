@@ -8,11 +8,7 @@
         </p>
       </div>
       <div class="header-actions">
-        <el-button :loading="loading" @click="load">刷新</el-button>
-        <el-button v-if="isPlatform" @click="router.push('/admin/iam/role-profiles')">工作台默认值</el-button>
-        <el-button v-if="isPlatform" @click="router.push('/admin/iam/permissions')">查看权限目录</el-button>
-        <el-button v-if="isPlatform" @click="router.push('/admin/iam/platform-operators')">平台运营人员</el-button>
-        <el-button v-if="!isPlatform && canView" @click="router.push('/admin/roles/matrix')">角色权限矩阵</el-button>
+        <el-button @click="router.push('/admin/iam/role-profiles')">工作台默认值</el-button>
         <el-button type="primary" :disabled="!canCreate" @click="openCreate()">新建角色</el-button>
       </div>
     </div>
@@ -23,22 +19,6 @@
       show-icon
       title="权限范围由角色作用域决定"
       :description="scopeHint"
-    />
-    <el-alert
-      v-if="isPlatform"
-      type="warning"
-      :closable="false"
-      show-icon
-      title="平台超级管理员是后台固定角色，不在 IAM 角色目录中"
-      description="本页维护平台运营角色（如 platform.operator）的权限；平台超级管理员/平台管理员由后台 AdminRole 固定控制，不能在此编辑。平台运营人员的角色授予需在平台运营人员管理中完成。"
-    />
-    <el-alert
-      v-if="!isPlatform && contextStore.storeId"
-      type="info"
-      :closable="false"
-      show-icon
-      title="当前为门店数据范围"
-      description="角色定义仍是租户级模板；在此修改权限会影响该租户下所有适用门店。门店列头已按角色作用域标注。"
     />
 
     <div class="admin-card">
@@ -58,19 +38,10 @@
         <el-table-column label="权限" width="90" align="center">
           <template #default="{ row }">{{ permissionCounts[row.id] ?? '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="360" align="center" fixed="right">
+        <el-table-column label="操作" width="250" align="center" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openPermissions(row)">权限矩阵</el-button>
-            <el-button link type="primary" @click="openRoleMatrix(row)">矩阵视图</el-button>
             <el-button link type="primary" :disabled="!canCreate" @click="openCreate(row)">复制</el-button>
-            <el-button
-              v-if="isPlatform && row.roleType !== 'PRESET'"
-              link
-              type="danger"
-              @click="disableRole(row)"
-            >
-              停用
-            </el-button>
             <el-button
               v-if="!isPlatform"
               link
@@ -100,7 +71,7 @@
         <el-alert
           type="warning"
           :closable="false"
-          :title="isPlatform ? '平台角色只能选择已标记为可授予 PLATFORM 的权限' : '租户角色只能授予本租户范围内的权限'"
+          :title="isPlatform ? '平台角色只包含平台级权限' : '租户角色只能授予本租户范围内的权限'"
         />
       </el-form>
       <template #footer>
@@ -116,43 +87,36 @@
       :close-on-click-modal="false"
       :before-close="beforePermissionClose"
     >
-        <el-alert
-          v-if="!canManage && !isPreset(currentRole)"
-          type="info"
-          :closable="false"
-          title="当前账号只有角色查看权限，权限矩阵为只读"
-          class="permission-alert"
-        />
-        <el-alert
-          v-if="isPreset(currentRole)"
-          type="warning"
-          :closable="false"
-          title="预置角色只读；需要调整请复制为租户自定义角色"
-          class="permission-alert"
-        />
-        <div v-loading="permissionLoading" class="permission-groups">
-          <section v-for="group in permissionGroups" :key="group.module" class="permission-group">
-            <h4>{{ group.module }}</h4>
-            <el-checkbox-group v-model="selectedPermissionIds" :disabled="isPreset(currentRole) || !canManage">
-              <el-checkbox v-for="permission in group.items" :key="permission.id" :value="permission.id">
-                {{ permission.description || permission.code }}
-              </el-checkbox>
-            </el-checkbox-group>
-          </section>
-          <el-empty v-if="!permissionLoading && !permissionGroups.length" description="当前作用域没有可授予权限" />
-        </div>
-        <template #footer>
-          <el-button @click="requestPermissionClose">取消</el-button>
-          <el-button
-            v-if="!isPreset(currentRole) && canManage"
-            type="primary"
-            :loading="savingPermissions"
-            @click="savePermissions"
-          >
-            保存权限
-          </el-button>
-          <el-button v-else-if="isPreset(currentRole)" type="primary" @click="copyCurrentRole">复制角色</el-button>
-        </template>
+      <el-alert
+        v-if="isPreset(currentRole)"
+        type="warning"
+        :closable="false"
+        title="预置角色只读；需要调整请复制为租户自定义角色"
+        class="permission-alert"
+      />
+      <div v-loading="permissionLoading" class="permission-groups">
+        <section v-for="group in permissionGroups" :key="group.module" class="permission-group">
+          <h4>{{ group.module }}</h4>
+          <el-checkbox-group v-model="selectedPermissionIds" :disabled="isPreset(currentRole)">
+            <el-checkbox v-for="permission in group.items" :key="permission.id" :value="permission.id">
+              {{ permission.description || permission.code }}
+            </el-checkbox>
+          </el-checkbox-group>
+        </section>
+        <el-empty v-if="!permissionLoading && !permissionGroups.length" description="当前作用域没有可授予权限" />
+      </div>
+      <template #footer>
+        <el-button @click="requestPermissionClose">取消</el-button>
+        <el-button
+          v-if="!isPreset(currentRole)"
+          type="primary"
+          :loading="savingPermissions"
+          @click="savePermissions"
+        >
+          保存权限
+        </el-button>
+        <el-button v-else type="primary" @click="copyCurrentRole">复制角色</el-button>
+      </template>
     </el-dialog>
     <el-dialog v-model="memberVisible" :title="memberRole ? `分配人员 · ${memberRole.name}` : '分配人员'" width="620px">
       <el-alert
@@ -217,32 +181,29 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   assignRolePermissions,
   assignUserRole,
   createRole,
-  getRolePermissionCounts,
   getRolePermissionSnapshot,
-  disablePlatformRole,
   listPermissions,
   listRoleCatalog,
+  listRolePermissions,
   revokeRoleMember,
   updateRoleMemberScope,
 } from '@/api/admin'
 import { listStaff } from '@/api/staff'
 import { notifyAdminRequestError } from '@/utils/adminErrorMessage'
 import { hasPermission } from '@/utils/context'
-import { useAuthStore } from '@/stores/auth'
 import { useContextStore } from '@/stores/context'
 import { roleTypeText, scopeTypeText } from '@/constants/terms'
 
 const router = useRouter()
 const route = useRoute()
 const contextStore = useContextStore()
-const authStore = useAuthStore()
 const roles = ref([])
 const permissions = ref([])
 const permissionCounts = reactive({})
@@ -272,16 +233,9 @@ const isPlatform = computed(() => {
   const current = contextStore.current
   return current?.scopeType === 'PLATFORM' || !current?.tenantId
 })
-const canManage = computed(() => {
-  if (isPlatform.value && ['SUPER_ADMIN', 'PLATFORM_ADMIN'].includes(authStore.user?.role)) return true
-  return hasPermission(contextStore.current?.permissions,
-    isPlatform.value ? 'platform.iam.role.manage' : 'iam.role.manage')
-})
-const canCreate = canManage
-const canView = computed(() => canManage.value || hasPermission(contextStore.current?.permissions,
-  isPlatform.value ? 'platform.iam.role.view' : 'iam.role.view'))
+const canCreate = computed(() => hasPermission(contextStore.current?.permissions, 'iam.role.manage'))
 const scopeHint = computed(() => isPlatform.value
-  ? '平台角色按 PLATFORM 可授予范围配置权限；平台运营进入租户上下文时使用同一权限快照。'
+  ? '平台角色只授予平台级权限，不能进入租户业务。'
   : '租户可创建 TENANT/STORE 角色；预置角色只读，修改请复制。')
 const storeOptions = computed(() => (contextStore.items || []).filter((item) => item.storeId != null))
 
@@ -323,14 +277,17 @@ function isPreset(role) {
 }
 
 async function load() {
-  if (loading.value) return
   loading.value = true
   try {
     roles.value = (await listRoleCatalog()) || []
     permissions.value = (await listPermissions()) || []
-    const counts = (await getRolePermissionCounts()) || []
-    for (const key of Object.keys(permissionCounts)) delete permissionCounts[key]
-    for (const item of counts) permissionCounts[item.roleId] = item.permissionCount
+    for (const role of roles.value) {
+      try {
+        permissionCounts[role.id] = (await listRolePermissions(role.id)).length
+      } catch {
+        permissionCounts[role.id] = 0
+      }
+    }
   } catch (error) {
     notifyAdminRequestError(error, '加载角色失败')
   } finally {
@@ -351,32 +308,6 @@ async function openRoleFromQuery() {
   delete query.role
   await router.replace({ query })
   await openPermissions(role)
-}
-
-function openRoleMatrix(role) {
-  router.push({
-    name: isPlatform.value ? 'IamPermissions' : 'TenantRoleMatrix',
-    query: { role: role.code },
-  })
-}
-
-async function disableRole(role) {
-  try {
-    await ElMessageBox.confirm(
-      `停用平台角色“${role.name}”？停用前必须没有有效平台绑定。`,
-      '停用平台角色',
-      { type: 'warning' },
-    )
-  } catch {
-    return
-  }
-  try {
-    await disablePlatformRole(role.id)
-    ElMessage.success('平台角色已停用')
-    await load()
-  } catch (error) {
-    notifyAdminRequestError(error, '停用平台角色失败')
-  }
 }
 
 function openCreate(source) {
@@ -416,8 +347,6 @@ async function openPermissions(role) {
   permissionVisible.value = true
   permissionLoading.value = true
   try {
-    // 权限元数据（grantableLevels）可能已被迁移/其他管理员修改，打开弹窗前重新拉取。
-    permissions.value = (await listPermissions()) || []
     const snapshot = await getRolePermissionSnapshot(role.id)
     const codes = snapshot?.permissionCodes || []
     const byCode = new Map(permissions.value.map((permission) => [permission.code, permission.id]))
@@ -602,31 +531,9 @@ async function assignMember() {  if (!selectedStaffId.value || !memberRole.value
   }
 }
 
-let reloadTimer = null
-
-/** 回到页面时刷新角色与权限计数，避免 V36 或其他人修改后长期显示旧数据。 */
-function scheduleReload() {
-  if (document.visibilityState !== 'visible' || loading.value) return
-  if (permissionVisible.value || createVisible.value || memberVisible.value) return
-  if (reloadTimer) clearTimeout(reloadTimer)
-  reloadTimer = setTimeout(() => load(), 300)
-}
-
-function onVisibilityChange() {
-  if (document.visibilityState === 'visible') scheduleReload()
-}
-
 onMounted(async () => {
   await load()
   await openRoleFromQuery()
-  document.addEventListener('visibilitychange', onVisibilityChange)
-  window.addEventListener('focus', scheduleReload)
-})
-
-onBeforeUnmount(() => {
-  if (reloadTimer) clearTimeout(reloadTimer)
-  document.removeEventListener('visibilitychange', onVisibilityChange)
-  window.removeEventListener('focus', scheduleReload)
 })
 </script>
 

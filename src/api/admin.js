@@ -89,36 +89,12 @@ export function getPermissionMatrix(params) {
 export function getPermissionMatrixVersion() {
   return request.get('/api/v1/admin/iam/permissions/matrix/version')
 }
-/** 租户角色权限矩阵：全局预置 + 本租户自定义角色。 */
-export function getTenantPermissionMatrix(params) {
-  return request.get('/api/v1/admin/iam/permissions/matrix/tenant', { params })
-}
-export function getTenantPermissionMatrixVersion() {
-  return request.get('/api/v1/admin/iam/permissions/matrix/tenant/version')
-}
 export function listRolePermissions(roleId) {
   return request.get('/api/v1/admin/iam/roles/' + roleId + '/permissions')
 }
 /** 角色权限快照：权限编码 + 版本（编辑弹窗做乐观并发校验）。 */
 export function getRolePermissionSnapshot(roleId) {
   return request.get('/api/v1/admin/iam/roles/' + roleId + '/permissions/snapshot')
-}
-/** 角色列表的权限数量（批量，一次请求替代逐角色查询）。 */
-export function getRolePermissionCounts() {
-  return request.get('/api/v1/admin/iam/roles/permission-counts')
-}
-/** 平台运营人员（identity PLATFORM_OPERATOR）及其平台角色绑定。 */
-export function listPlatformOperators() {
-  return request.get('/api/v1/admin/iam/platform/operators')
-}
-export function assignPlatformRole(accountId, roleId) {
-  return request.post('/api/v1/admin/iam/platform/role-bindings', { accountId, roleId })
-}
-export function revokePlatformRole(bindingId) {
-  return request.delete('/api/v1/admin/iam/platform/role-bindings/' + bindingId)
-}
-export function disablePlatformRole(roleId) {
-  return request.post('/api/v1/admin/iam/platform/roles/' + roleId + '/disable')
 }
 export function createRole(data) {
   return request.post('/api/v1/admin/iam/roles', data)

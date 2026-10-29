@@ -47,12 +47,6 @@ const routes = [
         meta: { title: '权限', icon: 'Key', scope: 'PLATFORM' },
       },
       {
-        path: 'admin/iam/platform-operators',
-        name: 'PlatformOperators',
-        component: () => import('@/views/platform/iam/platformOperators.vue'),
-        meta: { title: '平台运营人员', icon: 'Service', scope: 'PLATFORM' },
-      },
-      {
         path: 'admin/platform/payment-methods',
         name: 'PlatformPaymentMethods',
         component: () => import('@/views/platform/payment-methods.vue'),
@@ -108,12 +102,6 @@ const routes = [
         name: 'TenantRoles',
         component: () => import('@/views/platform/iam/roleAdmin.vue'),
         meta: { title: '角色与权限', icon: 'Avatar', scope: 'TENANT' },
-      },
-      {
-        path: 'admin/roles/matrix',
-        name: 'TenantRoleMatrix',
-        component: () => import('@/views/platform/iam/permissions.vue'),
-        meta: { title: '角色权限矩阵', icon: 'Grid', scope: 'TENANT', tenantMatrix: true },
       },
       {
         path: 'admin/resources',
@@ -281,10 +269,6 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.scope === 'PLATFORM' && !authStore.workspaces.includes('PLATFORM')) {
     return next(authStore.workspaces.includes('STORE') ? '/store' : '/admin/tenant/overview')
   }
-  // A 方案：同时拥有总部工作区的账号不进入门店店长工作区；门店只是总部视角下的数据范围。
-  if (to.meta.scope === 'STORE' && authStore.workspaces.includes('HEADQUARTERS')) {
-    return next('/admin/tenant/overview')
-  }
   // 租户经营页只对租户总部账号开放；店长仍可进入共享的业务运营页
   //（预约/收银/订单/资源/库存/报表/酒店前台/KTV 配置），但不能进入租户默认配置、
   // 角色权限和门店管理。
@@ -296,16 +280,6 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.scope === 'TENANT' && !authStore.workspaces.includes('HEADQUARTERS')) {
     if (!(authStore.workspaces.includes('STORE') && storeOperations(to.path))) {
       return next(authStore.workspaces.includes('STORE') ? '/store' : '/select')
-    }
-    // 门店店长复用 TENANT 路由（KTV 配置等）时仍属于门店工作区，必须先选门店上下文，
-    // 否则页面会在“租户管理后台 + 未选择门店”的空态里打开。
-    authStore.setScope('STORE')
-    if (!contextStore.current) {
-      try {
-        await contextStore.ensureContext('STORE')
-      } catch (e) {
-        // 保持页面空态，不阻断导航
-      }
     }
   }
 
@@ -330,15 +304,6 @@ router.beforeEach(async (to, from, next) => {
     } catch (e) {
       // 保持门店工作台空态，不把导航打断
     }
-  }
-  // 业务专属页面按当前门店业态收敛：KTV 门店不能直达酒店页面，反之亦然。
-  const businessType = contextStore.current?.businessType
-  const hotelPaths = ['/admin/tenant/hotel', '/admin/tenant/hotel-master', '/admin/tenant/hotel-resources']
-  if (businessType === 'KTV' && hotelPaths.some((path) => to.path === path || to.path.startsWith(path + '/'))) {
-    return next(authStore.scope === 'STORE' ? '/store' : '/admin/tenant/overview')
-  }
-  if (businessType === 'HOTEL' && (to.path === '/admin/ktv/config' || to.path.startsWith('/admin/ktv/config/'))) {
-    return next(authStore.scope === 'STORE' ? '/store' : '/admin/tenant/overview')
   }
   next()
 })

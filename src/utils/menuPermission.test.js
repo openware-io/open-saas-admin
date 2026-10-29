@@ -20,11 +20,9 @@ const CURRENCY_MENU = { id: 27, name: '币种', path: '/admin/tenant/currency', 
 const STORE_MENU = { id: 10, name: '门店', path: '/admin/tenant/stores', children: [] }
 
 describe('菜单权限映射（后端菜单 + 前端附加门禁）', () => {
-  it('角色菜单登记查看权限，写操作由页面按钮控制', () => {
+  it('只登记币种一项，路径与后端下发的路由一致', () => {
     expect(MENU_ITEM_PERMISSIONS['/admin/tenant/currency']).toBe('tenant.currency.manage')
     expect(MENU_ITEM_PERMISSIONS['/admin/tenant/overview']).toBe('tenant.overview.view')
-    expect(MENU_ITEM_PERMISSIONS['/admin/roles']).toBe('iam.role.view')
-    expect(MENU_ITEM_PERMISSIONS['/admin/roles/matrix']).toBe('iam.role.view')
   })
 
   it('权限快照的四种形态都容错（数组 / {code} / {permissionCode} / {code:true}）', () => {
@@ -53,31 +51,19 @@ describe('菜单权限映射（后端菜单 + 前端附加门禁）', () => {
     expect(isMenuItemVisible(STORE_MENU, ['tenant.store.manage'])).toBe(true)
     expect(isMenuItemVisible({ path: '/admin/ktv/config' }, [])).toBe(false)
     expect(isMenuItemVisible({ path: '/admin/ktv/config' }, ['tenant.business.manage'])).toBe(true)
-    expect(isMenuItemVisible({ path: '/admin/roles', requiredPermission: 'iam.role.view' }, [])).toBe(false)
-    expect(isMenuItemVisible({ path: '/admin/roles', requiredPermission: 'iam.role.view' }, ['iam.role.view'])).toBe(true)
-  })
-
-  it('平台菜单由 AdminRole 控制，不按 IAM requiredPermission 隐藏', () => {
-    const platformMenu = {
-      id: 31,
-      name: '角色与权限',
-      path: '/admin/iam/roles',
-      scopeLevel: 'PLATFORM',
-      requiredPermission: 'platform.iam.role.view',
-    }
-    expect(isMenuItemVisible(platformMenu, [])).toBe(true)
-    expect(filterMenusByPermission([platformMenu], [])).toEqual([platformMenu])
+    expect(isMenuItemVisible({ path: '/admin/roles', requiredPermission: 'iam.role.manage' }, [])).toBe(false)
+    expect(isMenuItemVisible({ path: '/admin/roles', requiredPermission: 'iam.role.manage' }, ['iam.role.manage'])).toBe(true)
   })
 
   it('过滤时保留原菜单顺序与结构，子项同样适用映射', () => {
     const tree = [
-      { id: 3, name: '人员与权限', path: '/admin/iam', children: [{ id: 31, name: '角色与权限', path: '/admin/roles' }] },
+      { id: 3, name: '权限管理', path: '/admin/iam', children: [{ id: 31, name: '角色', path: '/admin/iam/roles' }] },
       CURRENCY_MENU,
       STORE_MENU,
     ]
     const filtered = filterMenusByPermission(tree, ['tenant.currency.manage'])
     expect(filtered.map((item) => item.path)).toEqual(['/admin/iam', '/admin/tenant/currency'])
-    expect(filtered[0].children).toHaveLength(0)
+    expect(filtered[0].children).toHaveLength(1)
 
     const hidden = filterMenusByPermission(tree, [])
     expect(hidden.map((item) => item.path)).toEqual(['/admin/iam'])
