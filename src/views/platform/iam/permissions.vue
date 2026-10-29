@@ -105,6 +105,18 @@
       </div>
 
       <el-alert
+        v-if="focusRole"
+        type="info"
+        :closable="false"
+        class="focus-role-alert"
+      >
+        <template #title>
+          正在聚焦角色：{{ focusRole.name }}（{{ focusRole.code }}）
+          <el-button link type="primary" @click="showAllRoles">显示全部角色</el-button>
+        </template>
+      </el-alert>
+
+      <el-alert
         v-if="allRoleColumns.length > 0 && roleColumns.length === 0"
         class="no-role-alert"
         type="info"
@@ -238,12 +250,14 @@ const scopeFilter = ref(null)
 const stateFilter = ref('all')
 const selectedRoleCodes = ref([])
 const roleSelectionTouched = ref(false)
+const focusRoleCode = ref('')
 const loading = ref(false)
 const stale = ref(false)
 const sortState = ref({ prop: '', order: '' })
 const meta = ref({ version: '', generatedAt: '', cached: false })
 
 const allRoleColumns = computed(() => roleMatrixColumns(roles.value))
+const focusRole = computed(() => allRoleColumns.value.find((role) => role.code === focusRoleCode.value) || null)
 const roleColumns = computed(() => {
   if (!roleSelectionTouched.value) return allRoleColumns.value
   return allRoleColumns.value.filter((role) => selectedRoleCodes.value.includes(role.code))
@@ -275,6 +289,11 @@ const filteredRows = computed(() => {
 
 function onRoleSelectionChange() {
   roleSelectionTouched.value = true
+  if (!focusRoleCode.value) return
+  focusRoleCode.value = ''
+  const query = { ...route.query }
+  delete query.role
+  router.replace({ query })
 }
 
 function resetFilters() {
@@ -285,6 +304,12 @@ function resetFilters() {
   stateFilter.value = 'all'
   selectedRoleCodes.value = allRoleColumns.value.map((role) => role.code)
   roleSelectionTouched.value = false
+  focusRoleCode.value = ''
+  if (route.query.role) {
+    const query = { ...route.query }
+    delete query.role
+    router.replace({ query })
+  }
 }
 
 /** 首次加载默认全选；用户手动选择过则保留其选择，只剔除已失效角色。 */
@@ -295,6 +320,27 @@ function applyRoleSelection() {
     return
   }
   selectedRoleCodes.value = selectedRoleCodes.value.filter((code) => codes.includes(code))
+}
+
+/** 角色页/深链传入 ?role=CODE 时只聚焦该角色列，避免在几十列里手动找。 */
+function applyRouteRoleFocus() {
+  const code = typeof route.query.role === 'string' ? route.query.role : ''
+  if (!code || !allRoleColumns.value.some((role) => role.code === code)) {
+    focusRoleCode.value = ''
+    return
+  }
+  focusRoleCode.value = code
+  selectedRoleCodes.value = [code]
+  roleSelectionTouched.value = true
+}
+
+function showAllRoles() {
+  focusRoleCode.value = ''
+  roleSelectionTouched.value = false
+  selectedRoleCodes.value = allRoleColumns.value.map((role) => role.code)
+  const query = { ...route.query }
+  delete query.role
+  router.replace({ query })
 }
 
 const emptyDescription = computed(() => {
@@ -376,6 +422,7 @@ async function load(refresh = false) {
     rows.value = Array.isArray(data?.permissions) ? data.permissions : []
     roles.value = Array.isArray(data?.roles) ? data.roles : []
     applyRoleSelection()
+    applyRouteRoleFocus()
     meta.value = {
       version: data?.version || '',
       generatedAt: data?.generatedAt || '',
@@ -425,6 +472,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
+.focus-role-alert { margin-bottom: 12px; }
 
 .legend-item {
   display: inline-flex;

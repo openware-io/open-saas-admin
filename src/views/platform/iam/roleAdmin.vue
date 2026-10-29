@@ -41,9 +41,10 @@
         <el-table-column label="权限" width="90" align="center">
           <template #default="{ row }">{{ permissionCounts[row.id] ?? '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="250" align="center" fixed="right">
+        <el-table-column label="操作" width="310" align="center" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openPermissions(row)">权限矩阵</el-button>
+            <el-button link type="primary" @click="openRoleMatrix(row)">矩阵视图</el-button>
             <el-button link type="primary" :disabled="!canCreate" @click="openCreate(row)">复制</el-button>
             <el-button
               v-if="!isPlatform"
@@ -319,6 +320,13 @@ async function openRoleFromQuery() {
   delete query.role
   await router.replace({ query })
   await openPermissions(role)
+}
+
+function openRoleMatrix(role) {
+  router.push({
+    name: isPlatform.value ? 'IamPermissions' : 'TenantRoleMatrix',
+    query: { role: role.code },
+  })
 }
 
 function openCreate(source) {
