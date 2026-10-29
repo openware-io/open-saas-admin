@@ -107,6 +107,11 @@
           </el-dropdown>
         </div>
       </el-header>
+      <div v-if="contextScopeText" class="context-scope-bar">
+        <el-icon><Location /></el-icon>
+        <span>{{ contextScopeText }}</span>
+        <span v-if="contextRoleText" class="context-scope-roles">授权角色：{{ contextRoleText }}</span>
+      </div>
 
       <!-- 租户后台待确认加项集中处理：头部入口 / 收银台菜单角标 / 卡片都能打开 -->
       <PendingApprovalDrawer v-if="showPendingApproval"
@@ -156,7 +161,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { ArrowDown, Bell, Expand, Fold, Grid, Lock, OfficeBuilding, SwitchButton } from '@element-plus/icons-vue'
+import { ArrowDown, Bell, Expand, Fold, Grid, Location, Lock, OfficeBuilding, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { changePassword, getSession } from '@/api/admin'
 import { refreshCsrfToken, resetAuthRedirectGuard } from '@/api/request'
@@ -290,6 +295,16 @@ onUnmounted(() => {
 })
 
 const scopeLabel = computed(() => SCOPE_LABELS[authStore.scope] || authStore.scope)
+const contextScopeText = computed(() => {
+  if (authStore.scope === 'PLATFORM') return '平台治理视角 · 使用平台级上下文'
+  const current = contextStore.current
+  if (!current) return ''
+  if (current.storeId && current.storeId > 0) {
+    return `${authStore.scope === 'STORE' ? '门店视角' : '总部视角'} · 数据范围：${current.storeName || current.tenantName || '当前门店'}`
+  }
+  return `总部视角 · 数据范围：${current.tenantName || '租户总部'}`
+})
+const contextRoleText = computed(() => (contextStore.current?.roles || []).join('、'))
 const shell = computed(() => workspaceShell(authStore.scope))
 // 租户管理员切到门店上下文后仍需要能切回总部；门店经理不展示租户选择器。
 const showContextSwitcher = computed(() => shell.value.showTenantSelector || authStore.workspaces.includes('HEADQUARTERS'))
@@ -426,12 +441,18 @@ watch(() => contextStore.current?.tenantId, syncCurrencyWithContext)
 
 function syncScopeFromRoute() {
   const routeScope = route.meta.scope
-  // 门店工作区复用租户业务页面时，路由 meta 仍是 TENANT；不能因此把门店工作区
-  // 降级成租户后台，否则门店菜单/权限会被替换。
-  if (routeScope === 'TENANT' && authStore.scope === 'STORE' && contextStore.current?.storeId) return
+  if (preserveStoreShell(routeScope)) return
   if (routeScope && routeScope !== authStore.scope) {
     authStore.setScope(routeScope)
   }
+}
+
+/** 只有纯门店店长在复用 TENANT 业务页时才保留门店 shell；总部账号不能停在门店 shell。 */
+function preserveStoreShell(routeScope) {
+  return routeScope === 'TENANT'
+    && authStore.scope === 'STORE'
+    && Boolean(contextStore.current?.storeId)
+    && !authStore.workspaces.includes('HEADQUARTERS')
 }
 
 onMounted(() => {
@@ -448,9 +469,7 @@ onMounted(() => {
 watch(
   () => route.meta.scope,
   (scope) => {
-    // 门店工作区复用 TENANT 业务页时，路由 meta 仍是 TENANT；
-    // 不能因此把门店 shell/菜单降级成租户后台。
-    if (scope === 'TENANT' && authStore.scope === 'STORE' && contextStore.current?.storeId) return
+    if (preserveStoreShell(scope)) return
     if (scope && scope !== authStore.scope) {
       authStore.setScope(scope)
       menuStore.fetchMenus(scope)
@@ -668,6 +687,23 @@ async function submitPasswordChange() {
   z-index: 10;
   flex-shrink: 0;
   gap: 12px;
+}
+
+.context-scope-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 20px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.context-scope-roles {
+  margin-left: 8px;
+  color: var(--el-color-primary);
 }
 
 .header-breadcrumb :deep(.el-breadcrumb__inner) {

@@ -32,6 +32,14 @@
       title="平台超级管理员是后台固定角色，不在 IAM 角色目录中"
       description="本页维护平台运营角色（如 platform.operator）的权限；平台超级管理员/平台管理员由后台 AdminRole 固定控制，不能在此编辑。平台运营人员的角色授予需在平台运营人员管理中完成。"
     />
+    <el-alert
+      v-if="!isPlatform && contextStore.storeId"
+      type="info"
+      :closable="false"
+      show-icon
+      title="当前为门店数据范围"
+      description="角色定义仍是租户级模板；在此修改权限会影响该租户下所有适用门店。门店列头已按角色作用域标注。"
+    />
 
     <div class="admin-card">
       <el-table v-loading="loading" :data="roles" border stripe>

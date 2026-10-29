@@ -28,6 +28,14 @@
     />
 
     <el-alert
+      v-if="isTenantMatrix && tenantScopeHint"
+      type="warning"
+      :closable="false"
+      show-icon
+      :title="tenantScopeHint"
+    />
+
+    <el-alert
       v-if="stateCounts.anomaly > 0"
       class="anomaly-alert"
       type="error"
@@ -216,6 +224,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Check, Refresh, WarningFilled } from '@element-plus/icons-vue'
+import { useContextStore } from '@/stores/context'
 import {
   getPermissionMatrix,
   getPermissionMatrixVersion,
@@ -243,6 +252,16 @@ const roles = ref([])
 const router = useRouter()
 const route = useRoute()
 const isTenantMatrix = computed(() => route.meta?.tenantMatrix === true)
+const contextStore = useContextStore()
+const tenantScopeHint = computed(() => {
+  if (!isTenantMatrix.value) return ''
+  const current = contextStore.current
+  if (!current) return '当前未选择租户/门店上下文，无法确定角色适用范围。'
+  if (current.storeId && current.storeId > 0) {
+    return `当前数据范围：门店 ${current.storeName || current.storeId}。角色模板仍是租户级定义，列头按角色作用域标注。`
+  }
+  return `当前数据范围：${current.tenantName || '租户总部'}（跨门店），角色模板为租户级定义。`
+})
 const keyword = ref('')
 const moduleFilter = ref(null)
 const domainFilter = ref(null)

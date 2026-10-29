@@ -113,7 +113,7 @@ const personas = {
       { title: '酒店与 KTV', description: '酒店前台、房型房价与门店运营', icon: 'Hotel' },
     ],
     entryTitle: '租户后台入口', entryHint: '进入后可在右上角切换总部或门店上下文。',
-    backendCodes: ['tenant', 'store'],
+    backendCodes: ['tenant'],
   },
   store: {
     scope: 'STORE', badge: '门店店长', title: '门店管理后台',
@@ -131,6 +131,11 @@ const personas = {
 const persona = computed(() => {
   if (authStore.user?.role === 'SUPER_ADMIN') return personas.super
   if (authStore.user?.role === 'PLATFORM_ADMIN') return personas.platform
+  // A 方案：同时拥有总部与门店工作区的账号（如租户管理员）优先按总部身份进入；
+  // 门店只是总部视角下的数据范围，不能因为 store.manager 绑定降级为店长入口。
+  const headquarters = authStore.workspaces.includes('HEADQUARTERS')
+    || authStore.defaultWorkspace === 'HEADQUARTERS'
+  if (headquarters) return personas.tenant
   if (authStore.roles?.includes('store.manager') || authStore.defaultWorkspace === 'STORE') return personas.store
   return personas.tenant
 })
