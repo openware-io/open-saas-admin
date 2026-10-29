@@ -23,6 +23,14 @@
       title="权限范围由角色作用域决定"
       :description="scopeHint"
     />
+    <el-alert
+      v-if="isPlatform"
+      type="warning"
+      :closable="false"
+      show-icon
+      title="平台超级管理员是后台固定角色，不在 IAM 角色目录中"
+      description="本页维护平台运营角色（如 platform.operator）的权限；平台超级管理员/平台管理员由后台 AdminRole 固定控制，不能在此编辑。平台运营人员的角色授予需在平台运营人员管理中完成。"
+    />
 
     <div class="admin-card">
       <el-table v-loading="loading" :data="roles" border stripe>
