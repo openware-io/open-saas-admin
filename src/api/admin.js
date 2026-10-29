@@ -96,6 +96,10 @@ export function listRolePermissions(roleId) {
 export function getRolePermissionSnapshot(roleId) {
   return request.get('/api/v1/admin/iam/roles/' + roleId + '/permissions/snapshot')
 }
+/** 角色列表的权限数量（批量，一次请求替代逐角色查询）。 */
+export function getRolePermissionCounts() {
+  return request.get('/api/v1/admin/iam/roles/permission-counts')
+}
 export function createRole(data) {
   return request.post('/api/v1/admin/iam/roles', data)
 }

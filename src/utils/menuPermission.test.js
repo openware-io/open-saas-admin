@@ -20,9 +20,10 @@ const CURRENCY_MENU = { id: 27, name: '币种', path: '/admin/tenant/currency', 
 const STORE_MENU = { id: 10, name: '门店', path: '/admin/tenant/stores', children: [] }
 
 describe('菜单权限映射（后端菜单 + 前端附加门禁）', () => {
-  it('只登记币种一项，路径与后端下发的路由一致', () => {
+  it('角色/权限管理菜单登记 iam.role.manage 门禁', () => {
     expect(MENU_ITEM_PERMISSIONS['/admin/tenant/currency']).toBe('tenant.currency.manage')
     expect(MENU_ITEM_PERMISSIONS['/admin/tenant/overview']).toBe('tenant.overview.view')
+    expect(MENU_ITEM_PERMISSIONS['/admin/roles']).toBe('iam.role.manage')
   })
 
   it('权限快照的四种形态都容错（数组 / {code} / {permissionCode} / {code:true}）', () => {
@@ -57,13 +58,13 @@ describe('菜单权限映射（后端菜单 + 前端附加门禁）', () => {
 
   it('过滤时保留原菜单顺序与结构，子项同样适用映射', () => {
     const tree = [
-      { id: 3, name: '权限管理', path: '/admin/iam', children: [{ id: 31, name: '角色', path: '/admin/iam/roles' }] },
+      { id: 3, name: '人员与权限', path: '/admin/iam', children: [{ id: 31, name: '角色与权限', path: '/admin/roles' }] },
       CURRENCY_MENU,
       STORE_MENU,
     ]
     const filtered = filterMenusByPermission(tree, ['tenant.currency.manage'])
     expect(filtered.map((item) => item.path)).toEqual(['/admin/iam', '/admin/tenant/currency'])
-    expect(filtered[0].children).toHaveLength(1)
+    expect(filtered[0].children).toHaveLength(0)
 
     const hidden = filterMenusByPermission(tree, [])
     expect(hidden.map((item) => item.path)).toEqual(['/admin/iam'])

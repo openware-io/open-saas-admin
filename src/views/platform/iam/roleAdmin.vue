@@ -8,7 +8,9 @@
         </p>
       </div>
       <div class="header-actions">
-        <el-button @click="router.push('/admin/iam/role-profiles')">工作台默认值</el-button>
+        <el-button :loading="loading" @click="load">刷新</el-button>
+        <el-button v-if="isPlatform" @click="router.push('/admin/iam/role-profiles')">工作台默认值</el-button>
+        <el-button v-if="isPlatform" @click="router.push('/admin/iam/permissions')">查看权限目录</el-button>
         <el-button type="primary" :disabled="!canCreate" @click="openCreate()">新建角色</el-button>
       </div>
     </div>
@@ -71,7 +73,7 @@
         <el-alert
           type="warning"
           :closable="false"
-          :title="isPlatform ? '平台角色只包含平台级权限' : '租户角色只能授予本租户范围内的权限'"
+          :title="isPlatform ? '平台角色只能选择已标记为可授予 PLATFORM 的权限' : '租户角色只能授予本租户范围内的权限'"
         />
       </el-form>
       <template #footer>
@@ -181,17 +183,17 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   assignRolePermissions,
   assignUserRole,
   createRole,
+  getRolePermissionCounts,
   getRolePermissionSnapshot,
   listPermissions,
   listRoleCatalog,
-  listRolePermissions,
   revokeRoleMember,
   updateRoleMemberScope,
 } from '@/api/admin'
@@ -233,9 +235,10 @@ const isPlatform = computed(() => {
   const current = contextStore.current
   return current?.scopeType === 'PLATFORM' || !current?.tenantId
 })
-const canCreate = computed(() => hasPermission(contextStore.current?.permissions, 'iam.role.manage'))
+const canCreate = computed(() => hasPermission(contextStore.current?.permissions,
+  isPlatform.value ? 'platform.iam.role.manage' : 'iam.role.manage'))
 const scopeHint = computed(() => isPlatform.value
-  ? '平台角色只授予平台级权限，不能进入租户业务。'
+  ? '平台角色按 PLATFORM 可授予范围配置权限；平台运营进入租户上下文时使用同一权限快照。'
   : '租户可创建 TENANT/STORE 角色；预置角色只读，修改请复制。')
 const storeOptions = computed(() => (contextStore.items || []).filter((item) => item.storeId != null))
 
@@ -277,17 +280,14 @@ function isPreset(role) {
 }
 
 async function load() {
+  if (loading.value) return
   loading.value = true
   try {
     roles.value = (await listRoleCatalog()) || []
     permissions.value = (await listPermissions()) || []
-    for (const role of roles.value) {
-      try {
-        permissionCounts[role.id] = (await listRolePermissions(role.id)).length
-      } catch {
-        permissionCounts[role.id] = 0
-      }
-    }
+    const counts = (await getRolePermissionCounts()) || []
+    for (const key of Object.keys(permissionCounts)) delete permissionCounts[key]
+    for (const item of counts) permissionCounts[item.roleId] = item.permissionCount
   } catch (error) {
     notifyAdminRequestError(error, '加载角色失败')
   } finally {
@@ -347,6 +347,8 @@ async function openPermissions(role) {
   permissionVisible.value = true
   permissionLoading.value = true
   try {
+    // 权限元数据（grantableLevels）可能已被迁移/其他管理员修改，打开弹窗前重新拉取。
+    permissions.value = (await listPermissions()) || []
     const snapshot = await getRolePermissionSnapshot(role.id)
     const codes = snapshot?.permissionCodes || []
     const byCode = new Map(permissions.value.map((permission) => [permission.code, permission.id]))
@@ -531,9 +533,31 @@ async function assignMember() {  if (!selectedStaffId.value || !memberRole.value
   }
 }
 
+let reloadTimer = null
+
+/** 回到页面时刷新角色与权限计数，避免 V36 或其他人修改后长期显示旧数据。 */
+function scheduleReload() {
+  if (document.visibilityState !== 'visible' || loading.value) return
+  if (permissionVisible.value || createVisible.value || memberVisible.value) return
+  if (reloadTimer) clearTimeout(reloadTimer)
+  reloadTimer = setTimeout(() => load(), 300)
+}
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') scheduleReload()
+}
+
 onMounted(async () => {
   await load()
   await openRoleFromQuery()
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  window.addEventListener('focus', scheduleReload)
+})
+
+onBeforeUnmount(() => {
+  if (reloadTimer) clearTimeout(reloadTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  window.removeEventListener('focus', scheduleReload)
 })
 </script>
 
