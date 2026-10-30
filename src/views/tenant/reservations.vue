@@ -23,7 +23,7 @@
       <template #toolbar-left-extra>
         <!-- 预约时段（startAt）：from/to 是闭区间，结束端由后端收口到当天 23:59:59；
              本看板没有「查询」按钮，选完即按区间重新拉取。 -->
-        <DateRangeFilter v-model="range" @change="load" @clear="load" />
+        <DateRangeFilter v-model="range" @change="resetAndLoad" @clear="resetAndLoad" />
         <span v-if="priceText" class="price-hint">房型价格：{{ priceText }}</span>
         <!-- 营业时间与创建校验同源：预约到店时间必须在此时段内（18:00 可约、05:00 已打烊）。 -->
         <el-tooltip v-if="businessHours" content="预约到店时间必须落在营业时段内，越界的预约会在卡片上标注" placement="top">
@@ -104,6 +104,17 @@
         </article>
       </div>
       <el-empty v-else :description="reservationEmptyText" :image-size="96" />
+      <div v-if="rows.length" class="table-pager">
+        <el-pagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          layout="total, prev, pager, next, sizes"
+          :total="paginationTotal"
+          :page-sizes="[20, 50, 100]"
+          @current-change="load"
+          @size-change="changePageSize"
+        />
+      </div>
     </OperationsBoard>
 
     <el-drawer v-model="detailVisible" size="420px" class="reservation-detail-drawer">
@@ -258,6 +269,11 @@ const canAssignReservation = computed(() => hasPermissionOrMissing(contextStore.
 const rows = ref([])
 const loading = ref(false)
 const keyword = ref('')
+const page = ref(1)
+const pageSize = ref(20)
+const paginationTotal = computed(() => (page.value - 1) * pageSize.value + rows.value.length + (rows.value.length === pageSize.value ? 1 : 0))
+function resetAndLoad() { page.value = 1; return load() }
+function changePageSize() { page.value = 1; return load() }
 /** 时间区间（预约时段 startAt）：本看板查询条件不是 reactive 对象，区间单独一个 ref。 */
 const range = ref(emptyDateRange())
 const statusFilter = ref('all')
@@ -459,7 +475,7 @@ async function load() {
   loading.value = true
   try {
     const [data, resourceResult] = await Promise.all([
-      getReservations({ ...dateRangeParams(range.value) }),
+      getReservations({ ...dateRangeParams(range.value), limit: pageSize.value, offset: (page.value - 1) * pageSize.value }),
       listResources({ resourceType: 'KTV_ROOM' }).catch(() => null),
       getKtvPricing().then((pricing) => { ktvPricing.value = pricing }).catch(() => { ktvPricing.value = null }),
     ])
