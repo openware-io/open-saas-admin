@@ -57,4 +57,33 @@ describe('resolveAdminErrorMessage', () => {
     expect(resolveAdminErrorMessage({ response: { status: 418, data: {} } }, '加项失败')).toBe('加项失败')
     expect(resolveAdminErrorMessage({ response: { status: 418, data: {} } })).toBe('操作未完成，请稍后重试。')
   })
+
+  // 门店变更申请（申请 → 审批 → 执行）：每个错误码都对应不同的下一步动作，
+  // 且提示里不得出现英文原文/裸错误码（运营看不懂，也无法据此操作）。
+  it('门店变更申请/平台审批错误码映射到可执行的中文提示', () => {
+    const cases = {
+      STORE_CHANGE_REASON_REQUIRED: '请填写申请理由。',
+      STORE_CHANGE_PENDING_EXISTS: '该门店已有待审批的变更申请，请先在「变更记录」中撤销后再提交。',
+      STORE_CHANGE_ALREADY_REVIEWED: '该申请已被审批或撤销，请刷新队列后查看最新状态。',
+      STORE_CHANGE_CONFLICT: '审批执行时门店数据已变化（或编号已被占用），申请已标记为执行冲突，请重新提交。',
+      STORE_CHANGE_REQUIRES_TENANT_CONTEXT: '门店变更申请必须在租户总部上下文提交，请先在右上角切换到总部。',
+      STORE_CHANGE_BASE_VERSION_REQUIRED: '门店信息缺少版本号，请刷新门店列表后重新提交。',
+      STORE_CODE_CONFLICT: '门店编号已被占用，请换一个编号后重新提交。',
+      STORE_DELETE_REQUIRES_INACTIVE: '只有停用或已关闭的门店才能申请删除。',
+      STORE_STATUS_TRANSITION_INVALID: '当前门店状态不允许该操作，请刷新后重试。',
+      STORE_HAS_ACTIVE_BINDINGS: '门店仍有生效中的门店级人员/角色绑定，请先解除后再申请删除。',
+      TIMEZONE_INVALID: '时区必须是合法的 IANA 时区（如 Asia/Shanghai），不能是 +08:00 / Z 这类偏移写法。',
+      BUSINESS_DAY_CUTOFF_OUT_OF_RANGE: '营业日切点需在 00:00–12:00 之间。',
+      PLATFORM_CONTEXT_REQUIRED: '请切换到平台工作区后再执行门店审批。',
+      ORGANIZATION_TENANT_MISMATCH: '所选组织不属于当前租户，请重新选择组织后再提交。',
+    }
+    for (const [code, expected] of Object.entries(cases)) {
+      const message = resolveAdminErrorMessage({ response: { status: 400, data: { code } } })
+      expect(message).toBe(expected)
+      expect(message).not.toBe(code)
+      // 中文可读：不含英文原文（时区提示会引用 IANA 示例 Asia/Shanghai，单独放行）
+      expect(/[\u4e00-\u9fff]/.test(message)).toBe(true)
+      if (code !== 'TIMEZONE_INVALID') expect(/[A-Za-z]{4,}/.test(message)).toBe(false)
+    }
+  })
 })

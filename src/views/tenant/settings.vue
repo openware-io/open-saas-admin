@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h2>租户设置</h2>
-        <p class="subtle">维护租户品牌与门店级 Logo；图片由平台媒体服务统一存储。</p>
+        <p class="subtle">维护租户品牌；门店 Logo 随门店资料在「门店」列表提交编辑申请，平台审批通过后生效。</p>
       </div>
       <el-button :loading="saving" @click="save">保存租户 Logo</el-button>
     </div>
@@ -42,11 +42,11 @@
       <div class="section-head">
         <div>
           <h3>门店 Logo</h3>
-          <p class="section-subtitle">门店 Logo 按门店分别维护，入口在「门店」列表的 Logo 列。</p>
+          <p class="section-subtitle">门店 Logo 按门店分别维护：在「门店」列表对目标门店提交「申请编辑」，平台运营审批通过后生效（不再有单独的门店 Logo 直写入口）。</p>
         </div>
         <el-button size="small" @click="router.push('/admin/tenant/stores')">前往门店列表</el-button>
       </div>
-      <p class="help">建议使用正方形、透明背景的 PNG/WebP；门店 Logo 会用于门店工作台与服务入口。</p>
+      <p class="help">建议使用正方形、透明背景的 PNG/WebP；门店 Logo 会用于门店工作台与服务入口。门店级资料变更与新增/停用/删除一样走「申请 → 平台审批 → 执行」。</p>
     </section>
   </div>
 </template>

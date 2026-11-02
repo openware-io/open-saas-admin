@@ -418,6 +418,9 @@ watch(
   (permissions) => {
     if (permissions && authStore.scope === 'TENANT') menuStore.fetchMenus('TENANT')
     if (permissions && authStore.scope === 'STORE') menuStore.fetchMenus('STORE')
+    // 平台菜单同样按「平台权限快照」剪枝：路由守卫 ensureContext('PLATFORM') 拿到快照后
+    // 再拉一次平台菜单，避免快照晚到时服务端下发的门店审批菜单被严格 hasPermission 过滤掉。
+    if (permissions && authStore.scope === 'PLATFORM') menuStore.fetchMenus('PLATFORM')
   }
 )
 

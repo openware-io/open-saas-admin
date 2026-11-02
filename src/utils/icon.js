@@ -1,7 +1,7 @@
 import {
   Avatar, Box, ChatDotRound, Coin, CreditCard, DataAnalysis, Document, Grid, HomeFilled,
   Key, Lock, Management, Menu, Money, OfficeBuilding, PriceTag, Setting, Shop, Star, Tickets,
-  TrendCharts, User, UserFilled,
+  TrendCharts, User, UserFilled, Stamp,
   Wallet, Goods, List, Clock, Calendar, Service, Collection, Mic, Tools, SetUp, TakeawayBox,
 } from '@element-plus/icons-vue'
 
@@ -45,6 +45,8 @@ const iconMap = {
   audit: Document,
   document: Document,
   log: Document,
+  // 门店审批（admin V14 菜单 icon=stamp）：审批队列用「印章」语义图标
+  stamp: Stamp,
 }
 
 // 后端菜单历史种子存在同图标复用的码；按菜单 code 做唯一性覆盖，
@@ -92,6 +94,7 @@ export function resolveIcon(icon, code) {
     TakeawayBox,
     UserFilled,
     TrendCharts,
+    Stamp,
   }
   return iconMap[icon] || pascalIconMap[icon] || Menu
 }

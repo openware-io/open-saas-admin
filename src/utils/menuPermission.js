@@ -1,4 +1,4 @@
-import { hasPermission } from './context'
+import { hasPermission, hasPermissionOrMissing } from './context'
 
 /**
  * 后端下发菜单 → 前端附加权限门禁。
@@ -27,7 +27,11 @@ export const MENU_ITEM_PERMISSIONS = Object.freeze({
   // 租户/门店业务入口：后端菜单有些只下发 path、requiredPermission 为空，
   // 前端必须补齐权限门禁，避免“看得到菜单、点进去 403”。
   '/admin/tenant/overview': 'tenant.overview.view',
-  '/admin/tenant/stores': 'tenant.store.manage',
+  // 门店写操作改为「申请 → 平台审批 → 执行」：提交/撤销用租户级 tenant.tenant.manage（店长不持有），
+  // 与 admin V14 门店菜单的 required_permission 同码。
+  '/admin/tenant/stores': 'tenant.tenant.manage',
+  // 平台「门店审批」队列：服务端菜单 V14 下发，前端兜底映射同码。
+  '/admin/platform/store-approvals': 'platform.store.change.approve',
   '/admin/tenant/currency': 'tenant.currency.manage',
   '/admin/tenant/wallet-token-config': 'tenant.tenant.manage',
   '/admin/tenant/hotel': 'hotel.booking.view',
@@ -81,4 +85,33 @@ export function filterMenusByPermission(menus, permissions) {
     result.push(children.length ? { ...item, children: filteredChildren } : item)
   }
   return result
+}
+
+/**
+ * 路由级权限门禁（`route.meta.permission`）：与后端菜单剪枝、接口 PermissionGuard 同码。
+ *
+ * 返回 true 表示「应回退」——由路由守卫跳回本工作区首页并提示，避免只看到一张 403 页面。
+ * 平台与租户采用**同一份权限快照**判定，但缺失语义不同：
+ *  1. 没配 `meta.permission` 的路由不拦（绝大多数既有页面）；
+ *  2. **PLATFORM 页面 fail-closed**：平台页面只认平台工作区快照（`scopeType === 'PLATFORM'`）。
+ *     守卫在进入 PLATFORM 路由前会先 `ensureContext('PLATFORM')` 取快照；仍然缺失说明平台
+ *     会话确实拿不到权限，此时回退而不是放行——否则「平台审批菜单被前端二次过滤掉」的根因
+ *     （contextStore.current 为 null、严格 hasPermission 把菜单全剪掉）就会被 fail-open 掩盖。
+ *  3. TENANT/STORE 页面保持兼容：快照缺失（旧会话）或快照属于另一个工作区时不拦，
+ *     避免误伤既有入口；越权仍由后端 403/401 自愈路径兜底。
+ *
+ * @param {string|undefined} metaScope 路由 `meta.scope`（PLATFORM / TENANT / STORE）
+ * @param {object|null|undefined} current 运营上下文（含 `permissions` 快照与 `scopeType`）
+ * @param {string|undefined} permission 路由要求的权限码
+ */
+export function routePermissionDenied(metaScope, current, permission) {
+  if (!permission) return false
+  const snapshotScope = current?.scopeType
+  if (metaScope === 'PLATFORM') {
+    // 非平台快照（含 null）一律视为「拿不到平台权限」：守卫会先 ensureContext，取不到就回退。
+    if (snapshotScope !== 'PLATFORM') return true
+    return !hasPermission(current?.permissions, permission)
+  }
+  if (metaScope && metaScope !== 'PLATFORM' && snapshotScope === 'PLATFORM') return false
+  return !hasPermissionOrMissing(current?.permissions, permission)
 }

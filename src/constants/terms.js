@@ -430,13 +430,206 @@ export function businessTypeText(type) {
 }
 
 /** 门店状态（tnt_store.status）。 */
-export const STORE_STATUS_TEXT = { ACTIVE: '营业中', SUSPENDED: '停用', CLOSED: '已关闭' }
-export const STORE_STATUS_TYPE = { ACTIVE: 'success', SUSPENDED: 'warning', CLOSED: 'info' }
+export const STORE_STATUS_TEXT = {
+  ACTIVE: '营业中',
+  SUSPENDED: '停用',
+  CLOSED: '已关闭',
+  // 逻辑删除是终态（tnt_store.deleted_at）：服务端列表默认过滤掉，但缓存/旧数据仍可能带出来，
+  // 词表必须有映射，不能落成「未知（DELETED）」。
+  DELETED: '已删除',
+}
+export const STORE_STATUS_TYPE = {
+  ACTIVE: 'success',
+  SUSPENDED: 'warning',
+  CLOSED: 'info',
+  DELETED: 'info',
+}
 export function storeStatusText(status) {
   return STORE_STATUS_TEXT[status] || unknownEnumText(status)
 }
 export function storeStatusType(status) {
   return STORE_STATUS_TYPE[status] || 'info'
+}
+
+// —— 门店变更申请与平台审批（STORE_CHANGE_APPROVAL_WORKFLOW.md rev3）———————
+/**
+ * 门店变更申请类型（`tnt_store_change_request.request_type`）。
+ *
+ * 口径：租户侧「不能再直接改门店」——新增/编辑/停用启用关闭/删除都要提交申请单，
+ * 平台运营审批通过后由系统执行（`STORE_CHANGE_APPROVAL_WORKFLOW.md` §9）。因此页面上
+ * 一律用「申请」措辞，不能出现「保存/立即生效」这类旧直写文案。
+ */
+export const STORE_CHANGE_REQUEST_TYPE_TEXT = {
+  CREATE: '新增门店',
+  UPDATE: '编辑门店',
+  STATUS: '状态变更',
+  DELETE: '删除门店',
+}
+export function storeChangeRequestTypeText(type) {
+  return STORE_CHANGE_REQUEST_TYPE_TEXT[type] || unknownEnumText(type)
+}
+
+/** 门店变更申请状态（PENDING / APPROVED / REJECTED / CANCELLED / CONFLICT）。 */
+export const STORE_CHANGE_REQUEST_STATUS_TEXT = {
+  PENDING: '待审批',
+  APPROVED: '已通过',
+  REJECTED: '已驳回',
+  CANCELLED: '已撤销',
+  CONFLICT: '执行冲突',
+}
+export const STORE_CHANGE_REQUEST_STATUS_TYPE = {
+  PENDING: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'danger',
+  CANCELLED: 'info',
+  CONFLICT: 'danger',
+}
+export function storeChangeRequestStatusText(status) {
+  return STORE_CHANGE_REQUEST_STATUS_TEXT[status] || unknownEnumText(status)
+}
+export function storeChangeRequestStatusType(status) {
+  return STORE_CHANGE_REQUEST_STATUS_TYPE[status] || 'info'
+}
+
+/**
+ * 申请动作短标签：用于「审批中：停用申请」这类行内提示与变更记录摘要。
+ * 与申请类型不是一一对应——停用/启用/关闭都属于 STATUS，靠目标状态区分。
+ */
+export const STORE_CHANGE_ACTION_LABEL = {
+  CREATE: '新增门店',
+  UPDATE: '编辑',
+  SUSPEND: '停用',
+  RESUME: '启用',
+  CLOSE: '关闭',
+  DELETE: '删除',
+}
+
+/** 门店页操作列 / 表单抽屉标题（动作，不是状态）。 */
+export const STORE_CHANGE_ACTION_TEXT = {
+  CREATE: '申请新增门店',
+  UPDATE: '申请编辑',
+  SUSPEND: '申请停用',
+  RESUME: '申请启用',
+  CLOSE: '申请关闭',
+  DELETE: '申请删除',
+}
+export function storeChangeActionText(action) {
+  return STORE_CHANGE_ACTION_TEXT[action] || '申请变更'
+}
+
+/** 门店变更申请/审批相关的固定文案（标题、分组、提示、按钮）。 */
+export const STORE_CHANGE_FORM_TEXT = {
+  createTitle: '申请新增门店',
+  updateTitle: '申请编辑门店',
+  statusTitle: '申请状态变更',
+  deleteTitle: '申请删除门店',
+  reasonLabel: '申请理由',
+  reasonPlaceholder: '请说明变更原因，审批人会看到这条理由（必填，最多 512 字）',
+  reasonHint: '提交申请后门店保持不变，平台运营审批通过后才会生效。',
+  submit: '提交审批',
+  submitSuccess: '变更申请已提交，等待平台审批',
+  cancelSuccess: '申请已撤销',
+  recordsTitle: '变更记录',
+  recordsEmpty: '暂无门店变更申请',
+  pendingCreateTitle: '待审批的新增门店申请',
+  pendingCreateHint: '新增门店必须经平台运营审批通过后才会创建；审批前门店列表里不会出现该门店。',
+  pendingRowHint: '该门店已有待审批的变更申请，撤销后才能提交新的申请。',
+  adminOnlyHint: '当前账号没有门店变更申请权限（需要 tenant.tenant.manage），仅可查看。',
+  createDefaultsHint: '时区/营业日切点/组织归属等字段由租户默认值带出，可按门店调整。',
+  formIncomplete: '请先补全表单中标 * 的必填项',
+  // 门店上下文下这些入口必须禁用：申请单与变更记录都是租户级数据，提交还会被服务端 400 拒绝。
+  storeScopeHint: '当前是门店上下文：门店变更申请与变更记录需在租户总部上下文操作。',
+  switchToHeadquarter: '切回总部',
+  switchedToHeadquarter: '已切换到租户总部上下文',
+  switchToHeadquarterFailed: '切换到租户总部上下文失败，请从右上角手动切换',
+  noHeadquarterContext: '请先在右上角切换到租户总部上下文后再提交门店变更申请',
+  submitFailed: '提交门店变更申请失败',
+  cancelFailed: '撤销申请失败',
+  cancelConfirmTitle: '撤销申请',
+  cancelConfirmText: '确认撤销该{type}申请？撤销后门店保持不变，可重新提交新的申请。',
+  cancelConfirmButton: '撤销申请',
+  cancelCancelButton: '再想想',
+  recordsLoadFailed: '加载变更记录失败',
+  pendingLoadFailedHint: '待审批申请加载失败，门店行内可能缺少「审批中」标记，请刷新重试。',
+}
+
+/** 门店变更申请的提交前校验文案（页面 rules 与纯函数共用，避免两处口径漂移）。 */
+export const STORE_CHANGE_VALIDATION_TEXT = {
+  typeUnsupported: '不支持的门店变更类型。',
+  reasonRequired: '请填写申请理由。',
+  reasonTooLong: '申请理由不能超过 512 个字符。',
+  codeRequired: '请输入门店编号。',
+  codePattern: '门店编号需为 2–64 位字母/数字/点/下划线/短横线，且以字母或数字开头。',
+  nameRequired: '请输入门店名称。',
+  nameTooLong: '门店名称不能超过 128 个字符。',
+  businessTypeRequired: '请选择业务类型。',
+  timezoneRequired: '请选择门店时区。',
+  timezoneInvalid: '时区必须是合法的 IANA 时区（如 Asia/Shanghai）。',
+  cutoffRequired: '请选择营业日切点。',
+  cutoffInvalid: '营业日切点格式为 HH:mm，且需在 00:00–12:00 之间。',
+  baseVersionRequired: '门店信息缺少版本号，请刷新门店列表后重新提交。',
+  noChanges: '没有检测到需要审批的修改。',
+  targetStatusRequired: '请选择目标状态。',
+  statusTransitionInvalid: '当前门店状态不允许该操作，请刷新后重试。',
+  deleteRequiresInactive: '只有停用或已关闭的门店才能申请删除。',
+}
+
+/** 平台审批页固定文案。 */
+export const STORE_APPROVAL_TEXT = {
+  pageTitle: '门店审批',
+  queueHint: '租户提交的门店变更申请在此排队；通过后系统在同一事务内执行变更，驳回则门店完全不变。',
+  approve: '通过',
+  reject: '驳回',
+  approveTitle: '通过门店变更申请',
+  rejectTitle: '驳回门店变更申请',
+  approveCommentPlaceholder: '审批备注（可选）',
+  rejectCommentPlaceholder: '驳回理由（必填，会展示给租户）',
+  rejectCommentRequired: '请填写驳回理由。',
+  approveSuccess: '已通过并执行门店变更',
+  rejectSuccess: '已驳回该申请',
+  diffTitle: '变更内容（变更前 → 变更后）',
+  payloadTitle: '申请载荷',
+  emptyDiff: '本次申请没有字段级差异',
+  applicantLabel: '申请人',
+  reviewerLabel: '审批人',
+  // 快照存在时严格判定；三种 footer 状态分别是「可审批 / 无审批权限 / 已审结」。
+  noApprovePermission: '当前账号没有门店审批权限（platform.store.change.approve），无法通过或驳回。',
+  reviewedHint: '该申请不是待审批状态，不能再通过或驳回。',
+  snapshotMissingHint: '平台权限快照未加载，无法判断审批权限；请刷新页面或重新登录后再试。',
+  loadFailed: '加载门店审批队列失败',
+  detailLoadFailedFallback: '审批详情加载失败，已展示列表中的信息',
+  refreshFailedHint: '队列刷新失败，请手动点「刷新」重试',
+  approveFailed: '通过门店变更申请失败',
+  rejectFailed: '驳回门店变更申请失败',
+  reviewConflictHint: '审批执行失败，申请状态已刷新（可能变为执行冲突/已被处理）',
+}
+
+/**
+ * 变更申请里的门店字段展示名（diff / 载荷 / 变更记录共用）。
+ * 与 `tnt_store` 的注册字段一一对应；未知字段直接展示原字段名（不臆造中文）。
+ */
+export const STORE_CHANGE_FIELD_TEXT = {
+  code: '门店编号',
+  name: '门店名称',
+  businessType: '业务类型',
+  timezone: '时区',
+  businessDayCutoff: '营业日切点',
+  organizationId: '所属组织',
+  logoUrl: '门店 Logo',
+  status: '门店状态',
+  locale: '语言',
+  defaultCurrency: '币种',
+  countryCode: '国家/地区',
+  regionCode: '行政区划',
+}
+
+/**
+ * 组织兜底展示名：`create-defaults` 拿不到组织列表（接口失败/门店归属组织不在候选里）时，
+ * 下拉至少能用「组织 #ID」占位，而不是空标签或英文原值。
+ */
+export function organizationFallbackName(organizationId) {
+  const id = Number(organizationId)
+  return Number.isFinite(id) && id > 0 ? `组织 #${id}` : ''
 }
 
 /** 租户状态（tnt_tenant.status）。 */

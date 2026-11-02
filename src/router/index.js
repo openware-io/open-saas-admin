@@ -1,6 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useContextStore } from '@/stores/context'
 import { useAuthStore } from '@/stores/auth'
+import { routePermissionDenied } from '@/utils/menuPermission'
 import { TERMS } from '@/constants/terms'
 
 const routes = [
@@ -52,6 +54,19 @@ const routes = [
         component: () => import('@/views/platform/payment-methods.vue'),
         meta: { title: '支付方式', icon: 'Money', scope: 'PLATFORM' },
       },
+      {
+        // 门店审批（服务端菜单 V14 下发，路径 `/admin/platform/store-approvals`）。
+        // 租户侧只提交申请；平台运营在此跨租户审批，通过后由服务端在同一事务内执行 apply。
+        path: 'admin/platform/store-approvals',
+        name: 'PlatformStoreApprovals',
+        component: () => import('@/views/platform/store-approvals.vue'),
+        meta: {
+          title: '门店审批',
+          icon: 'Stamp',
+          scope: 'PLATFORM',
+          permission: 'platform.store.change.approve',
+        },
+      },
       // ===== TENANT 租户后台（B端管理后台） =====
       {
         path: 'admin/tenant/overview',
@@ -81,7 +96,9 @@ const routes = [
         path: 'admin/tenant/stores',
         name: 'TenantStores',
         component: () => import('@/views/tenant/stores.vue'),
-        meta: { title: '门店', icon: 'Shop', scope: 'TENANT' },
+        // 门店写操作改为「申请 → 平台审批 → 执行」，提交/撤销用租户级 `tenant.tenant.manage`
+        //（店长不持有），menuPermission 与 admin V14 菜单同码；这里作为第二道前端门禁。
+        meta: { title: '门店', icon: 'Shop', scope: 'TENANT', permission: 'tenant.tenant.manage' },
       },
       // 币种设置：租户级唯一来源（docs/standards/16_CURRENCY_CONVENTIONS.md）。
       // 接口一律取签名上下文租户，因此平台运营切到目标租户上下文后走的是同一个入口/同一个页面。
@@ -248,6 +265,46 @@ const router = createRouter({
   routes,
 })
 
+/**
+ * 平台工作区权限快照（平台菜单 / 审批按钮 / 路由守卫的唯一来源）。
+ *
+ * 背景：平台账号进入 PLATFORM 工作区时 `contextStore.current` 通常还没有值（路由守卫只对
+ * TENANT/STORE 调过 ensureContext），而菜单与按钮用的是**严格** hasPermission——快照缺失时
+ * 服务端 V14 下发的「门店审批」菜单会被前端二次过滤掉。修根因而不是 fail-open：
+ * 进入 PLATFORM 路由时用既有 `ensureContext('PLATFORM')` 取平台签名快照；若会话里记的是租户
+ * 上下文而拿不到平台快照，再从候选里显式选一个 PLATFORM 上下文。
+ * 取不到时**不阻断导航**（平台页面接口会 403），但菜单/按钮/路由守卫按快照缺失 fail-closed。
+ * 30s 节流，避免平台后台每次导航都多打两次会话请求。
+ */
+const PLATFORM_SNAPSHOT_TTL_MS = 30_000
+let platformSnapshotAt = 0
+
+async function ensurePlatformPermissionSnapshot(contextStore) {
+  if (contextStore.current?.scopeType === 'PLATFORM' && contextStore.current?.permissions) return
+  if (Date.now() - platformSnapshotAt < PLATFORM_SNAPSHOT_TTL_MS) return
+  platformSnapshotAt = Date.now()
+  try {
+    await contextStore.ensureContext('PLATFORM')
+  } catch {
+    // 失败原因已写入 contextStore.error；下面再尝试直接选平台候选
+  }
+  if (contextStore.current?.scopeType === 'PLATFORM') return
+  if (!contextStore.items?.length) {
+    try {
+      await contextStore.fetchContexts()
+    } catch {
+      return
+    }
+  }
+  const candidate = (contextStore.items || []).find((item) => item.scopeType === 'PLATFORM')
+  if (!candidate || candidate.contextId === contextStore.current?.contextId) return
+  try {
+    await contextStore.select(candidate.contextId)
+  } catch {
+    // 仍然取不到平台快照：保留当前上下文，路由守卫按快照缺失处理
+  }
+}
+
 router.beforeEach(async (to, from, next) => {
   document.title = `${to.meta.title || '管理后台'} - 管理后台`
   const authStore = useAuthStore()
@@ -283,8 +340,7 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // PLATFORM 工作区没有租户/门店上下文：不能调用 ensureContext，否则空 contextId
-  // 会被后端拒绝成 403，页面会误报“没有操作权限”。平台页面使用平台级接口。
+  // TENANT 工作区：确保选定了租户/门店上下文（平台工作区不走这里，平台上下文由下方单独解析）。
   if (to.meta.scope === 'TENANT' && authStore.workspaces.includes('HEADQUARTERS')) {
     if (contextStore.settled) {
       contextStore.revalidateInBackground(to.meta.scope)
@@ -296,6 +352,11 @@ router.beforeEach(async (to, from, next) => {
       }
     }
   }
+  // PLATFORM 工作区：平台菜单/审批按钮/路由守卫统一依赖平台权限快照（见 ensurePlatformPermissionSnapshot）。
+  // 取不到快照不阻断导航（页面接口会 403），但 meta.permission 守卫与菜单按快照 fail-closed。
+  if (to.meta.scope === 'PLATFORM' && authStore.workspaces.includes('PLATFORM')) {
+    await ensurePlatformPermissionSnapshot(contextStore)
+  }
   // 店长直接打开 /store（刷新/书签）时也要自动选唯一可用的门店，
   // 否则工作台永远停“未选择门店”，什么都不加载。
   if (to.meta.scope === 'STORE' && !contextStore.current) {
@@ -304,6 +365,18 @@ router.beforeEach(async (to, from, next) => {
     } catch (e) {
       // 保持门店工作台空态，不把导航打断
     }
+  }
+  // 页级权限兜底（meta.permission）：与后端菜单/接口守卫同码，越权时回退到本工作区首页。
+  // 平台路由在此按「平台快照 + 严格 hasPermission」判定（快照缺失即回退），
+  // 租户/门店路由保持兼容（快照缺失或跨工作区快照不拦，越权由后端 403 兜底）。
+  if (routePermissionDenied(to.meta.scope, contextStore.current, to.meta.permission)) {
+    ElMessage.warning(`没有访问「${to.meta.title || '该页面'}」的权限，请联系管理员分配角色。`)
+    const fallback = to.meta.scope === 'PLATFORM'
+      ? '/admin/platform/tenants'
+      : authStore.workspaces.includes('HEADQUARTERS')
+        ? '/admin/tenant/overview'
+        : authStore.workspaces.includes('STORE') ? '/store' : '/select'
+    return next(fallback)
   }
   next()
 })
