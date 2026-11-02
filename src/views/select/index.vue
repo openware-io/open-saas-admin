@@ -170,6 +170,7 @@ function enter(code) {
 async function handleLogout() {
   await authStore.logout()
   contextStore.clear()
+  menuStore.reset()
   router.push('/login')
 }
 </script>

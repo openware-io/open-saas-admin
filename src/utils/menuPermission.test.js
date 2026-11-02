@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import {
   MENU_ITEM_PERMISSIONS,
+  PLATFORM_SNAPSHOT_TTL_MS,
   derivePlatformPermissions,
   filterMenusByPermission,
   isMenuItemVisible,
   normalizeMenuPath,
+  refreshPlatformPermissionSnapshot,
   routePermissionDenied,
+  shouldRefetchPlatformSnapshot,
 } from './menuPermission'
 
 /**
@@ -178,17 +181,40 @@ describe('平台权限快照根因修复（源码守卫）', () => {
     expect(source).toContain("ensureContext('STORE')")
   })
 
-  it('平台快照改由已剪枝的平台菜单派生，并写入 contextStore（synthetic）', async () => {
-    const source = await read('../router/index.js')
-    expect(source).toContain('ensurePlatformPermissionSnapshot')
-    expect(source).toContain("fetchMenus('PLATFORM')")
-    expect(source).toContain('derivePlatformPermissions')
-    expect(source).toContain('applyPlatformSnapshot')
-    expect(source).toContain('PLATFORM_SNAPSHOT_TTL_MS')
-    // 菜单缺失必须 fail-closed：不写快照
-    expect(source).toMatch(/if \(!permissions\) return/)
+  it('平台快照由已剪枝的平台菜单派生，时间窗只在已有快照时生效', async () => {
+    const router = stripComments(await read('../router/index.js'))
+    expect(router).toContain('ensurePlatformPermissionSnapshot')
+    expect(router).toContain('shouldFetchPlatformSnapshot')
+    expect(router).toContain('refreshPlatformPermissionSnapshot')
+    // 时间窗状态移进 contextStore：账号切换/退出时 clear() 才能复位（router 里不能再有模块级时间变量）
+    expect(router).not.toContain('platformSnapshotAt')
     // 离开平台工作区要清 synthetic 快照，避免后台校准把它判成上下文变化
-    expect(source).toContain('clearPlatformSnapshot')
+    expect(router).toContain('clearPlatformSnapshot')
+
+    const util = stripComments(await read('../utils/menuPermission.js'))
+    expect(util).toContain("fetchMenus('PLATFORM')")
+    expect(util).toContain('derivePlatformPermissions')
+    expect(util).toContain('applyPlatformSnapshot')
+    expect(util).toContain('PLATFORM_SNAPSHOT_TTL_MS')
+    // 菜单缺失必须 fail-closed：不写快照
+    expect(util).toContain('if (!permissions) return false')
+
+    const store = stripComments(await read('../stores/context.js'))
+    expect(store).toContain('shouldFetchPlatformSnapshot')
+    expect(store).toContain('platformSnapshotAt = 0')
+  })
+
+  it('退出登录/账号切换清空菜单缓存与平台快照时间窗', async () => {
+    const contextStore = stripComments(await read('../stores/context.js'))
+    // clear() 必须复位平台快照时间窗（否则新账号会被上一账号的 TTL 窗口挡住）
+    expect(contextStore).toMatch(/function clear\(\)[\s\S]{0,1200}platformSnapshotAt = 0/)
+
+    const menuStore = await read('../stores/menu.js')
+    expect(menuStore).toContain('function reset()')
+
+    for (const file of ['../layout/AdminLayout.vue', '../views/login/index.vue', '../views/select/index.vue']) {
+      expect(await read(file)).toContain('menuStore.reset()')
+    }
   })
 
   it('平台审批页按钮使用严格 hasPermission（快照存在时），不再 hasPermissionOrMissing', async () => {
@@ -199,9 +225,13 @@ describe('平台权限快照根因修复（源码守卫）', () => {
     expect(source).toContain('reviewFooterHint')
   })
 
-  it('平台菜单在权限快照晚到时重新拉取（与租户/门店同一份快照口径）', async () => {
+  it('平台菜单在权限快照晚到/TTL 到期/账号切换时重新拉取（不依赖旧 menus.length）', async () => {
     const source = await read('../layout/AdminLayout.vue')
-    expect(source).toMatch(/authStore\.scope === 'PLATFORM'\) menuStore\.fetchMenus\('PLATFORM'\)/)
+    expect(source).toContain('refreshPlatformPermissionSnapshot')
+    expect(source).toContain('PLATFORM_SNAPSHOT_TTL_MS')
+    // 账号切换：清菜单 + 清平台快照 + 重新拉当前工作区菜单
+    expect(source).toMatch(/watch\(\s*\(\) => authStore\.user\?\.accountId/)
+    expect(source).toContain('menuStore.reset()')
     // 菜单可见性仍走同一映射过滤（不新增 fail-open 分支）
     expect(source).toContain("filterMenusByPermission(source, contextStore.current?.permissions)")
   })
@@ -270,6 +300,81 @@ describe('从平台菜单派生权限快照（derivePlatformPermissions）', () 
     expect(filtered.map((item) => item.code)).toEqual(['platform.tenant', 'platform.iam', 'store.approval'])
     expect(routePermissionDenied('PLATFORM', { scopeType: 'PLATFORM', permissions }, 'platform.store.change.approve'))
       .toBe(false)
+  })
+})
+
+describe('平台快照节流门禁（shouldRefetchPlatformSnapshot / refreshPlatformPermissionSnapshot）', () => {
+  it('current 缺失时无论距上次多久都必须重新派生（账号切换不能被 TTL 挡住）', () => {
+    const now = 1_700_000_000_000
+    // 从未派生 / 刚刚派生但 current 被清空（退出、切换账号、clear()）→ 立即重新拉
+    expect(shouldRefetchPlatformSnapshot(null, 0, now)).toBe(true)
+    expect(shouldRefetchPlatformSnapshot(null, now, now)).toBe(true)
+    expect(shouldRefetchPlatformSnapshot(null, now - 60 * 60 * 1000, now)).toBe(true)
+    // 非平台快照（真实租户上下文）也不能当成平台快照
+    expect(shouldRefetchPlatformSnapshot({ scopeType: 'TENANT', permissions: ['tenant.tenant.manage'] }, now, now)).toBe(true)
+    // 平台快照但 permissions 缺失 → 重新派生
+    expect(shouldRefetchPlatformSnapshot({ scopeType: 'PLATFORM' }, now, now)).toBe(true)
+  })
+
+  it('已有平台快照时 TTL 内复用，到期后重新派生', () => {
+    const now = 1_700_000_000_000
+    const snapshot = { scopeType: 'PLATFORM', permissions: ['platform.store.change.approve'] }
+    expect(shouldRefetchPlatformSnapshot(snapshot, now, now)).toBe(false)
+    expect(shouldRefetchPlatformSnapshot(snapshot, now - PLATFORM_SNAPSHOT_TTL_MS + 1, now)).toBe(false)
+    expect(shouldRefetchPlatformSnapshot(snapshot, now - PLATFORM_SNAPSHOT_TTL_MS, now)).toBe(true)
+    expect(shouldRefetchPlatformSnapshot(snapshot, now - PLATFORM_SNAPSHOT_TTL_MS - 1, now)).toBe(true)
+  })
+
+  it('refreshPlatformPermissionSnapshot：拉 PLATFORM 菜单 → 派生 → 写入快照', async () => {
+    const contextStore = { applied: null, applyPlatformSnapshot(permissions) { this.applied = permissions } }
+    const menuStore = {
+      calls: [],
+      menus: [],
+      async fetchMenus(scope) {
+        this.calls.push(scope)
+        this.menus = [
+          { code: 'platform.tenant', path: '/admin/platform/tenants' },
+          { code: 'store.approval', path: '/admin/platform/store-approvals', requiredPermission: 'platform.store.change.approve' },
+        ]
+      },
+    }
+    expect(await refreshPlatformPermissionSnapshot(contextStore, menuStore)).toBe(true)
+    expect(menuStore.calls).toEqual(['PLATFORM'])
+    expect(contextStore.applied).toEqual(['platform.store.change.approve'])
+  })
+
+  it('菜单缺失/拉取失败时不写快照（fail-closed）', async () => {
+    const contextStore = { applied: null, applyPlatformSnapshot(permissions) { this.applied = permissions } }
+    const emptyMenuStore = { menus: [], async fetchMenus() { this.menus = [] } }
+    expect(await refreshPlatformPermissionSnapshot(contextStore, emptyMenuStore)).toBe(false)
+    expect(contextStore.applied).toBeNull()
+
+    const failingMenuStore = { menus: [], async fetchMenus() { throw new Error('menus unavailable') } }
+    expect(await refreshPlatformPermissionSnapshot(contextStore, failingMenuStore)).toBe(false)
+    expect(contextStore.applied).toBeNull()
+  })
+
+  it('reset 后下一次导航重新拉菜单（节流复位 → 再次 refresh 会重新请求）', async () => {
+    const contextStore = {
+      current: null,
+      applied: 0,
+      applyPlatformSnapshot() { this.current = { scopeType: 'PLATFORM', permissions: [] }; this.applied += 1 },
+    }
+    let fetchCount = 0
+    const menuStore = {
+      menus: [],
+      async fetchMenus() { fetchCount += 1; this.menus = [{ requiredPermission: 'platform.store.change.approve' }] },
+    }
+    // 第一次导航：current 缺失 → 拉菜单
+    expect(shouldRefetchPlatformSnapshot(contextStore.current, 0)).toBe(true)
+    await refreshPlatformPermissionSnapshot(contextStore, menuStore)
+    expect(fetchCount).toBe(1)
+
+    // 模拟退出登录/切换账号：current 与时间窗一起复位
+    contextStore.current = null
+    expect(shouldRefetchPlatformSnapshot(contextStore.current, 0)).toBe(true)
+    await refreshPlatformPermissionSnapshot(contextStore, menuStore)
+    expect(fetchCount).toBe(2)
   })
 })
 

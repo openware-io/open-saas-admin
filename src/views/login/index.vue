@@ -131,8 +131,9 @@ async function handleLogin() {
     // 服务端设置 HttpOnly 会话 Cookie；前端仅缓存展示信息。
     const res = await login(form.username, form.password, form.ttlHours)
     authStore.setAuth(res.user, scopeForWorkspace(res), res)
-    // 新账号登录时清除旧租户上下文界面状态。
+    // 新账号登录时清除旧租户上下文界面状态与上一账号的菜单缓存（菜单按账号权限剪枝）。
     contextStore.clear()
+    menuStore.reset()
     await menuStore.fetchBackends()
     await routeAfterLogin(menuStore.backends)
     ElMessage.success('登录成功')
@@ -153,8 +154,9 @@ onMounted(async () => {
   try {
     const res = await ssoLogin(ssoTicket)
     authStore.setAuth(res.user, scopeForWorkspace(res), res)
-    // 新账号登录时清除旧租户上下文界面状态。
+    // 新账号登录时清除旧租户上下文界面状态与上一账号的菜单缓存（菜单按账号权限剪枝）。
     contextStore.clear()
+    menuStore.reset()
     await menuStore.fetchBackends()
     await routeAfterLogin(menuStore.backends)
     const query = { ...route.query }

@@ -4,6 +4,7 @@ import { getContexts, selectContext } from '@/api/context'
 import { getSession } from '@/api/admin'
 import { chooseSingleContext, contextIdOf } from '@/utils/context'
 import { setCurrency } from '@/utils/currency-runtime'
+import { shouldRefetchPlatformSnapshot } from '@/utils/menuPermission'
 import { LOCK_TIMEOUT_MESSAGE, LOCK_WATCHDOG_MS, withTimeout } from '@/utils/sessionWatchdog'
 import { useAuthStore } from '@/stores/auth'
 
@@ -63,6 +64,12 @@ export const useContextStore = defineStore('context', () => {
   // 当前权限快照的取得时间（select 成功即刷新），用于判断快照是否过期。
   let snapshotAt = 0
   let lastRevalidatedAt = 0
+  /**
+   * 平台权限快照的取得时间（synthetic，来自已剪枝的平台菜单）。
+   * 0 = 从未取得；`clear()`/`clearPlatformSnapshot()` 必须复位，否则「先 admin 再 platform-operator」
+   * 的账号切换会落在上一账号的节流窗口里，守卫直接 return → 审批页被 fail-closed 回退。
+   */
+  let platformSnapshotAt = 0
 
   const tenantId = computed(() => current.value?.tenantId ?? null)
   const organizationId = computed(() => current.value?.organizationId ?? null)
@@ -348,7 +355,18 @@ export const useContextStore = defineStore('context', () => {
     }
     // 平台快照与真实上下文互斥；标记 settled 避免守卫对平台路由反复解析（TTL 由守卫自己控制）。
     settled.value = true
+    platformSnapshotAt = Date.now()
     return current.value
+  }
+
+  /**
+   * 是否需要重新拉平台菜单派生快照。
+   *
+   * **current 缺失/不是平台快照时恒为 true**（不受 TTL 限制）：退出/切换账号后必须立即重新派生，
+   * 否则 `ensurePlatformPermissionSnapshot` 会被上一账号的 30s 时间窗挡住（2026-11-02 验收 P1）。
+   */
+  function shouldFetchPlatformSnapshot(now = Date.now()) {
+    return shouldRefetchPlatformSnapshot(current.value, platformSnapshotAt, now)
   }
 
   /** 离开平台工作区时清掉 synthetic 快照；返回是否真的清掉了（真实上下文不受影响）。 */
@@ -356,6 +374,7 @@ export const useContextStore = defineStore('context', () => {
     if (!current.value?.synthetic) return false
     current.value = null
     settled.value = false
+    platformSnapshotAt = 0
     return true
   }
 
@@ -373,6 +392,8 @@ export const useContextStore = defineStore('context', () => {
     settled.value = false
     snapshotAt = 0
     lastRevalidatedAt = 0
+    // 账号切换/退出登录：平台快照的时间窗必须一起复位，否则新账号首屏会被旧节流挡住。
+    platformSnapshotAt = 0
   }
 
   function reloadForContextChange() {
@@ -389,6 +410,6 @@ export const useContextStore = defineStore('context', () => {
     items, loading, error, current, settled,
     tenantId, organizationId, storeId, businessType, timezone,
     fetchContexts, ensureContext, revalidate, revalidateInBackground, recoverAfterIdle, select, clear,
-    applyPlatformSnapshot, clearPlatformSnapshot,
+    applyPlatformSnapshot, clearPlatformSnapshot, shouldFetchPlatformSnapshot,
   }
 })

@@ -154,3 +154,46 @@ export function derivePlatformPermissions(menus) {
   if (!Array.isArray(menus) || menus.length === 0) return null
   return collectMenuPermissions(menus)
 }
+
+/** 平台权限快照/菜单的刷新 TTL（守卫与 AdminLayout 共用；到期后重新拉菜单并重新派生）。 */
+export const PLATFORM_SNAPSHOT_TTL_MS = 30_000
+
+/**
+ * 是否需要重新拉平台菜单来派生快照（节流门禁，纯函数便于单测）。
+ *
+ * **current 缺失/不是平台快照时必须立即重新拉**——节流只允许作用在「已经有平台快照」的情况：
+ * 退出登录 / 切换账号（先 admin 再 platform-operator）后 `current` 为 null，
+ * 若仍被上一次的时间窗挡住，守卫会直接 return，`routePermissionDenied` 就把审批页回退掉
+ * （2026-11-02 浏览器验收的 P1：SUPER_ADMIN 能进、platform-operator 被回退）。
+ *
+ * @param {{scopeType?:string, permissions?:unknown}|null|undefined} current `contextStore.current`
+ * @param {number} lastFetchedAt 上次成功写入平台快照的时间戳（0 = 从未）
+ * @param {number} [now] 当前时间（单测注入）
+ */
+export function shouldRefetchPlatformSnapshot(current, lastFetchedAt, now = Date.now()) {
+  if (current?.scopeType !== 'PLATFORM' || !current?.permissions) return true
+  const last = Number(lastFetchedAt)
+  return !(Number.isFinite(last) && last > 0 && now - last < PLATFORM_SNAPSHOT_TTL_MS)
+}
+
+/**
+ * 拉取平台菜单 → 派生权限 → 写入 synthetic 平台快照（守卫与 AdminLayout 共用同一实现）。
+ *
+ * 菜单拉取失败/菜单为空时不写快照并返回 false（fail-closed：审批路由回退、需权限菜单隐藏）。
+ * 注意 `menuStore.fetchMenus` 自身会把请求异常吞成 `menus=[] + error`，这里仍防御 catch。
+ *
+ * @param {{applyPlatformSnapshot: Function}} contextStore 上下文 store（需实现 applyPlatformSnapshot）
+ * @param {{fetchMenus: Function, menus: Array}} menuStore 菜单 store
+ * @returns {Promise<boolean>} 是否成功写入平台快照
+ */
+export async function refreshPlatformPermissionSnapshot(contextStore, menuStore) {
+  try {
+    await menuStore.fetchMenus('PLATFORM')
+  } catch {
+    return false
+  }
+  const permissions = derivePlatformPermissions(menuStore.menus)
+  if (!permissions) return false
+  contextStore.applyPlatformSnapshot(permissions)
+  return true
+}

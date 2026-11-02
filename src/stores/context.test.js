@@ -459,4 +459,19 @@ describe('平台权限快照（菜单派生，非上下文选择）', () => {
     expect(store.current).toBeNull()
     expect(store.settled).toBe(false)
   })
+
+  it('shouldFetchPlatformSnapshot：有快照时 TTL 内复用；clear() 后立即需要重新派生', () => {
+    const store = useContextStore()
+    store.applyPlatformSnapshot(['platform.store.change.approve'])
+    // 刚写入：TTL 内不需要重新拉
+    expect(store.shouldFetchPlatformSnapshot(Date.now())).toBe(false)
+
+    // 模拟「先 admin 再 platform-operator」：切账号/退出 → clear() 必须复位时间窗
+    store.clear()
+    expect(store.current).toBeNull()
+    expect(store.shouldFetchPlatformSnapshot(Date.now())).toBe(true)
+
+    // 即使传入「刚派生过」的时间点，current 缺失也必须重新拉
+    expect(store.shouldFetchPlatformSnapshot(Date.now() + 1_000)).toBe(true)
+  })
 })

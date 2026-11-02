@@ -167,7 +167,7 @@ import { useMenuStore } from '@/stores/menu'
 import { usePendingApprovalStore } from '@/stores/pendingApproval'
 import { useContextStore } from '@/stores/context'
 import { useCurrencyStore } from '@/stores/currency'
-import { filterMenusByPermission } from '@/utils/menuPermission'
+import { PLATFORM_SNAPSHOT_TTL_MS, filterMenusByPermission, refreshPlatformPermissionSnapshot } from '@/utils/menuPermission'
 import { createSessionWatchdog } from '@/utils/sessionWatchdog'
 import { SESSION_EXPIRED_EVENT, emitRuntimeEvent } from '@/utils/runtime-events'
 import { ERRORS, businessTypeText } from '@/constants/terms'
@@ -238,6 +238,8 @@ const sessionWatchdog = createSessionWatchdog({
 function handleSessionExpired() {
   authStore.clearLocalState()
   contextStore.clear()
+  // 菜单是上一账号/上一会话剪枝的结果，换账号后不能复用
+  menuStore.reset()
   emitRuntimeEvent(SESSION_EXPIRED_EVENT)
   ElMessage.error(ERRORS.sessionExpired)
   if (typeof window !== 'undefined' && window.location.hash !== '#/login') window.location.hash = '#/login'
@@ -247,6 +249,7 @@ function handleSessionExpired() {
 function relogin() {
   authStore.clearLocalState()
   contextStore.clear()
+  menuStore.reset()
   emitRuntimeEvent(SESSION_EXPIRED_EVENT)
   if (typeof window !== 'undefined' && window.location.hash !== '#/login') window.location.hash = '#/login'
 }
@@ -287,6 +290,10 @@ onUnmounted(() => {
   document.removeEventListener('visibilitychange', onVisibilityChange)
   sessionWatchdog.stop()
   pendingApprovalStore.stop()
+  if (platformSnapshotTimer) {
+    clearTimeout(platformSnapshotTimer)
+    platformSnapshotTimer = null
+  }
 })
 
 const scopeLabel = computed(() => SCOPE_LABELS[authStore.scope] || authStore.scope)
@@ -418,9 +425,8 @@ watch(
   (permissions) => {
     if (permissions && authStore.scope === 'TENANT') menuStore.fetchMenus('TENANT')
     if (permissions && authStore.scope === 'STORE') menuStore.fetchMenus('STORE')
-    // 平台菜单同样按「平台权限快照」剪枝：路由守卫 ensureContext('PLATFORM') 拿到快照后
-    // 再拉一次平台菜单，避免快照晚到时服务端下发的门店审批菜单被严格 hasPermission 过滤掉。
-    if (permissions && authStore.scope === 'PLATFORM') menuStore.fetchMenus('PLATFORM')
+    // 平台菜单/权限快照由 TTL 定时刷新与路由守卫统一维护（见 schedulePlatformSnapshotRefresh），
+    // 这里不再重复拉取，避免平台快照每次写入都触发一次额外菜单请求。
   }
 )
 
@@ -440,13 +446,63 @@ function syncScopeFromRoute() {
 onMounted(() => {
   syncScopeFromRoute()
   // 平台首屏的菜单已由路由守卫拉过（用于派生平台权限快照），这里不重复请求。
+  // 账号切换/退出后菜单被 menuStore.reset() 清空，这里会重新拉当前工作区菜单（不依赖旧 menus.length）。
   if (!menuStore.menus.length) menuStore.fetchMenus(authStore.scope)
   if (authStore.scope === 'TENANT' && !contextStore.items.length) {
     contextStore.fetchContexts()
   }
   // 进入后台即把本租户币种装进全局唯一来源（登录后全站（含各页面）都读它）。
   syncCurrencyWithContext()
+  schedulePlatformSnapshotRefresh()
 })
+
+/**
+ * 平台工作区：菜单/权限快照 TTL 到期后重新拉取。
+ *
+ * 平台权限快照由「已剪枝的平台菜单」派生（见 utils/menuPermission#refreshPlatformPermissionSnapshot），
+ * 若只拉一次，平台权限调整后侧栏与审批按钮会一直停在旧快照；这里按 TTL 到期刷新，
+ * 只作用于 PLATFORM 工作区，且页面隐藏时不发无意义请求（回到前台由焦点/导航路径兜底）。
+ */
+let platformSnapshotTimer = null
+
+async function refreshPlatformSnapshotIfDue() {
+  if (authStore.scope !== 'PLATFORM') return
+  if (!contextStore.shouldFetchPlatformSnapshot()) return
+  await refreshPlatformPermissionSnapshot(contextStore, menuStore)
+}
+
+function schedulePlatformSnapshotRefresh() {
+  if (typeof window === 'undefined') return
+  if (platformSnapshotTimer) {
+    clearTimeout(platformSnapshotTimer)
+    platformSnapshotTimer = null
+  }
+  if (authStore.scope !== 'PLATFORM') return
+  platformSnapshotTimer = setTimeout(() => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      schedulePlatformSnapshotRefresh()
+      return
+    }
+    refreshPlatformSnapshotIfDue().finally(() => schedulePlatformSnapshotRefresh())
+  }, PLATFORM_SNAPSHOT_TTL_MS)
+}
+
+// 同一 SPA 内账号切换（布局可能未卸载）：上一账号的菜单/平台快照不能复用，重新拉当前工作区菜单。
+watch(
+  () => authStore.user?.accountId,
+  (accountId, previousAccountId) => {
+    if (accountId === previousAccountId) return
+    menuStore.reset()
+    contextStore.clearPlatformSnapshot()
+    if (!accountId) return
+    if (authStore.scope === 'PLATFORM') {
+      refreshPlatformPermissionSnapshot(contextStore, menuStore)
+    } else {
+      menuStore.fetchMenus(authStore.scope)
+    }
+    schedulePlatformSnapshotRefresh()
+  }
+)
 
 // 深链/刷新时按路由 meta.scope 校正作用域并拉取对应菜单
 watch(
@@ -457,7 +513,10 @@ watch(
     if (scope === 'TENANT' && authStore.scope === 'STORE' && contextStore.current?.storeId) return
     if (scope && scope !== authStore.scope) {
       authStore.setScope(scope)
-      menuStore.fetchMenus(scope)
+      // 平台工作区的菜单由路由守卫 + 平台快照 TTL 统一拉取（见 ensurePlatformPermissionSnapshot），
+      // 这里不再重复请求；租户/门店仍按作用域切换即时拉取。
+      if (scope !== 'PLATFORM') menuStore.fetchMenus(scope)
+      schedulePlatformSnapshotRefresh()
     }
   }
 )
@@ -489,8 +548,9 @@ async function handleCommand(cmd) {
     passwordDialogVisible.value = true
   } else if (cmd === 'logout') {
     await authStore.logout()
-    // 清除内存中的租户上下文，避免下次登录显示旧账号的界面状态。
+    // 清除内存中的租户上下文与上一账号的菜单/平台快照，避免下次登录显示旧账号状态。
     contextStore.clear()
+    menuStore.reset()
     router.push('/login')
   }
 }
@@ -511,6 +571,7 @@ async function submitPasswordChange() {
     passwordDialogVisible.value = false
     authStore.clearLocalState()
     contextStore.clear()
+    menuStore.reset()
     router.push('/login')
   } finally {
     passwordSubmitting.value = false

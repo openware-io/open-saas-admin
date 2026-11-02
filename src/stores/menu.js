@@ -65,5 +65,17 @@ export const useMenuStore = defineStore('menu', () => {
     return walk(menus.value)
   }
 
-  return { backends, backendsLoading, menus, loading, error, fetchBackends, fetchMenus, firstLeafPath }
+  /**
+   * 清空菜单缓存（退出登录 / 切换账号时调用）。
+   *
+   * 菜单是「服务端按当前账号权限剪枝」的结果，跨账号复用会把上一账号的菜单（含
+   * `store.approval` 这类 requirePermission 项）残留在侧边栏，也会干扰平台权限快照派生。
+   */
+  function reset() {
+    menus.value = []
+    loading.value = false
+    error.value = ''
+  }
+
+  return { backends, backendsLoading, menus, loading, error, fetchBackends, fetchMenus, firstLeafPath, reset }
 })

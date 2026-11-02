@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 import { useContextStore } from '@/stores/context'
 import { useAuthStore } from '@/stores/auth'
 import { useMenuStore } from '@/stores/menu'
-import { derivePlatformPermissions, routePermissionDenied } from '@/utils/menuPermission'
+import { refreshPlatformPermissionSnapshot, routePermissionDenied } from '@/utils/menuPermission'
 import { TERMS } from '@/constants/terms'
 
 const routes = [
@@ -279,25 +279,16 @@ const router = createRouter({
  * `requiredPermission` 就是该账号的平台能力清单；递归收集后写入 synthetic 平台快照
  * （`contextStore.applyPlatformSnapshot`），供菜单剪枝、`routePermissionDenied`、审批按钮统一使用。
  * 菜单拉取失败/空菜单 → 不写快照（fail-closed：审批路由回退、需权限菜单隐藏，其它平台页照常）。
- * 30s 节流，避免平台后台每次导航都重复请求菜单。
+ *
+ * 节流口径（2026-11-02 验收 P1 修复）：TTL 只在**当前已有平台快照**时生效；
+ * `current` 缺失（账号切换/退出后）时 `shouldFetchPlatformSnapshot()` 恒为 true，
+ * 立即重新拉菜单派生，绝不被上一账号的时间窗挡住（时间状态随 `contextStore.clear()` 复位）。
  */
-const PLATFORM_SNAPSHOT_TTL_MS = 30_000
-let platformSnapshotAt = 0
-
 async function ensurePlatformPermissionSnapshot(contextStore, menuStore) {
-  if (contextStore.current?.scopeType === 'PLATFORM' && contextStore.current?.permissions) return
-  if (Date.now() - platformSnapshotAt < PLATFORM_SNAPSHOT_TTL_MS) return
-  platformSnapshotAt = Date.now()
-  try {
-    // menuStore 内部已把请求异常吞成 `menus=[] + error`，这里再兜一层防御。
-    await menuStore.fetchMenus('PLATFORM')
-  } catch {
-    return
-  }
-  const permissions = derivePlatformPermissions(menuStore.menus)
-  // 菜单缺失（接口失败/返回空）→ 不写快照，守卫按 fail-closed 回退，绝不用 fail-open 掩盖。
-  if (!permissions) return
-  contextStore.applyPlatformSnapshot(permissions)
+  // current 缺失/非平台快照 → 立即重新派生；已有快照 → TTL 到期才刷新。
+  if (!contextStore.shouldFetchPlatformSnapshot()) return
+  // 菜单缺失（接口失败/返回空）→ refresh 返回 false 且不写快照，守卫按 fail-closed 回退。
+  await refreshPlatformPermissionSnapshot(contextStore, menuStore)
 }
 
 router.beforeEach(async (to, from, next) => {
