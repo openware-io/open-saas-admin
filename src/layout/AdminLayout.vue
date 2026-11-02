@@ -439,7 +439,8 @@ function syncScopeFromRoute() {
 
 onMounted(() => {
   syncScopeFromRoute()
-  menuStore.fetchMenus(authStore.scope)
+  // 平台首屏的菜单已由路由守卫拉过（用于派生平台权限快照），这里不重复请求。
+  if (!menuStore.menus.length) menuStore.fetchMenus(authStore.scope)
   if (authStore.scope === 'TENANT' && !contextStore.items.length) {
     contextStore.fetchContexts()
   }

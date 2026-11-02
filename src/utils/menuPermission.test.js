@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import {
   MENU_ITEM_PERMISSIONS,
+  derivePlatformPermissions,
   filterMenusByPermission,
   isMenuItemVisible,
   normalizeMenuPath,
@@ -16,6 +17,14 @@ import {
  *  3. 路由 `/admin/tenant/currency` 与门店页的页内快捷入口保留（后端未下发时仍可直达/进入）。
  */
 const read = (relative) => readFile(new URL(relative, import.meta.url), 'utf8')
+
+/** 去掉注释后再做负向断言，避免「说明为什么不再这么写」的注释被误判成实现（同 terms.test 的做法）。 */
+function stripComments(source) {
+  return source
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+}
 
 const CURRENCY_MENU = { id: 27, name: '币种', path: '/admin/tenant/currency', children: [] }
 const STORE_MENU = { id: 10, name: '门店', path: '/admin/tenant/stores', children: [] }
@@ -159,14 +168,27 @@ describe('路由级权限门禁（meta.permission）', () => {
 })
 
 describe('平台权限快照根因修复（源码守卫）', () => {
-  it('进入 PLATFORM 工作区先 ensureContext("PLATFORM") 取签名快照，带节流与候选兜底', async () => {
+  it('PLATFORM 工作区不再调用 ensureContext/select（平台令牌无上下文可选）', async () => {
+    const source = stripComments(await read('../router/index.js'))
+    // 平台账号 5 个候选 select 全 403，绝不能再用上下文选择取平台权限
+    expect(source).not.toContain("ensureContext('PLATFORM')")
+    expect(source).not.toContain('contextStore.select(')
+    // 租户/门店分支仍保留 ensureContext（未受平台修复影响）
+    expect(source).toContain("ensureContext(to.meta.scope)")
+    expect(source).toContain("ensureContext('STORE')")
+  })
+
+  it('平台快照改由已剪枝的平台菜单派生，并写入 contextStore（synthetic）', async () => {
     const source = await read('../router/index.js')
     expect(source).toContain('ensurePlatformPermissionSnapshot')
-    expect(source).toContain("ensureContext('PLATFORM')")
-    expect(source).toContain("scopeType === 'PLATFORM'")
+    expect(source).toContain("fetchMenus('PLATFORM')")
+    expect(source).toContain('derivePlatformPermissions')
+    expect(source).toContain('applyPlatformSnapshot')
     expect(source).toContain('PLATFORM_SNAPSHOT_TTL_MS')
-    // 取不到快照不阻断导航，但菜单/守卫按 fail-closed 处理
-    expect(source).toContain('routePermissionDenied')
+    // 菜单缺失必须 fail-closed：不写快照
+    expect(source).toMatch(/if \(!permissions\) return/)
+    // 离开平台工作区要清 synthetic 快照，避免后台校准把它判成上下文变化
+    expect(source).toContain('clearPlatformSnapshot')
   })
 
   it('平台审批页按钮使用严格 hasPermission（快照存在时），不再 hasPermissionOrMissing', async () => {
@@ -182,6 +204,72 @@ describe('平台权限快照根因修复（源码守卫）', () => {
     expect(source).toMatch(/authStore\.scope === 'PLATFORM'\) menuStore\.fetchMenus\('PLATFORM'\)/)
     // 菜单可见性仍走同一映射过滤（不新增 fail-open 分支）
     expect(source).toContain("filterMenusByPermission(source, contextStore.current?.permissions)")
+  })
+})
+
+describe('从平台菜单派生权限快照（derivePlatformPermissions）', () => {
+  const PLATFORM_MENUS = [
+    { id: 1, code: 'platform.tenant', name: '租户管理', path: '/admin/platform/tenants' },
+    {
+      id: 2,
+      code: 'platform.iam',
+      name: 'IAM',
+      children: [
+        { id: 21, code: 'iam.role', name: '角色', path: '/admin/iam/roles', requiredPermission: 'iam.role.manage' },
+        {
+          id: 22,
+          code: 'iam.permission',
+          name: '权限',
+          children: [
+            { id: 221, code: 'iam.permission.view', name: '权限清单', path: '/admin/iam/permissions', requiredPermission: 'iam.permission.view' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 3,
+      code: 'store.approval',
+      name: '门店审批',
+      path: '/admin/platform/store-approvals',
+      requiredPermission: 'platform.store.change.approve',
+    },
+  ]
+
+  it('递归收集 requiredPermission（含嵌套 children）并去重', () => {
+    expect(derivePlatformPermissions(PLATFORM_MENUS)).toEqual([
+      'iam.role.manage',
+      'iam.permission.view',
+      'platform.store.change.approve',
+    ])
+    expect(derivePlatformPermissions([
+      { requiredPermission: 'a' },
+      { children: [{ requiredPermission: 'a' }, { requiredPermission: 'b' }] },
+      { requiredPermission: '  ' },
+      null,
+    ])).toEqual(['a', 'b'])
+  })
+
+  it('菜单缺失/空菜单 → null（fail-closed，不写快照）', () => {
+    expect(derivePlatformPermissions(undefined)).toBeNull()
+    expect(derivePlatformPermissions(null)).toBeNull()
+    expect(derivePlatformPermissions([])).toBeNull()
+
+    // 空快照下平台审批路由必须回退（不允许 fail-open）
+    expect(routePermissionDenied('PLATFORM', { scopeType: 'PLATFORM', permissions: [] }, 'platform.store.change.approve'))
+      .toBe(true)
+    expect(routePermissionDenied('PLATFORM', null, 'platform.store.change.approve')).toBe(true)
+  })
+
+  it('菜单存在但没有 requiredPermission 时返回空数组（纯展示菜单也是有效快照）', () => {
+    expect(derivePlatformPermissions([{ name: '租户管理', path: '/admin/platform/tenants' }])).toEqual([])
+  })
+
+  it('派生快照可直接驱动菜单剪枝与路由守卫', () => {
+    const permissions = derivePlatformPermissions(PLATFORM_MENUS)
+    const filtered = filterMenusByPermission(PLATFORM_MENUS, permissions)
+    expect(filtered.map((item) => item.code)).toEqual(['platform.tenant', 'platform.iam', 'store.approval'])
+    expect(routePermissionDenied('PLATFORM', { scopeType: 'PLATFORM', permissions }, 'platform.store.change.approve'))
+      .toBe(false)
   })
 })
 

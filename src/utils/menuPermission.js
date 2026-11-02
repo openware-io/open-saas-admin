@@ -94,9 +94,9 @@ export function filterMenusByPermission(menus, permissions) {
  * 平台与租户采用**同一份权限快照**判定，但缺失语义不同：
  *  1. 没配 `meta.permission` 的路由不拦（绝大多数既有页面）；
  *  2. **PLATFORM 页面 fail-closed**：平台页面只认平台工作区快照（`scopeType === 'PLATFORM'`）。
- *     守卫在进入 PLATFORM 路由前会先 `ensureContext('PLATFORM')` 取快照；仍然缺失说明平台
- *     会话确实拿不到权限，此时回退而不是放行——否则「平台审批菜单被前端二次过滤掉」的根因
- *     （contextStore.current 为 null、严格 hasPermission 把菜单全剪掉）就会被 fail-open 掩盖。
+ *     平台令牌由网关注入、平台账号没有可选租户上下文（`/admin/context/select` 一律 403），
+ *     因此平台快照**不来自上下文选择**，而由守卫从服务端已剪枝的 PLATFORM 菜单派生
+ *     （见 {@link derivePlatformPermissions}）；仍然缺失说明菜单接口失败，此时回退而不是放行。
  *  3. TENANT/STORE 页面保持兼容：快照缺失（旧会话）或快照属于另一个工作区时不拦，
  *     避免误伤既有入口；越权仍由后端 403/401 自愈路径兜底。
  *
@@ -108,10 +108,49 @@ export function routePermissionDenied(metaScope, current, permission) {
   if (!permission) return false
   const snapshotScope = current?.scopeType
   if (metaScope === 'PLATFORM') {
-    // 非平台快照（含 null）一律视为「拿不到平台权限」：守卫会先 ensureContext，取不到就回退。
+    // 非平台快照（含 null）一律视为「拿不到平台权限」：守卫会先从平台菜单派生快照，取不到就回退。
     if (snapshotScope !== 'PLATFORM') return true
     return !hasPermission(current?.permissions, permission)
   }
   if (metaScope && metaScope !== 'PLATFORM' && snapshotScope === 'PLATFORM') return false
   return !hasPermissionOrMissing(current?.permissions, permission)
+}
+
+/**
+ * 递归收集菜单树里声明的 `requiredPermission`（平台菜单服务端已按 IAM 权限剪枝，
+ * 下发的菜单本身就是该账号的能力清单；父项/children 都要收）。
+ */
+function collectMenuPermissions(menus) {
+  const codes = new Set()
+  const walk = (nodes) => {
+    if (!Array.isArray(nodes)) return
+    for (const item of nodes) {
+      if (!item || typeof item !== 'object') continue
+      const code = typeof item.requiredPermission === 'string' ? item.requiredPermission.trim() : ''
+      if (code) codes.add(code)
+      if (Array.isArray(item.children) && item.children.length) walk(item.children)
+    }
+  }
+  walk(menus)
+  return [...codes]
+}
+
+/**
+ * 从服务端 `GET /admin/menus?scope=PLATFORM` 的响应派生平台权限快照。
+ *
+ * - 菜单存在（哪怕是空 `requiredPermission` 的纯展示菜单）→ 返回去重后的 requiredPermission 列表，
+ *   可能为空数组（表示服务端未下发任何需要权限的菜单，审批按钮/路由应按空快照 fail-closed）；
+ * - 菜单缺失/非数组/空树 → 返回 `null`（fail-closed：不写快照，审批路由回退、需权限菜单隐藏）。
+ *
+ * 口径依据（2026-11-02 真实浏览器验收）：平台令牌由网关注入，平台账号 5 个候选上下文
+ * `/admin/context/select` 全部 403 CONTEXT_FORBIDDEN，`contextStore.current` 恒为 null；
+ * 但菜单接口正确返回 `store.approval(requiredPermission=platform.store.change.approve)`，
+ * 因此菜单是平台权限快照的唯一可靠来源。
+ *
+ * @param {Array|undefined|null} menus `menuStore.menus`（或任意菜单树）
+ * @returns {string[]|null} 权限码列表；菜单缺失时 null
+ */
+export function derivePlatformPermissions(menus) {
+  if (!Array.isArray(menus) || menus.length === 0) return null
+  return collectMenuPermissions(menus)
 }

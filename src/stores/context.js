@@ -319,6 +319,46 @@ export const useContextStore = defineStore('context', () => {
     return true
   }
 
+  /**
+   * 平台工作区权限快照（synthetic，非上下文选择结果）。
+   *
+   * 2026-11-02 真实浏览器验收：平台令牌由网关按账号注入，平台账号**没有可选择的租户上下文**
+   * （5 个候选 `/admin/context/select` 全部 403 CONTEXT_FORBIDDEN），因此 `current` 恒为 null，
+   * 严格 `hasPermission` 会把服务端已下发的 `store.approval` 菜单/路由/审批按钮全部过滤掉。
+   *
+   * 修法：平台权限快照从服务端已按权限剪枝的 `GET /admin/menus?scope=PLATFORM` 派生
+   * （见 `utils/menuPermission#derivePlatformPermissions` 与 router 守卫），写入同一个
+   * `current`，让菜单剪枝、路由守卫、审批按钮统一读这一份快照。
+   *
+   * - `synthetic: true` 标记它不是真实运营上下文：切到租户/门店工作区时由
+   *   {@link clearPlatformSnapshot} 清掉，再按原逻辑选真实上下文（不触发整页 reload）。
+   * - 只能由路由守卫在平台菜单拉取成功后调用；菜单缺失时不要写快照（fail-closed）。
+   */
+  function applyPlatformSnapshot(permissions) {
+    const codes = Array.isArray(permissions)
+      ? [...new Set(permissions.filter((code) => typeof code === 'string' && code.trim()).map((code) => code.trim()))]
+      : []
+    current.value = {
+      synthetic: true,
+      scopeType: 'PLATFORM',
+      tenantId: null,
+      organizationId: null,
+      storeId: null,
+      permissions: codes,
+    }
+    // 平台快照与真实上下文互斥；标记 settled 避免守卫对平台路由反复解析（TTL 由守卫自己控制）。
+    settled.value = true
+    return current.value
+  }
+
+  /** 离开平台工作区时清掉 synthetic 快照；返回是否真的清掉了（真实上下文不受影响）。 */
+  function clearPlatformSnapshot() {
+    if (!current.value?.synthetic) return false
+    current.value = null
+    settled.value = false
+    return true
+  }
+
   function clear() {
     generation += 1
     revalidateSeq += 1
@@ -349,5 +389,6 @@ export const useContextStore = defineStore('context', () => {
     items, loading, error, current, settled,
     tenantId, organizationId, storeId, businessType, timezone,
     fetchContexts, ensureContext, revalidate, revalidateInBackground, recoverAfterIdle, select, clear,
+    applyPlatformSnapshot, clearPlatformSnapshot,
   }
 })

@@ -409,3 +409,54 @@ describe('单飞锁兜底：Promise 永不落地时不能把界面锁死', () =>
     }
   })
 })
+
+/**
+ * 平台工作区权限快照（2026-11-02 真实浏览器验收 P0）。
+ *
+ * 平台令牌由网关注入，平台运营的 5 个候选 `/admin/context/select` 全部 403 CONTEXT_FORBIDDEN，
+ * 因此不能通过上下文选择拿权限；改为从服务端已剪枝的 `GET /admin/menus?scope=PLATFORM`
+ * 派生 requiredPermission，写成 synthetic 快照，供菜单剪枝/路由守卫/审批按钮统一读取。
+ */
+describe('平台权限快照（菜单派生，非上下文选择）', () => {
+  it('applyPlatformSnapshot 写入 synthetic PLATFORM 快照（去重、trim、无租户/门店）', () => {
+    const store = useContextStore()
+    store.applyPlatformSnapshot([
+      'platform.store.change.approve',
+      ' iam.role.manage ',
+      'platform.store.change.approve',
+      '',
+      null,
+    ])
+    expect(store.current).toMatchObject({
+      synthetic: true,
+      scopeType: 'PLATFORM',
+      tenantId: null,
+      storeId: null,
+      permissions: ['platform.store.change.approve', 'iam.role.manage'],
+    })
+    expect(store.settled).toBe(true)
+    expect(store.storeId).toBeNull()
+  })
+
+  it('空快照也写入（表示菜单未下发带权限菜单，下游 fail-closed），但菜单缺失时不调用', () => {
+    const store = useContextStore()
+    store.applyPlatformSnapshot([])
+    expect(store.current).toMatchObject({ synthetic: true, scopeType: 'PLATFORM', permissions: [] })
+  })
+
+  it('clearPlatformSnapshot 只清除 synthetic 快照，不影响真实租户上下文', async () => {
+    const store = useContextStore()
+    await store.ensureContext('TENANT')
+    expect(store.tenantId).toBe(100)
+
+    // 真实上下文不是 synthetic：不能被平台清理逻辑误伤
+    expect(store.clearPlatformSnapshot()).toBe(false)
+    expect(store.tenantId).toBe(100)
+
+    store.applyPlatformSnapshot(['platform.store.change.approve'])
+    expect(store.current?.synthetic).toBe(true)
+    expect(store.clearPlatformSnapshot()).toBe(true)
+    expect(store.current).toBeNull()
+    expect(store.settled).toBe(false)
+  })
+})

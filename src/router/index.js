@@ -2,7 +2,8 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useContextStore } from '@/stores/context'
 import { useAuthStore } from '@/stores/auth'
-import { routePermissionDenied } from '@/utils/menuPermission'
+import { useMenuStore } from '@/stores/menu'
+import { derivePlatformPermissions, routePermissionDenied } from '@/utils/menuPermission'
 import { TERMS } from '@/constants/terms'
 
 const routes = [
@@ -268,54 +269,49 @@ const router = createRouter({
 /**
  * 平台工作区权限快照（平台菜单 / 审批按钮 / 路由守卫的唯一来源）。
  *
- * 背景：平台账号进入 PLATFORM 工作区时 `contextStore.current` 通常还没有值（路由守卫只对
- * TENANT/STORE 调过 ensureContext），而菜单与按钮用的是**严格** hasPermission——快照缺失时
- * 服务端 V14 下发的「门店审批」菜单会被前端二次过滤掉。修根因而不是 fail-open：
- * 进入 PLATFORM 路由时用既有 `ensureContext('PLATFORM')` 取平台签名快照；若会话里记的是租户
- * 上下文而拿不到平台快照，再从候选里显式选一个 PLATFORM 上下文。
- * 取不到时**不阻断导航**（平台页面接口会 403），但菜单/按钮/路由守卫按快照缺失 fail-closed。
- * 30s 节流，避免平台后台每次导航都多打两次会话请求。
+ * 2026-11-02 真实浏览器验收定位的根因：**平台令牌由网关注入，平台运营没有可选择的租户上下文**
+ * —— `ensureContext('PLATFORM')` 会对 `/admin/context/select` 的 5 个候选全部返回
+ * 403 `CONTEXT_FORBIDDEN`，于是 `contextStore.current` 恒为 null，严格 `hasPermission` 把服务端
+ * 已下发的 `store.approval` 菜单/路由/审批按钮全部过滤掉。
+ *
+ * 修法（不再调用 ensureContext/select）：进入 PLATFORM 工作区时拉
+ * `GET /admin/menus?scope=PLATFORM` —— 服务端已按平台 IAM 权限剪枝，菜单树里的
+ * `requiredPermission` 就是该账号的平台能力清单；递归收集后写入 synthetic 平台快照
+ * （`contextStore.applyPlatformSnapshot`），供菜单剪枝、`routePermissionDenied`、审批按钮统一使用。
+ * 菜单拉取失败/空菜单 → 不写快照（fail-closed：审批路由回退、需权限菜单隐藏，其它平台页照常）。
+ * 30s 节流，避免平台后台每次导航都重复请求菜单。
  */
 const PLATFORM_SNAPSHOT_TTL_MS = 30_000
 let platformSnapshotAt = 0
 
-async function ensurePlatformPermissionSnapshot(contextStore) {
+async function ensurePlatformPermissionSnapshot(contextStore, menuStore) {
   if (contextStore.current?.scopeType === 'PLATFORM' && contextStore.current?.permissions) return
   if (Date.now() - platformSnapshotAt < PLATFORM_SNAPSHOT_TTL_MS) return
   platformSnapshotAt = Date.now()
   try {
-    await contextStore.ensureContext('PLATFORM')
+    // menuStore 内部已把请求异常吞成 `menus=[] + error`，这里再兜一层防御。
+    await menuStore.fetchMenus('PLATFORM')
   } catch {
-    // 失败原因已写入 contextStore.error；下面再尝试直接选平台候选
+    return
   }
-  if (contextStore.current?.scopeType === 'PLATFORM') return
-  if (!contextStore.items?.length) {
-    try {
-      await contextStore.fetchContexts()
-    } catch {
-      return
-    }
-  }
-  const candidate = (contextStore.items || []).find((item) => item.scopeType === 'PLATFORM')
-  if (!candidate || candidate.contextId === contextStore.current?.contextId) return
-  try {
-    await contextStore.select(candidate.contextId)
-  } catch {
-    // 仍然取不到平台快照：保留当前上下文，路由守卫按快照缺失处理
-  }
+  const permissions = derivePlatformPermissions(menuStore.menus)
+  // 菜单缺失（接口失败/返回空）→ 不写快照，守卫按 fail-closed 回退，绝不用 fail-open 掩盖。
+  if (!permissions) return
+  contextStore.applyPlatformSnapshot(permissions)
 }
 
 router.beforeEach(async (to, from, next) => {
   document.title = `${to.meta.title || '管理后台'} - 管理后台`
   const authStore = useAuthStore()
   const contextStore = useContextStore()
+  const menuStore = useMenuStore()
   if (!to.meta.public && !(await authStore.initialize())) {
     next('/login')
     return
   }
-  // 进入后台前确保服务端会话已选定运营上下文。
-  // 平台运营后台的部分页面（如支付方式授权）也会调用租户维度接口，缺少上下文同样
-  // 返回 401 SAAS_CONTEXT_REQUIRED；因此 PLATFORM 与 TENANT 两类路由都要确保上下文。
+  // 进入后台前确保服务端会话已选定运营上下文（仅 TENANT/STORE 需要）：
+  // 平台令牌由网关按账号注入，平台运营**没有可选择的租户上下文**（select 一律 403），
+  // 平台权限快照改由已剪枝的平台菜单派生，见下方 ensurePlatformPermissionSnapshot。
   //
   // 但「确保」不等于「每次导航都同步跑一遍鉴权」（2026-09 交互修复）：
   //  - 本 SPA 会话已解析过（settled，含「确实没有可用上下文」）→ 立即放行，
@@ -340,7 +336,13 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // TENANT 工作区：确保选定了租户/门店上下文（平台工作区不走这里，平台上下文由下方单独解析）。
+  // 离开平台工作区去租户/门店页时，先清掉 synthetic 平台快照，让下面的真实上下文选择逻辑生效
+  //（synthetic 快照没有 contextId，若留着会被后台校准判成「上下文变化」并整页 reload）。
+  if (to.meta.scope === 'TENANT' || to.meta.scope === 'STORE') {
+    contextStore.clearPlatformSnapshot()
+  }
+
+  // TENANT 工作区：确保选定了租户/门店上下文（平台工作区不走这里，平台快照由下方菜单派生）。
   if (to.meta.scope === 'TENANT' && authStore.workspaces.includes('HEADQUARTERS')) {
     if (contextStore.settled) {
       contextStore.revalidateInBackground(to.meta.scope)
@@ -352,10 +354,11 @@ router.beforeEach(async (to, from, next) => {
       }
     }
   }
-  // PLATFORM 工作区：平台菜单/审批按钮/路由守卫统一依赖平台权限快照（见 ensurePlatformPermissionSnapshot）。
+  // PLATFORM 工作区：平台菜单/审批按钮/路由守卫统一依赖「菜单派生平台快照」
+  //（见 ensurePlatformPermissionSnapshot；平台账号不能走 ensureContext/select）。
   // 取不到快照不阻断导航（页面接口会 403），但 meta.permission 守卫与菜单按快照 fail-closed。
   if (to.meta.scope === 'PLATFORM' && authStore.workspaces.includes('PLATFORM')) {
-    await ensurePlatformPermissionSnapshot(contextStore)
+    await ensurePlatformPermissionSnapshot(contextStore, menuStore)
   }
   // 店长直接打开 /store（刷新/书签）时也要自动选唯一可用的门店，
   // 否则工作台永远停“未选择门店”，什么都不加载。
